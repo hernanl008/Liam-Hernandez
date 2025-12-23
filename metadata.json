@@ -1,0 +1,8 @@
+{
+  "name": "Copy of LevelUp Prep",
+  "description": "A high-performance interview preparation platform for finance, consulting, and strategy professionals. Featuring AI-powered simulations, skill analytics, and a professional community.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
