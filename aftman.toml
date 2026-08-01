@@ -1,0 +1,6 @@
+# Aftman toolchain manifest — run `aftman install` after installing Aftman
+# (https://github.com/LPGhatguy/aftman) to get matching versions of these tools.
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
+selene = "Kampfkarren/selene@0.27.1"
+stylua = "JohnnyMorganz/StyLua@0.20.0"
