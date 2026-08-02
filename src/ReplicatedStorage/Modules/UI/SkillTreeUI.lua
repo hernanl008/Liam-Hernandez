@@ -11,6 +11,7 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local SkillTreeConfig = require(Modules:WaitForChild("Shared"):WaitForChild("SkillTreeConfig"))
 local InventoryCache = require(Modules:WaitForChild("Client"):WaitForChild("InventoryCache"))
+local Theme = require(Modules:WaitForChild("UI"):WaitForChild("Theme"))
 
 local SkillTreeUI = {}
 
@@ -35,18 +36,17 @@ local function ensureBuilt()
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.fromScale(0.6, 0.7)
 	frame.Position = UDim2.fromScale(0.2, 0.12)
-	frame.BackgroundColor3 = Color3.fromRGB(20, 24, 30)
-	frame.BackgroundTransparency = 0.05
+	frame.BorderSizePixel = 0
 	frame.Parent = gui
+	Theme.applyPanel(frame)
 
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.fromScale(1, 0.08)
 	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.GothamBlack
 	title.TextScaled = true
-	title.TextColor3 = Color3.fromRGB(150, 210, 255)
 	title.Text = "Skills — Press P to close"
 	title.Parent = frame
+	Theme.styleHeader(title, Theme.Colors.AccentPink)
 
 	local columns = Instance.new("Frame")
 	columns.Size = UDim2.fromScale(0.98, 0.9)
@@ -81,28 +81,26 @@ local function buildColumn(skillId: SkillTreeConfig.SkillId, order: number)
 	local column = Instance.new("Frame")
 	column.Size = UDim2.fromScale(0.32, 1)
 	column.Position = UDim2.fromScale((order - 1) * 0.34, 0)
-	column.BackgroundColor3 = Color3.fromRGB(30, 36, 45)
-	column.BackgroundTransparency = 0.2
+	column.BackgroundColor3 = Color3.fromRGB(38, 24, 42)
 	column.Parent = columnsFrame
+	Theme.applyCard(column, 10)
 
 	local header = Instance.new("TextLabel")
 	header.Size = UDim2.fromScale(1, 0.1)
 	header.BackgroundTransparency = 1
-	header.Font = Enum.Font.GothamBold
 	header.TextScaled = true
-	header.TextColor3 = Color3.fromRGB(255, 255, 255)
 	header.Text = `{tree.displayName} — Lv {level}`
 	header.Parent = column
+	Theme.styleHeader(header)
 
 	local xpBar = Instance.new("TextLabel")
 	xpBar.Size = UDim2.fromScale(1, 0.06)
 	xpBar.Position = UDim2.fromScale(0, 0.1)
 	xpBar.BackgroundTransparency = 1
-	xpBar.Font = Enum.Font.Gotham
 	xpBar.TextScaled = true
-	xpBar.TextColor3 = Color3.fromRGB(180, 200, 220)
 	xpBar.Text = `XP {xpIntoLevel}/{SkillTreeConfig.xpPerLevel} — {points} point{points == 1 and "" or "s"} available`
 	xpBar.Parent = column
+	Theme.styleBody(xpBar, Theme.Colors.TextSecondary)
 
 	local y = 0.18
 	for _, perk in tree.perks do
@@ -112,58 +110,59 @@ local function buildColumn(skillId: SkillTreeConfig.SkillId, order: number)
 		card.Size = UDim2.fromScale(0.95, 0.28)
 		card.Position = UDim2.fromScale(0.025, y)
 		card.BackgroundColor3 = if status == "unlocked"
-			then Color3.fromRGB(60, 110, 70)
-			elseif status == "available" then Color3.fromRGB(120, 100, 40)
-			else Color3.fromRGB(50, 50, 55)
+			then Color3.fromRGB(45, 80, 55)
+			elseif status == "available" then Theme.Colors.ButtonAvailable
+			else Theme.Colors.ButtonLocked
 		card.Parent = column
+		Theme.applyCard(card, 8)
 		y += 0.31
 
 		local nameLabel = Instance.new("TextLabel")
 		nameLabel.Size = UDim2.fromScale(1, 0.35)
 		nameLabel.BackgroundTransparency = 1
-		nameLabel.Font = Enum.Font.GothamBold
 		nameLabel.TextScaled = true
-		nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 		nameLabel.Text = perk.displayName
 		nameLabel.Parent = card
+		Theme.styleBody(nameLabel)
+		nameLabel.Font = Theme.Fonts.BodyBold
 
 		local descLabel = Instance.new("TextLabel")
 		descLabel.Size = UDim2.fromScale(1, 0.4)
 		descLabel.Position = UDim2.fromScale(0, 0.35)
 		descLabel.BackgroundTransparency = 1
-		descLabel.Font = Enum.Font.Gotham
 		descLabel.TextScaled = true
 		descLabel.TextWrapped = true
-		descLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
 		descLabel.Text = perk.description
 		descLabel.Parent = card
+		Theme.styleBody(descLabel, Theme.Colors.TextSecondary)
 
 		local footer = Instance.new("TextButton")
 		footer.Size = UDim2.fromScale(1, 0.25)
 		footer.Position = UDim2.fromScale(0, 0.75)
-		footer.Font = Enum.Font.Gotham
+		footer.Font = Theme.Fonts.Body
 		footer.TextScaled = true
 		footer.AutoButtonColor = status == "available"
+		Theme.applyCard(footer, 6)
 
 		if status == "unlocked" then
 			footer.Text = "Unlocked"
-			footer.BackgroundColor3 = Color3.fromRGB(50, 90, 60)
-			footer.TextColor3 = Color3.fromRGB(220, 255, 220)
+			footer.BackgroundColor3 = Color3.fromRGB(35, 65, 42)
+			footer.TextColor3 = Theme.Colors.Success
 		elseif status == "available" then
 			footer.Text = `Unlock (Lv {perk.requiredLevel}, {perk.cost} pt)`
-			footer.BackgroundColor3 = Color3.fromRGB(150, 120, 40)
-			footer.TextColor3 = Color3.fromRGB(255, 255, 255)
+			footer.BackgroundColor3 = Color3.fromRGB(110, 75, 30)
+			footer.TextColor3 = Theme.Colors.TextPrimary
 			footer.Activated:Connect(function()
 				Remotes.get("UnlockPerk"):FireServer(skillId, perk.id)
 			end)
 		elseif status == "prereqLocked" then
 			footer.Text = `Requires {perk.requires}`
-			footer.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-			footer.TextColor3 = Color3.fromRGB(150, 150, 150)
+			footer.BackgroundColor3 = Color3.fromRGB(30, 25, 32)
+			footer.TextColor3 = Theme.Colors.TextMuted
 		else
 			footer.Text = `Requires Lv {perk.requiredLevel}`
-			footer.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-			footer.TextColor3 = Color3.fromRGB(150, 150, 150)
+			footer.BackgroundColor3 = Color3.fromRGB(30, 25, 32)
+			footer.TextColor3 = Theme.Colors.TextMuted
 		end
 		footer.Parent = card
 	end

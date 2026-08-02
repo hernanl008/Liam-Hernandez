@@ -329,3 +329,48 @@ Locks in the "make it 2D, build UIs/loading screen/map/assets" pass.
 - **HUD**: `HudUI.lua`, a persistent top bar (gold, current day, Farming/
   Fishing/Cooking levels) — closes the "no general inventory/HUD" gap
   flagged in `docs/VERTICAL_SLICE_SETUP.md`'s known-gaps list.
+
+## 14. Aesthetic pass — "more anime, more 2D, 100x cooler"
+
+Everything here is achievable with zero uploaded art (important, since
+Claude can't upload assets — see §13) or with the small placeholder set
+already in `assets/`.
+
+- **`Theme.lua`** (`ReplicatedStorage/Modules/UI/`): the one place that
+  defines the palette (deep plum/gold jewel tones, not flat grey), and
+  reusable helpers (`applyPanel` = rounded corners + gold stroke border +
+  gradient, `applyCard`, `styleHeader`/`styleBody`, `styleImpactText` =
+  Bangers font + thick outline for spectacle/combo text). Every UI module
+  built so far (Dialogue, Hud, Compendium, SkillTree, Spectacle, Rhythm,
+  StatusToast) now goes through this instead of picking its own ad-hoc
+  colors — the six screens read as one game instead of six prototypes.
+- **Lighting/post-processing** (`AtmosphereService.lua`): Bloom,
+  ColorCorrection (warm tint, boosted saturation), SunRays, and a faint
+  lavender Atmosphere haze — all just Lighting child instances, no
+  textures involved. This alone does a lot of "make it look less like
+  default Roblox" work for free.
+- **Dialogue box**: circular speaker portrait (deterministic per-speaker
+  color from a hash of their name, so Kaya/Ren/etc. are each consistently
+  tinted without a hand-authored color table), and text now reveals with
+  a typewriter effect instead of appearing all at once — the visual-novel
+  convention this game's dialogue scenes are structurally closest to.
+- **Spectacle banners**: a radiating speed-line burst (built from plain
+  rotated `Frame`s inside a `CanvasGroup`, not an image) pops behind the
+  banner text — the shonen "impact frame" look — plus the banner text
+  itself switched to the Bangers font with a heavy outline via
+  `styleImpactText`.
+- **Ambient petals** (`AmbienceController.lua`): a `ParticleEmitter` on
+  an `Attachment` above the player, using the new `petal.png` placeholder
+  sprite, drifting sakura petals through the air continuously. Purely
+  atmospheric, no gameplay effect.
+- **Assets v2**: regenerated the placeholder tiles/sprites with a more
+  saturated, less muted-realistic palette, and added a decorative
+  sakura-blossom grass tile variant (`assets/tiles/sakura_grass.png`,
+  `MapConfig.lua`'s `S` tile type) sprinkled into the map's corners.
+
+Still true from §6/§13: characters are low-poly 3D models under a locked
+top-down camera, not billboard sprites — this pass makes that
+presentation *read* more anime/stylized through color grading, UI
+language, and effects, without changing the underlying character
+pipeline. If it still doesn't feel "2D enough" after a real playtest,
+sprites remain the documented fallback.

@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local InventoryCache = require(Modules:WaitForChild("Client"):WaitForChild("InventoryCache"))
 local SkillTreeConfig = require(Modules:WaitForChild("Shared"):WaitForChild("SkillTreeConfig"))
+local Theme = require(Modules:WaitForChild("UI"):WaitForChild("Theme"))
 
 local HudUI = {}
 
@@ -28,43 +29,40 @@ local function ensureBuilt()
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 	local bar = Instance.new("Frame")
-	bar.Size = UDim2.fromScale(1, 0.05)
-	bar.BackgroundColor3 = Color3.fromRGB(15, 12, 20)
-	bar.BackgroundTransparency = 0.25
+	bar.Size = UDim2.new(1, -16, 0, 40)
+	bar.Position = UDim2.fromOffset(8, 8)
 	bar.BorderSizePixel = 0
 	bar.Parent = gui
+	Theme.applyPanel(bar, { strokeThickness = 2 })
 
 	goldLabel = Instance.new("TextLabel")
 	goldLabel.Size = UDim2.fromScale(0.2, 1)
 	goldLabel.Position = UDim2.fromScale(0.01, 0)
 	goldLabel.BackgroundTransparency = 1
-	goldLabel.Font = Enum.Font.GothamBold
 	goldLabel.TextScaled = true
 	goldLabel.TextXAlignment = Enum.TextXAlignment.Left
-	goldLabel.TextColor3 = Color3.fromRGB(255, 220, 120)
 	goldLabel.Text = "0g"
 	goldLabel.Parent = bar
+	Theme.styleHeader(goldLabel)
 
 	dayLabel = Instance.new("TextLabel")
 	dayLabel.Size = UDim2.fromScale(0.3, 1)
 	dayLabel.Position = UDim2.fromScale(0.35, 0)
 	dayLabel.BackgroundTransparency = 1
-	dayLabel.Font = Enum.Font.Gotham
 	dayLabel.TextScaled = true
-	dayLabel.TextColor3 = Color3.fromRGB(220, 220, 255)
 	dayLabel.Text = "Day 1"
 	dayLabel.Parent = bar
+	Theme.styleBody(dayLabel, Theme.Colors.AccentPink)
 
 	levelsLabel = Instance.new("TextLabel")
 	levelsLabel.Size = UDim2.fromScale(0.35, 1)
 	levelsLabel.Position = UDim2.fromScale(0.63, 0)
 	levelsLabel.BackgroundTransparency = 1
-	levelsLabel.Font = Enum.Font.Gotham
 	levelsLabel.TextScaled = true
 	levelsLabel.TextXAlignment = Enum.TextXAlignment.Right
-	levelsLabel.TextColor3 = Color3.fromRGB(200, 220, 200)
 	levelsLabel.Text = ""
 	levelsLabel.Parent = bar
+	Theme.styleBody(levelsLabel, Theme.Colors.Success)
 end
 
 local function clockTimeToText(dayProgress: number): string

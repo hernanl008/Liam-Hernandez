@@ -21,14 +21,17 @@ local MapConfig = {}
 MapConfig.TileSize = 8 -- studs per tile
 
 MapConfig.TileTypes: { [string]: TileTypeDef } = {
-	G = { textureName = "grass", fallbackColor = Color3.fromRGB(46, 125, 50) },
-	P = { textureName = "path", fallbackColor = Color3.fromRGB(188, 172, 142) },
-	W = { textureName = "water", fallbackColor = Color3.fromRGB(58, 110, 189) },
+	G = { textureName = "grass", fallbackColor = Color3.fromRGB(58, 168, 74) },
+	P = { textureName = "path", fallbackColor = Color3.fromRGB(222, 198, 156) },
+	W = { textureName = "water", fallbackColor = Color3.fromRGB(66, 148, 235) },
+	-- Decorative grass-with-blossoms variant (GDD.md §14) — same fallback
+	-- color as plain grass, purely a corner accent, no gameplay difference.
+	S = { textureName = "sakura_grass", fallbackColor = Color3.fromRGB(58, 168, 74) },
 }
 
 -- Row 1 = north edge. Each row must be the same length (14 columns).
 MapConfig.Grid: { string } = {
-	"GGGGGGGGGGGGGG",
+	"SSGGGGGGGGGGSS",
 	"GGGGGPPPPGGGGG",
 	"GGGGGPPPPGGGGG",
 	"GGGGGPPPPGGGGG",
@@ -37,7 +40,7 @@ MapConfig.Grid: { string } = {
 	"GGWWWWGGGGGGGG",
 	"GGWWWWGGGGGGGG",
 	"GGGGGGGGGGGGGG",
-	"GGGGGGGGGGGGGG",
+	"SSGGGGGGGGGGGG",
 }
 
 MapConfig.SpawnPoint: GridSpot = { row = 2, col = 7 }

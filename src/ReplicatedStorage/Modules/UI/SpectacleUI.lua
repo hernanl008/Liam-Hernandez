@@ -1,21 +1,28 @@
 --!strict
 -- Celebratory feedback for standout moments (legendary catches, high
 -- combos, Gold-tier dishes) — the "make it feel more anime" pass, see
--- GDD.md §11. Deliberately simple: a banner that punches in, a brief
--- screen-tint flash, and an optional camera shake. Swap the visuals for
--- real VFX/sound later; the API (SpectacleUI.banner) doesn't need to
--- change when that happens.
+-- GDD.md §11/§14. A radiating speed-line burst (the shonen "impact
+-- frame" look, built from plain UI Frames — no art asset needed) pops
+-- behind a Bangers-font banner, plus a brief screen-tint flash and an
+-- optional camera shake. Swap the visuals for real VFX/sound later; the
+-- API (SpectacleUI.banner) doesn't need to change when that happens.
 
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI"):WaitForChild("Theme"))
 
 local SpectacleUI = {}
 
 local screenGui: ScreenGui? = nil
 local bannerLabel: TextLabel
 local flashFrame: Frame
+local speedLines: CanvasGroup
+local speedLinesScale: UIScale
+
+local SPEED_LINE_COUNT = 14
 
 local function ensureBuilt()
 	if screenGui then
@@ -35,17 +42,44 @@ local function ensureBuilt()
 	flashFrame.ZIndex = 1
 	flashFrame.Parent = gui
 
+	-- CanvasGroup so every line's fade is one GroupTransparency tween
+	-- instead of animating 14 Frames individually. Size is fixed (large
+	-- enough to contain every line at any rotation) — CanvasGroup clips
+	-- to its own bounds, so only the pop/fade is animated, not the size.
+	speedLines = Instance.new("CanvasGroup")
+	speedLines.AnchorPoint = Vector2.new(0.5, 0.5)
+	speedLines.Position = UDim2.fromScale(0.5, 0.22)
+	speedLines.Size = UDim2.fromOffset(600, 600)
+	speedLines.BackgroundTransparency = 1
+	speedLines.GroupTransparency = 1
+	speedLines.ZIndex = 1
+	speedLines.Parent = gui
+
+	speedLinesScale = Instance.new("UIScale")
+	speedLinesScale.Scale = 0.3
+	speedLinesScale.Parent = speedLines
+
+	for i = 1, SPEED_LINE_COUNT do
+		local line = Instance.new("Frame")
+		line.AnchorPoint = Vector2.new(0.5, 0.5)
+		line.Position = UDim2.fromScale(0.5, 0.5)
+		line.Size = UDim2.fromOffset(520, 3)
+		line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		line.BorderSizePixel = 0
+		line.Rotation = (360 / SPEED_LINE_COUNT) * i
+		line.Parent = speedLines
+	end
+
 	bannerLabel = Instance.new("TextLabel")
-	bannerLabel.Size = UDim2.fromScale(0.8, 0.12)
+	bannerLabel.Size = UDim2.fromScale(0.8, 0.14)
 	bannerLabel.Position = UDim2.fromScale(0.1, 0.15)
 	bannerLabel.BackgroundTransparency = 1
-	bannerLabel.Font = Enum.Font.GothamBlack
 	bannerLabel.TextScaled = true
-	bannerLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
 	bannerLabel.TextTransparency = 1
-	bannerLabel.TextStrokeTransparency = 0.5
+	bannerLabel.TextStrokeTransparency = 1
 	bannerLabel.ZIndex = 2
 	bannerLabel.Parent = gui
+	Theme.styleImpactText(bannerLabel)
 end
 
 -- Applied *after* Roblox's own camera update each frame (priority = Camera + 1)
@@ -82,8 +116,9 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 	ensureBuilt()
 
 	bannerLabel.Text = text
-	bannerLabel.TextColor3 = color or Color3.fromRGB(255, 220, 80)
+	bannerLabel.TextColor3 = color or Theme.Colors.AccentGold
 	bannerLabel.TextTransparency = 1
+	bannerLabel.TextStrokeTransparency = 1
 	bannerLabel.Position = UDim2.fromScale(0.1, 0.12)
 
 	local flashIn = TweenService:Create(flashFrame, TweenInfo.new(0.05), { BackgroundTransparency = 0.6 })
@@ -92,8 +127,16 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 		TweenService:Create(flashFrame, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
 	end)
 
+	speedLinesScale.Scale = 0.3
+	speedLines.GroupTransparency = 0
+	TweenService:Create(speedLinesScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	task.delay(0.15, function()
+		TweenService:Create(speedLines, TweenInfo.new(0.5), { GroupTransparency = 1 }):Play()
+	end)
+
 	TweenService:Create(bannerLabel, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		TextTransparency = 0,
+		TextStrokeTransparency = 0,
 		Position = UDim2.fromScale(0.1, 0.15),
 	}):Play()
 
@@ -103,7 +146,7 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 
 	local holdSeconds = (options and options.holdSeconds) or 1.6
 	task.delay(holdSeconds, function()
-		TweenService:Create(bannerLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+		TweenService:Create(bannerLabel, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 	end)
 end
 

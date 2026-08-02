@@ -106,6 +106,17 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       playable sequence — currently just written, not implemented
 - [ ] Billboard-sprite characters, if locked-camera-3D doesn't read as
       "2D enough" once playtested (`GDD.md` §6 fallback option)
+- [x] Shared UI Theme (`Theme.lua`) + retrofit of every existing UI
+      module to use it (`GDD.md` §14)
+- [x] Lighting/post-processing pass (`AtmosphereService.lua`) — Bloom,
+      ColorCorrection, SunRays, Atmosphere haze
+- [x] Dialogue box portrait + typewriter text reveal
+- [x] Spectacle banner speed-line "impact frame" burst
+- [x] Ambient sakura petal particles (`AmbienceController.lua`)
+- [x] Regenerated placeholder art with a more saturated anime palette +
+      a decorative sakura-blossom tile variant
+- [ ] Real character/tile art to replace the placeholders (needs Liam to
+      commission/create it and run `tarmac sync`)
 
 ## Phase 4 — Polish & Pre-release
 - [ ] Playtesting pass, balance tuning (sell prices, XP curves, difficulty)

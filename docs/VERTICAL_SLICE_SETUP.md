@@ -29,6 +29,12 @@ auto-generated map actually works.
    Studio Output window for require errors.
 4. Ground tiles will look flat-colored (green/tan/blue) rather than
    textured — that's expected until you run the asset pipeline below.
+5. Lighting should look warmer/more saturated than default Roblox, with
+   a soft bloom on bright spots (`AtmosphereService.lua`, `GDD.md` §14).
+   Sakura petals should be gently drifting down near the player
+   (`AmbienceController.lua`) — if you don't see faint pink specks
+   falling, check Output for a missing-asset warning (expected pre-Tarmac
+   sync, see §2) or a require error.
 
 ## 2. Assets pipeline (getting real pixel art in)
 
@@ -42,11 +48,12 @@ configured):
 2. From the repo root: `tarmac sync --target roblox`. It'll use your
    local Roblox login (or pass `--auth` with a `.ROBLOSECURITY` cookie).
 3. This uploads everything under `assets/` (right now: `grass.png`,
-   `tilled_soil.png`, `water.png`, `path.png` in `assets/tiles/`, and
-   `player_placeholder.png`/`kaya_placeholder.png` in `assets/sprites/`
-   — small hand-generated pixel-art placeholders, not final art) and
-   rewrites `src/ReplicatedStorage/Modules/Shared/AssetIds.generated.lua`
-   with the real `rbxassetid://` for each. Commit that file afterward.
+   `tilled_soil.png`, `water.png`, `path.png`, `sakura_grass.png` in
+   `assets/tiles/`, and `player_placeholder.png`/`kaya_placeholder.png`/
+   `petal.png` in `assets/sprites/` — small hand-generated pixel-art
+   placeholders, not final art) and rewrites
+   `src/ReplicatedStorage/Modules/Shared/AssetIds.generated.lua` with the
+   real `rbxassetid://` for each. Commit that file afterward.
 4. Re-sync via Rojo (or it'll pick up automatically if `rojo serve` is
    still running) and the ground tiles should switch from flat colors to
    the actual pixel textures.
@@ -96,15 +103,20 @@ visible, unlike the Compendium (B) and Skills (P) screens.
    extend `MapConfig.lua`'s `Grid`/spot lists directly. At night, try the
    Shallows for the Moonlit Serpent (`DayCycleService.lua`'s comment on
    `dayLengthSeconds` explains how to speed up day/night for testing).
-7. Talk to any of the five NPCs — all their dialogue trees are wired
+7. Talk to any of the five NPCs — dialogue box should show a colored
+   circular portrait and reveal text with a typewriter effect
+   (`DialogueUI.lua`, `GDD.md` §14). All five trees are wired
    (`docs/DIALOGUE_ACT1.md`), though only Kaya's grants anything right
    now (`DialogueService.lua`'s `FLAG_ONLY_ACTIONS`).
 
 ## Known gaps (intentional, for this pass)
 
-- Ground tiles/NPCs are flat-colored placeholders until you run the
-  Tarmac sync above (§2) — and even then, the "art" is small
-  hand-generated pixel placeholders, not real character/tile art.
+- Ground tiles/NPCs/petals are invisible-texture or flat-colored
+  placeholders until you run the Tarmac sync above (§2) — and even then,
+  the "art" is small hand-generated pixel placeholders, not real
+  character/tile art. The ambient petals (`AmbienceController.lua`)
+  specifically may not render at all pre-sync since `rbxassetid://0` is
+  not guaranteed to show anything for a ParticleEmitter texture.
 - No visuals for crop growth stages (`FarmingConfig.lua` names model
   variants like `MoonriceSeedling` but nothing swaps them in yet) — plot
   state is inspectable via the Part's attributes in Studio while testing.

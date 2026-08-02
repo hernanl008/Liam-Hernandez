@@ -2,9 +2,11 @@
 -- One shared bottom-of-screen status line ("Casting...", "Caught a
 -- Silver Minnow!", "Bronze Grilled Minnow Skewer (~8g)") used by the
 -- Farming/Fishing/Cooking controllers instead of each keeping its own
--- copy of the same tiny GUI.
+-- copy of the same tiny GUI. Styled via Theme.lua (GDD.md §14).
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI"):WaitForChild("Theme"))
 
 local StatusToast = {}
 
@@ -24,13 +26,12 @@ local function ensureBuilt()
 	label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(0.4, 0.06)
 	label.Position = UDim2.fromScale(0.3, 0.6)
-	label.BackgroundTransparency = 0.4
-	label.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
 	label.TextScaled = true
 	label.Text = ""
 	label.Visible = false
 	label.Parent = gui
+	Theme.applyPanel(label, { strokeThickness = 1 })
+	Theme.styleBody(label)
 end
 
 function StatusToast.set(text: string?)

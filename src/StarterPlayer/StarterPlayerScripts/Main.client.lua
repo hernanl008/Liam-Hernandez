@@ -13,6 +13,7 @@ local DialogueController = require(Controllers:WaitForChild("DialogueController"
 local CompendiumController = require(Controllers:WaitForChild("CompendiumController"))
 local SkillTreeController = require(Controllers:WaitForChild("SkillTreeController"))
 local HudController = require(Controllers:WaitForChild("HudController"))
+local AmbienceController = require(Controllers:WaitForChild("AmbienceController"))
 
 CameraController.init()
 FarmingController.init()
@@ -22,5 +23,6 @@ DialogueController.init()
 CompendiumController.init()
 SkillTreeController.init()
 HudController.init()
+AmbienceController.init()
 
 print("[AnimeFarmLife] Client ready.")

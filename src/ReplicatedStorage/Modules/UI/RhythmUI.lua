@@ -4,8 +4,8 @@
 -- one implementation, not two). Tracks a live combo counter matching the
 -- server's authoritative RhythmScoring.evaluate combo bonus (GDD.md §11)
 -- so streaks feel rewarding in the moment, not just in the final result.
--- Visual is intentionally plain otherwise — a first pass to prove the
--- mechanic out; visual polish is a Studio/art pass, not a logic change.
+-- Styled via Theme.lua (GDD.md §14) — still just colored lane cards, not
+-- falling-note animation, but themed to match the rest of the UI now.
 
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -13,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local RhythmScoring = require(script.Parent.Parent:WaitForChild("Shared"):WaitForChild("RhythmScoring"))
+local Theme = require(script.Parent:WaitForChild("Theme"))
 
 local LANE_KEYS = { Enum.KeyCode.D, Enum.KeyCode.F, Enum.KeyCode.J, Enum.KeyCode.K }
 local HIT_TOLERANCE = 0.35 -- seconds around a note's time it can still register as *a* hit; RhythmScoring grades accuracy within this
@@ -57,36 +58,38 @@ function RhythmUI.play(
 	comboLabel.Size = UDim2.fromScale(0.3, 0.08)
 	comboLabel.Position = UDim2.fromScale(0.35, 0.68)
 	comboLabel.BackgroundTransparency = 1
-	comboLabel.Font = Enum.Font.GothamBlack
 	comboLabel.TextScaled = true
-	comboLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
-	comboLabel.TextStrokeTransparency = 0.5
 	comboLabel.Text = ""
 	comboLabel.Parent = screenGui
+	Theme.styleImpactText(comboLabel)
 
 	local container = Instance.new("Frame")
 	container.Size = UDim2.fromScale(0.5, 0.18)
 	container.Position = UDim2.fromScale(0.25, 0.78)
-	container.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	container.BackgroundTransparency = 0.2
+	container.BorderSizePixel = 0
 	container.Parent = screenGui
+	Theme.applyPanel(container)
+
+	local LANE_IDLE_COLOR = Color3.fromRGB(55, 40, 60)
+	local LANE_CUE_COLOR = Theme.Colors.AccentGold
+	local LANE_HIT_COLOR = Theme.Colors.Success
 
 	local laneFrames: { Frame } = {}
 	for lane = 1, 4 do
 		local frame = Instance.new("Frame")
 		frame.Size = UDim2.fromScale(0.23, 0.8)
 		frame.Position = UDim2.fromScale((lane - 1) * 0.25 + 0.01, 0.1)
-		frame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		frame.BackgroundColor3 = LANE_IDLE_COLOR
 		frame.Parent = container
+		Theme.applyCard(frame, 8)
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundTransparency = 1
 		label.Text = LANE_KEYS[lane].Name
 		label.TextScaled = true
-		label.Font = Enum.Font.GothamBold
-		label.TextColor3 = Color3.fromRGB(255, 255, 255)
 		label.Parent = frame
+		Theme.styleHeader(label, Theme.Colors.TextPrimary)
 
 		laneFrames[lane] = frame
 	end
@@ -177,7 +180,7 @@ function RhythmUI.play(
 
 		for lane, frame in laneFrames do
 			if flashUntil[lane] and os.clock() < flashUntil[lane] then
-				frame.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
+				frame.BackgroundColor3 = LANE_HIT_COLOR
 			else
 				local cueing = false
 				for i, note in notes do
@@ -186,7 +189,7 @@ function RhythmUI.play(
 						break
 					end
 				end
-				frame.BackgroundColor3 = cueing and Color3.fromRGB(210, 190, 90) or Color3.fromRGB(60, 60, 60)
+				frame.BackgroundColor3 = cueing and LANE_CUE_COLOR or LANE_IDLE_COLOR
 			end
 		end
 
