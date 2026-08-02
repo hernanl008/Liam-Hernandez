@@ -112,8 +112,23 @@ export type BannerOptions = {
 	holdSeconds: number?,
 }
 
+-- Bumped on every call; each of a call's own delayed fade-outs checks it's
+-- still the most recent call before touching shared state. Without this, a
+-- second spectacle firing (e.g. a combo catch immediately followed by a
+-- Gold-tier dish) could have an *earlier* call's delayed fade-out undo a
+-- *later* call's still-playing burst, or vice versa — leaving the speed
+-- lines/banner stuck on whichever transparency last got written instead of
+-- reliably ending hidden.
+local currentBannerId = 0
+
 function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions?)
 	ensureBuilt()
+
+	local bannerId = currentBannerId + 1
+	currentBannerId = bannerId
+	local function isCurrent(): boolean
+		return currentBannerId == bannerId
+	end
 
 	bannerLabel.Text = text
 	bannerLabel.TextColor3 = color or Theme.Colors.AccentGold
@@ -124,14 +139,18 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 	local flashIn = TweenService:Create(flashFrame, TweenInfo.new(0.05), { BackgroundTransparency = 0.6 })
 	flashIn:Play()
 	task.delay(0.05, function()
-		TweenService:Create(flashFrame, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+		if isCurrent() then
+			TweenService:Create(flashFrame, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+		end
 	end)
 
 	speedLinesScale.Scale = 0.3
 	speedLines.GroupTransparency = 0
 	TweenService:Create(speedLinesScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	task.delay(0.15, function()
-		TweenService:Create(speedLines, TweenInfo.new(0.5), { GroupTransparency = 1 }):Play()
+		if isCurrent() then
+			TweenService:Create(speedLines, TweenInfo.new(0.5), { GroupTransparency = 1 }):Play()
+		end
 	end)
 
 	TweenService:Create(bannerLabel, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -141,11 +160,18 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 	}):Play()
 
 	if options and options.shake then
-		shakeCamera(0.3, 0.3)
+		-- Defensive: a shake failure (e.g. no CurrentCamera) must never skip
+		-- scheduling the fade-out below, or the banner/lines would hang forever.
+		pcall(shakeCamera, 0.3, 0.3)
 	end
 
 	local holdSeconds = (options and options.holdSeconds) or 1.6
 	task.delay(holdSeconds, function()
+		-- Always fade *this* call's own banner text out at the end of its
+		-- hold, even if a newer call has since taken over — otherwise the
+		-- newer call's earlier text could get wiped by this stale timer,
+		-- but skipping it entirely (via isCurrent()) risks the opposite:
+		-- the newest call's fade never happens if something above threw.
 		TweenService:Create(bannerLabel, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 	end)
 end
