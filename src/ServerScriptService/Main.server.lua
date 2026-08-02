@@ -5,6 +5,8 @@ print("[AnimeFarmLife] Server starting...")
 
 local Services = script.Parent:WaitForChild("Services")
 
+local MapBuilder = require(Services:WaitForChild("MapBuilder"))
+
 -- PlayerDataService wires its own PlayerAdded/PlayerRemoving connections
 -- at require-time — required for that side effect, nothing to call on it.
 local _PlayerDataService = require(Services:WaitForChild("PlayerDataService"))
@@ -14,6 +16,11 @@ local CookingService = require(Services:WaitForChild("CookingService"))
 local DialogueService = require(Services:WaitForChild("DialogueService"))
 local DayCycleService = require(Services:WaitForChild("DayCycleService"))
 local SkillService = require(Services:WaitForChild("SkillService"))
+
+-- Build the world before wiring the systems that depend on tagged parts
+-- existing (FarmingService etc. also handle parts appearing later via
+-- CollectionService signals, but building first keeps init order obvious).
+MapBuilder.init()
 
 FarmingService.init()
 FishingService.init()

@@ -1,0 +1,19 @@
+# Asset pipeline config for Tarmac (https://github.com/rojo-rbx/tarmac).
+# See README.md "Assets pipeline" for the full explanation of why this
+# exists (short version: Rojo can't upload images to Roblox, only Tarmac
+# — run by you, with your own login — can).
+#
+# Usage (from the repo root, after installing tarmac via `aftman install`):
+#   tarmac sync --target roblox
+#
+# This uploads every PNG under assets/ that changed since the last sync
+# and (re)writes src/ReplicatedStorage/Modules/Shared/AssetIds.lua with
+# the real rbxassetid:// for each one. Commit the updated AssetIds.lua
+# afterward so everyone (and future Claude sessions) can see the mapping
+# without re-uploading.
+
+[[inputs]]
+glob = "assets/**/*.png"
+codegen = true
+codegen-path = "src/ReplicatedStorage/Modules/Shared/AssetIds.lua"
+codegen-base-path = "assets"

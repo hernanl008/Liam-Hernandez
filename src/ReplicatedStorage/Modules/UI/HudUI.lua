@@ -1,0 +1,103 @@
+--!strict
+-- Persistent top bar: gold, current day/time, and the three pillar skill
+-- levels (GDD.md §13 — closes the "no general inventory/HUD" gap noted
+-- in docs/VERTICAL_SLICE_SETUP.md). Always visible, no toggle.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Modules = ReplicatedStorage:WaitForChild("Modules")
+local InventoryCache = require(Modules:WaitForChild("Client"):WaitForChild("InventoryCache"))
+local SkillTreeConfig = require(Modules:WaitForChild("Shared"):WaitForChild("SkillTreeConfig"))
+
+local HudUI = {}
+
+local goldLabel: TextLabel
+local dayLabel: TextLabel
+local levelsLabel: TextLabel
+local built = false
+
+local function ensureBuilt()
+	if built then
+		return
+	end
+	built = true
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "HudUI"
+	gui.ResetOnSpawn = false
+	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.fromScale(1, 0.05)
+	bar.BackgroundColor3 = Color3.fromRGB(15, 12, 20)
+	bar.BackgroundTransparency = 0.25
+	bar.BorderSizePixel = 0
+	bar.Parent = gui
+
+	goldLabel = Instance.new("TextLabel")
+	goldLabel.Size = UDim2.fromScale(0.2, 1)
+	goldLabel.Position = UDim2.fromScale(0.01, 0)
+	goldLabel.BackgroundTransparency = 1
+	goldLabel.Font = Enum.Font.GothamBold
+	goldLabel.TextScaled = true
+	goldLabel.TextXAlignment = Enum.TextXAlignment.Left
+	goldLabel.TextColor3 = Color3.fromRGB(255, 220, 120)
+	goldLabel.Text = "0g"
+	goldLabel.Parent = bar
+
+	dayLabel = Instance.new("TextLabel")
+	dayLabel.Size = UDim2.fromScale(0.3, 1)
+	dayLabel.Position = UDim2.fromScale(0.35, 0)
+	dayLabel.BackgroundTransparency = 1
+	dayLabel.Font = Enum.Font.Gotham
+	dayLabel.TextScaled = true
+	dayLabel.TextColor3 = Color3.fromRGB(220, 220, 255)
+	dayLabel.Text = "Day 1"
+	dayLabel.Parent = bar
+
+	levelsLabel = Instance.new("TextLabel")
+	levelsLabel.Size = UDim2.fromScale(0.35, 1)
+	levelsLabel.Position = UDim2.fromScale(0.63, 0)
+	levelsLabel.BackgroundTransparency = 1
+	levelsLabel.Font = Enum.Font.Gotham
+	levelsLabel.TextScaled = true
+	levelsLabel.TextXAlignment = Enum.TextXAlignment.Right
+	levelsLabel.TextColor3 = Color3.fromRGB(200, 220, 200)
+	levelsLabel.Text = ""
+	levelsLabel.Parent = bar
+end
+
+local function clockTimeToText(dayProgress: number): string
+	-- Mirrors DayCycleService's own ClockTime formula (6am -> midnight
+	-- across the day) — see its comments for why 6..24 specifically.
+	local clockTime = 6 + dayProgress * 18
+	local hour24 = math.floor(clockTime) % 24
+	local minute = math.floor((clockTime % 1) * 60)
+	local suffix = hour24 >= 12 and "PM" or "AM"
+	local hour12 = hour24 % 12
+	if hour12 == 0 then
+		hour12 = 12
+	end
+	return string.format("%d:%02d %s", hour12, minute, suffix)
+end
+
+function HudUI.setDay(day: number, dayProgress: number)
+	ensureBuilt()
+	dayLabel.Text = `Day {day} — {clockTimeToText(dayProgress)}`
+end
+
+function HudUI.refreshInventory()
+	ensureBuilt()
+	local snapshot = InventoryCache.get()
+	goldLabel.Text = `{snapshot.gold}g`
+
+	local parts = {}
+	for _, skillId in { "Farming", "Fishing", "Cooking" } do
+		local xp = snapshot.skillXp[skillId] or 0
+		local level = 1 + math.floor(xp / SkillTreeConfig.xpPerLevel)
+		table.insert(parts, `{skillId} {level}`)
+	end
+	levelsLabel.Text = table.concat(parts, "   ")
+end
+
+return HudUI

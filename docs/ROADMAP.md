@@ -86,6 +86,26 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       §12 — currently unplaytested guesses)
 - [ ] More perks per tree / branching instead of a flat 2-perk chain
       (`SkillTreeConfig.lua`)
+- [x] Visual style locked: top-down 2D presentation (`CameraController.lua`
+      + `GDD.md` §6) — the earlier open question is resolved
+- [x] Loading screen (`ReplicatedFirst/LoadingScreen.client.lua`)
+- [x] Persistent HUD (`HudUI.lua`) — gold, day/time, skill levels
+- [x] Tile-based starter map + auto-placed farm plots/fishing spot/
+      cooking stations/NPCs/spawn (`MapConfig.lua` + `MapBuilder.lua`,
+      `GDD.md` §13) — Studio no longer needs manual object placement,
+      see `docs/VERTICAL_SLICE_SETUP.md`
+- [x] Real asset pipeline (Tarmac, `tarmac.toml`) + a first batch of
+      placeholder pixel-art tiles/sprites in `assets/` — Claude can't
+      upload to Roblox (no API for that without a human login), so this
+      is set up for Liam to run, not run automatically
+- [ ] Upload the placeholder assets (or real art) via `tarmac sync` and
+      confirm the generated map actually shows textures instead of flat colors
+- [ ] Real Orange Ville map (this session's map is a small
+      proof-of-concept plot, not the LORE_BIBLE.md village)
+- [ ] Wire the actual opening cutscene (`OPENING_CUTSCENE.md`) into a
+      playable sequence — currently just written, not implemented
+- [ ] Billboard-sprite characters, if locked-camera-3D doesn't read as
+      "2D enough" once playtested (`GDD.md` §6 fallback option)
 
 ## Phase 4 — Polish & Pre-release
 - [ ] Playtesting pass, balance tuning (sell prices, XP curves, difficulty)

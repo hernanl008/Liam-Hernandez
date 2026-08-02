@@ -124,19 +124,30 @@ is reborn as a farmer in an anime fantasy world, opening on a death →
 rebirth cutscene. Full premise, world, and cast in `LORE_BIBLE.md` and
 `NPC_ROSTER.md`; opening cutscene beats in `OPENING_CUTSCENE.md`.
 
-🔲 **Visual style** — "anime themed... '2D' world" could mean two very
-different engineering paths:
-1. Toon-shaded 3D (cel-shading, flat lighting, anime-proportioned rigs) —
-   Roblox has done this before (see games using outline/toon shaders); full
-   3D movement and camera, just styled to read as anime.
-2. Actual 2D/2.5D — billboarded sprite characters on a 3D or flat plane
-   (à la old-school JRPGs or Roblox's billboard-sprite games), which
-   changes animation pipeline, camera setup, and asset creation entirely.
+**Decided: locked top-down 2D presentation** (Liam confirmed 2D). Concretely:
 
-   Went with reading "ykwis"/'2D world' as the toon-shaded-3D look for
-   now since it's far less asset-pipeline risk for a solo month-long
-   project — say the word if you actually meant flat 2D sprites and this
-   flips.
+- **Camera**: locked to a fixed top-down angle, follows the player, never
+  orbits or lets the player rotate it — `CameraController.lua`. This is
+  how Stardew Valley itself actually reads despite being sprite-based:
+  fixed angle, no free camera. Roblox's default third-person orbit
+  camera is disabled entirely.
+- **World**: a flat, tile-based ground plane (`MapConfig.lua` /
+  `MapBuilder.lua`) rather than sculpted 3D terrain — reads as a 2D map
+  from the locked-down camera even though it's technically thin 3D parts.
+- **Characters/objects**: kept as normal Roblox 3D models for now (free
+  animation/pathing/physics), not billboard sprites — pure billboard-
+  sprite characters were the other option raised earlier but are a much
+  bigger pipeline change (custom animation system, no free R15 rig) for
+  a solo month-long project. Revisit only if the locked-camera look
+  doesn't read as "2D enough" once playtested.
+- **Art style**: pixel-art textures on the tile map and any 2D UI/icon
+  work (`assets/`, GDD.md §13) — low-res, hard-edged, nearest-neighbor
+  scaled. Character *models* are still low-poly 3D, not sprites, per the
+  point above; only their textures/surface art aim for a pixel look.
+
+🔲 Still open: if locked-camera-3D doesn't feel "2D" enough once
+playtested, the fallback is billboard sprite characters (GDD.md §13 has
+the asset-pipeline reasoning for why that's deferred, not ruled out).
 
 ## 7. Multiplayer & Trading
 
@@ -286,3 +297,35 @@ comment for the full reasoning.
 
 🔲 Open: the XP curve (flat 100/level) and perk costs are unplaytested
 guesses — expect to retune once these have actually been played.
+
+## 13. Presentation: Assets, Map, Loading, HUD
+
+Locks in the "make it 2D, build UIs/loading screen/map/assets" pass.
+
+- **Asset pipeline**: real pixel-art image files can't be synced into
+  Roblox by Rojo directly — Roblox has no API for uploading assets
+  without an authenticated human account, so Claude cannot upload art on
+  Liam's behalf; this is a hard platform limit, not a shortcut taken.
+  [Tarmac](https://github.com/rojo-rbx/tarmac) (the standard companion
+  tool to Rojo) is the correct fix: local PNGs in `assets/` get uploaded
+  with one command (`tarmac sync --target roblox`, run locally by Liam)
+  and Tarmac generates `AssetIds.lua` mapping each file to its real
+  `rbxassetid://`. `tarmac.toml` is checked in; a handful of placeholder
+  16x16/16x24 pixel-art PNGs (grass/tilled-soil/water/path tiles, a
+  player and Kaya placeholder sprite) are in `assets/` already so the
+  pipeline has something to upload on the first run. Swap in real art by
+  replacing those files and re-running sync — nothing else changes.
+- **Map**: `MapConfig.lua` (data: a grid of tile-type characters) +
+  `MapBuilder.lua` (server: turns that grid into tiled Parts textured
+  with the pixel-art tiles above) generate a small starter map for
+  Orange Ville's farm/village area. Data-driven so the map is a text
+  grid to edit, not hand-placed parts — trivial to extend once more tile
+  types/regions exist (Kotobuki Port, etc., per `LORE_BIBLE.md`).
+- **Loading screen**: `ReplicatedFirst/LoadingScreen.client.lua`, the
+  standard Roblox pattern (runs before anything else, blocks with a full-
+  screen GUI, waits for `ReplicatedFirst:RemoveDefaultLoadingScreen()` +
+  asset preload, fades out) — hands off into the opening cutscene
+  (`OPENING_CUTSCENE.md`) rather than dropping straight into gameplay.
+- **HUD**: `HudUI.lua`, a persistent top bar (gold, current day, Farming/
+  Fishing/Cooking levels) — closes the "no general inventory/HUD" gap
+  flagged in `docs/VERTICAL_SLICE_SETUP.md`'s known-gaps list.

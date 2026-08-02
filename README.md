@@ -49,36 +49,66 @@ pushes it into Studio, you playtest, then commit.
    mirrors `src/` live.
 4. Playtest in Studio.
 5. Make code changes in the repo (or ask Claude to), they sync instantly.
-   Anything you build/place *in Studio* (terrain, map layout, models) stays
-   in the `.rbxl` file — only scripts/modules under `src/` are synced by Rojo.
+   Anything you build/place *in Studio* (terrain, extra decorations,
+   models) stays in the `.rbxl` file — only scripts/modules under `src/`
+   are synced by Rojo.
 6. Commit + push code and doc changes from the repo as normal.
 
 > The `.rbxl` place file itself isn't committed to git (binary, doesn't
 > diff well) — see `.gitignore`. Treat it as a local build artifact you
-> regenerate from `src/` plus whatever you've built by hand in Studio
-> (terrain/map). If you want the map itself version-controlled long-term,
-> we can revisit exporting it to a syncable format later.
+> regenerate from `src/` plus whatever you've built by hand in Studio.
+> If you want the map itself version-controlled long-term, we can
+> revisit exporting it to a syncable format later.
+
+> **The starter map is code-generated, not hand-built.**
+> `MapBuilder.lua` rebuilds a `Workspace.GeneratedMap` folder (tiles, farm
+> plots, fishing spot, cooking stations, NPCs, spawn point) from
+> `MapConfig.lua` every time the server starts — don't hand-edit anything
+> inside that folder in Studio, it gets wiped and regenerated on the next
+> Play session. Extend the actual map by editing `MapConfig.lua`, or build
+> unrelated decoration elsewhere in `Workspace` (outside `GeneratedMap`).
+
+## Assets pipeline
+
+Rojo syncs *code*, not *images* — Roblox has no API for uploading assets
+without an authenticated human account, so art has to go through
+[Tarmac](https://github.com/rojo-rbx/tarmac) instead (`tarmac.toml`,
+already configured). Short version: put PNGs in `assets/`, run
+`tarmac sync --target roblox` (your own Roblox login), commit the
+regenerated `AssetIds.generated.lua`. Full walkthrough, including the
+placeholder pixel-art tiles/sprites already in this repo, is in
+`docs/VERTICAL_SLICE_SETUP.md` §2.
 
 ## Project layout
 
 ```
 default.project.json   Rojo mapping: filesystem -> Roblox instance tree
+tarmac.toml             Asset upload pipeline config (see "Assets pipeline" above)
+assets/                 Source PNGs for Tarmac to upload (tiles/, sprites/)
 src/
+  ReplicatedFirst/       Loading screen (runs before everything else)
   ReplicatedStorage/
-    Modules/            Shared code + data configs (Farming, Fishing, Cooking, Shared)
-    Assets/             Shared assets referenced by module code
+    Modules/            Shared code + data configs (Farming, Fishing, Cooking,
+                         Shared, UI, Client) — see Shared/ for Remotes,
+                         RhythmScoring, DialogueData, SkillTreeConfig,
+                         MapConfig, AssetIds
   ServerScriptService/
     Main.server.lua      Server bootstrap
-    Services/            Server-side game systems (one per system)
+    Services/            Server-side game systems (one per system, incl.
+                         MapBuilder which generates the starter map)
   ServerStorage/          Server-only assets (anti-exploit: never send to client)
   StarterPlayer/
-    StarterPlayerScripts/ Client bootstrap
+    StarterPlayerScripts/ Client bootstrap + Controllers/
     StarterCharacterScripts/
   StarterGui/             UI
 docs/
-  GDD.md          Game design doc: core loop, systems breakdown
-  LORE_BIBLE.md   World, factions, characters, timeline
-  ROADMAP.md      Milestone plan across the month
+  GDD.md                 Game design doc: core loop, systems breakdown
+  LORE_BIBLE.md           World, factions, characters, timeline
+  NPC_ROSTER.md           Full 50+ NPC list
+  DIALOGUE_ACT1.md        Act 1 dialogue scripts
+  OPENING_CUTSCENE.md     Death -> rebirth cutscene beat sheet (not yet wired into code)
+  ROADMAP.md              Milestone plan across the month
+  VERTICAL_SLICE_SETUP.md What to do in Studio to playtest what's built so far
 ```
 
 ## Linting / formatting
