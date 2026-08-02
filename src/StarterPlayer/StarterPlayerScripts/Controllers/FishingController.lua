@@ -28,6 +28,23 @@ function FishingController.init()
 	local awaitingHook = false
 	local hookConnection: RBXScriptConnection? = nil
 
+	-- ProximityPrompts default to KeyCode.E, same key as HOOK_KEY below. If
+	-- the "Cast" prompt is left enabled while a cast is already in flight,
+	-- pressing E to hook the bite also re-triggers the prompt (the player
+	-- never moved out of its range), firing a brand new RequestCast on top
+	-- of the one already pending. Track the in-flight prompt so it can be
+	-- disabled for the duration of a cast and re-enabled once it resolves.
+	local isFishing = false
+	local activePrompt: ProximityPrompt? = nil
+
+	local function endFishing()
+		isFishing = false
+		if activePrompt then
+			activePrompt.Enabled = true
+			activePrompt = nil
+		end
+	end
+
 	local function stopAwaitingHook()
 		awaitingHook = false
 		if hookConnection then
@@ -69,6 +86,7 @@ function FishingController.init()
 		newLevel: number?,
 	})
 		stopAwaitingHook()
+		endFishing()
 		if payload.outcome == "Caught" then
 			if payload.spectacle then
 				local label = payload.rarity == "Legendary" and "LEGENDARY CATCH!" or "AMAZING CATCH!"
@@ -99,8 +117,19 @@ function FishingController.init()
 		end
 		prompt.ActionText = "Cast"
 		prompt.Triggered:Connect(function()
+			if isFishing then
+				-- Prompt.Enabled = false below should already prevent this,
+				-- but that toggle only takes effect on the next replication
+				-- tick — guard here too so a same-frame double-fire (e.g.
+				-- the E press that also serves as HOOK_KEY) can't sneak a
+				-- second RequestCast in.
+				return
+			end
 			local zoneId = instance:GetAttribute("ZoneId")
 			if typeof(zoneId) == "string" then
+				isFishing = true
+				activePrompt = prompt
+				prompt.Enabled = false
 				StatusToast.set("Casting...")
 				Remotes.get("RequestCast"):FireServer(zoneId)
 			else
