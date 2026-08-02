@@ -54,15 +54,21 @@ FishingConfig.TreasureShare = 0.25 -- of pulls that happen, 25% are treasure not
 
 -- Fishing skill XP awarded per catch (GDD.md §12) — rarer fish level you
 -- up faster, on top of just being worth more to sell.
-FishingConfig.RarityXp: { [Rarity]: number } = {
+--
+-- Note: `Table.Field: Type = value` is NOT valid Luau outside `local`
+-- declarations (the parser reads the colon as the start of a method
+-- definition) — every field below is a typed local assigned to
+-- FishingConfig afterward, not typed inline.
+local RarityXp: { [Rarity]: number } = {
 	Common = 10,
 	Uncommon = 15,
 	Rare = 25,
 	Epic = 40,
 	Legendary = 100,
 }
+FishingConfig.RarityXp = RarityXp
 
-FishingConfig.Pulls: { PullDef } = {
+local Pulls: { PullDef } = {
 	{
 		id = "Driftwood",
 		displayName = "Driftwood",
@@ -96,15 +102,17 @@ FishingConfig.Pulls: { PullDef } = {
 		description = "Old coinage, older than the Trade Exchange. Kaleb's eyes light up at these.",
 	},
 }
+FishingConfig.Pulls = Pulls
 
-FishingConfig.DepthZones: { DepthZone } = {
+local DepthZones: { DepthZone } = {
 	{ id = "Shallows", displayName = "Shallows", minDepth = 0, maxDepth = 15, unlockLevel = 1 },
 	{ id = "MidReef", displayName = "Mid Reef", minDepth = 15, maxDepth = 40, unlockLevel = 5 },
 	{ id = "DeepTrench", displayName = "Deep Trench", minDepth = 40, maxDepth = 90, unlockLevel = 12 },
 	{ id = "AbyssalRift", displayName = "Abyssal Rift", minDepth = 90, maxDepth = 200, unlockLevel = 20 },
 }
+FishingConfig.DepthZones = DepthZones
 
-FishingConfig.Fish: { FishDef } = {
+local Fish: { FishDef } = {
 	{
 		id = "SilverMinnow",
 		displayName = "Silver Minnow",
@@ -147,5 +155,6 @@ FishingConfig.Fish: { FishDef } = {
 	},
 	-- Add more species here as the world/lore expands (region-locked fish, event fish, etc.)
 }
+FishingConfig.Fish = Fish
 
 return FishingConfig

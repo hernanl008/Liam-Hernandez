@@ -37,7 +37,10 @@ local SkillTreeConfig = {}
 
 SkillTreeConfig.xpPerLevel = 100
 
-SkillTreeConfig.Trees: { [SkillId]: SkillTreeDef } = {
+-- `Table.Field: Type = value` is NOT valid Luau outside `local`
+-- declarations (the parser reads the colon as the start of a method
+-- definition) — declare a typed local first, then assign.
+local Trees: { [SkillId]: SkillTreeDef } = {
 	Farming = {
 		id = "Farming",
 		displayName = "Farming",
@@ -102,5 +105,6 @@ SkillTreeConfig.Trees: { [SkillId]: SkillTreeDef } = {
 		},
 	},
 }
+SkillTreeConfig.Trees = Trees
 
 return SkillTreeConfig

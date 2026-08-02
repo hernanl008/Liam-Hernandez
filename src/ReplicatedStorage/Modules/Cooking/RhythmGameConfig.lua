@@ -34,14 +34,19 @@ export type RecipeChart = {
 
 local RhythmGameConfig = {}
 
-RhythmGameConfig.TimingWindows: { TimingWindow } = {
+-- `Table.Field: Type = value` is NOT valid Luau outside `local`
+-- declarations (the parser reads the colon as the start of a method
+-- definition) — declare typed locals first, then assign, everywhere in
+-- this file and its sibling config modules.
+local TimingWindows: { TimingWindow } = {
 	{ name = "Perfect", toleranceSeconds = 0.05, qualityScore = 100 },
 	{ name = "Good", toleranceSeconds = 0.12, qualityScore = 70 },
 	{ name = "Okay", toleranceSeconds = 0.20, qualityScore = 40 },
 	{ name = "Miss", toleranceSeconds = math.huge, qualityScore = 0 },
 }
+RhythmGameConfig.TimingWindows = TimingWindows
 
-RhythmGameConfig.Recipes: { RecipeChart } = {
+local Recipes: { RecipeChart } = {
 	{
 		id = "GrilledMinnowSkewer",
 		displayName = "Grilled Minnow Skewer",
@@ -78,5 +83,6 @@ RhythmGameConfig.Recipes: { RecipeChart } = {
 	},
 	-- Add more recipes as the food/lore list grows (regional dishes, festival specials, etc.)
 }
+RhythmGameConfig.Recipes = Recipes
 
 return RhythmGameConfig

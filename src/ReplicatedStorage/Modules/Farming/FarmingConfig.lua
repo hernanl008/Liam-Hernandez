@@ -24,7 +24,10 @@ export type CropDef = {
 
 local FarmingConfig = {}
 
-FarmingConfig.Crops: { CropDef } = {
+-- `Table.Field: Type = value` is NOT valid Luau outside `local`
+-- declarations (the parser reads the colon as the start of a method
+-- definition) — declare a typed local first, then assign.
+local Crops: { CropDef } = {
 	{
 		id = "MoonriceStalk",
 		displayName = "Moonrice Stalk",
@@ -58,5 +61,6 @@ FarmingConfig.Crops: { CropDef } = {
 	},
 	-- Add more crops as the world/regions are designed.
 }
+FarmingConfig.Crops = Crops
 
 return FarmingConfig
