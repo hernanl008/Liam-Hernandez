@@ -3,10 +3,10 @@
 -- generated rhythm chart scored by the same RhythmScoring module the
 -- cooking system uses (GDD.md §10 — deliberate shared implementation).
 --
--- Zones are level-gated via PlayerDataService.fishingLevel (GDD.md §11);
--- Shallows and MidReef both have fish configured. Weight/quality-driven
--- sell pricing is still a TODO for Phase 3 — catching a fish here just
--- adds it to inventory; selling is the Trade Exchange's job (GDD.md §7).
+-- Zones are level-gated via the Fishing skill (GDD.md §12); Shallows and
+-- MidReef both have fish configured. Weight/quality-driven sell pricing
+-- is still a TODO for Phase 3 — catching a fish here just adds it to
+-- inventory; selling is the Trade Exchange's job (GDD.md §7).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
@@ -20,7 +20,7 @@ local DayCycleService = require(script.Parent:WaitForChild("DayCycleService"))
 
 local FishingService = {}
 
-local HOOK_WINDOW_SECONDS = 1.2
+local BASE_HOOK_WINDOW_SECONDS = 1.2
 local MIN_CATCH_QUALITY = 15 -- below this, the fish gets away even if hooked
 
 type PendingBite = {
@@ -58,8 +58,14 @@ local function pickRandomFish(zoneId: string): FishingConfig.FishDef?
 	return candidates[math.random(1, #candidates)]
 end
 
-local function pickRandomPull(): FishingConfig.PullDef
-	local isTreasure = math.random() < FishingConfig.TreasureShare
+-- TreasureHunter perk doubles the odds a pull is treasure rather than junk.
+local function pickRandomPull(player: Player): FishingConfig.PullDef
+	local treasureShare = FishingConfig.TreasureShare
+	if PlayerDataService.hasPerk(player, "Fishing", "TreasureHunter") then
+		treasureShare = math.min(treasureShare * 2, 1)
+	end
+
+	local isTreasure = math.random() < treasureShare
 	local candidates = {}
 	for _, pull in FishingConfig.Pulls do
 		if (pull.pullType == "Treasure") == isTreasure then
@@ -67,6 +73,14 @@ local function pickRandomPull(): FishingConfig.PullDef
 		end
 	end
 	return candidates[math.random(1, #candidates)]
+end
+
+-- QuickHands perk gives 50% longer to hit the hook window after a bite.
+local function hookWindowFor(player: Player): number
+	if PlayerDataService.hasPerk(player, "Fishing", "QuickHands") then
+		return BASE_HOOK_WINDOW_SECONDS * 1.5
+	end
+	return BASE_HOOK_WINDOW_SECONDS
 end
 
 local function generateReelChart(struggleDifficulty: number): { RhythmScoring.Note }
@@ -92,7 +106,7 @@ function FishingService.init()
 			return
 		end
 
-		if PlayerDataService.getFishingLevel(player) < zone.unlockLevel then
+		if PlayerDataService.getSkillLevel(player, "Fishing") < zone.unlockLevel then
 			Remotes.get("CatchResult"):FireClient(player, { outcome = "ZoneLocked", zoneId = zoneId })
 			return
 		end
@@ -101,7 +115,7 @@ function FishingService.init()
 		local patienceSeconds: number
 
 		if isPull then
-			pendingBites[player] = { kind = "Pull", pull = pickRandomPull() }
+			pendingBites[player] = { kind = "Pull", pull = pickRandomPull(player) }
 			patienceSeconds = math.random() * 1.5 + 0.5
 		else
 			local fish = pickRandomFish(zoneId)
@@ -115,7 +129,7 @@ function FishingService.init()
 		task.delay(patienceSeconds, function()
 			if pendingBites[player] then
 				Remotes.get("FishBite"):FireClient(player)
-				task.delay(HOOK_WINDOW_SECONDS, function()
+				task.delay(hookWindowFor(player), function()
 					-- window expired without a successful hook attempt
 					if pendingBites[player] then
 						pendingBites[player] = nil
@@ -134,11 +148,12 @@ function FishingService.init()
 		pendingBites[player] = nil
 
 		if bite.kind == "Pull" then
-			PlayerDataService.addItem(player, "junk", bite.pull.id, 1)
+			local isNewDiscovery = PlayerDataService.addItem(player, "junk", bite.pull.id, 1)
 			Remotes.get("CatchResult"):FireClient(player, {
 				outcome = "Pull",
 				pullId = bite.pull.id,
 				displayName = bite.pull.displayName,
+				newDiscovery = isNewDiscovery,
 			})
 			return
 		end
@@ -164,8 +179,9 @@ function FishingService.init()
 			return
 		end
 
-		PlayerDataService.addItem(player, "fish", reel.fish.id, 1)
-		PlayerDataService.registerCatch(player)
+		local isNewDiscovery = PlayerDataService.addItem(player, "fish", reel.fish.id, 1)
+		local xpResult = PlayerDataService.addSkillXp(player, "Fishing", FishingConfig.RarityXp[reel.fish.rarity] or 10)
+
 		Remotes.get("CatchResult"):FireClient(player, {
 			outcome = "Caught",
 			fishId = reel.fish.id,
@@ -173,6 +189,9 @@ function FishingService.init()
 			rarity = reel.fish.rarity,
 			quality = result.quality,
 			maxCombo = result.maxCombo,
+			newDiscovery = isNewDiscovery,
+			leveledUp = xpResult.leveledUp,
+			newLevel = xpResult.newLevel,
 			-- GDD.md §11: a fish flagged `spectacle` (or a big combo on any
 			-- fish) triggers FishingController's celebratory banner/shake.
 			spectacle = reel.fish.spectacle == true or result.maxCombo >= 5,

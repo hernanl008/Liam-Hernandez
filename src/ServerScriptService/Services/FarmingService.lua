@@ -23,6 +23,11 @@ local FarmingService = {}
 
 local PLOT_TAG = "FarmPlot"
 
+-- GreenThumb: chance of a bonus crop on harvest (GDD.md §12). Applied at
+-- harvest time rather than tracking plot ownership, see SkillTreeConfig
+-- .lua's header comment for why.
+local GREEN_THUMB_BONUS_CHANCE = 0.15
+
 local function getCropDef(cropId: string)
 	for _, crop in FarmingConfig.Crops do
 		if crop.id == cropId then
@@ -172,9 +177,13 @@ function FarmingService.init()
 			return
 		end
 
-		PlayerDataService.addItem(player, "crops", cropId, 1)
-
 		local crop = getCropDef(cropId)
+		local hasGreenThumb = PlayerDataService.hasPerk(player, "Farming", "GreenThumb")
+		local gotBonus = hasGreenThumb and math.random() < GREEN_THUMB_BONUS_CHANCE
+
+		local isNewDiscovery = PlayerDataService.addItem(player, "crops", cropId, gotBonus and 2 or 1)
+		local xpResult = PlayerDataService.addSkillXp(player, "Farming", (crop and crop.sellPrice or 5))
+
 		if crop and crop.regrowable then
 			-- rewind to just before the final stage, not all the way to
 			-- 0, so regrowing only replays the final stage's duration
@@ -187,7 +196,18 @@ function FarmingService.init()
 			plot:SetAttribute("GrowthSeconds", 0)
 			plot:SetAttribute("StageIndex", 0)
 			plot:SetAttribute("WateredToday", false)
+			-- NoTillNeeded: skip having to re-till before the next planting.
+			plot:SetAttribute("Tilled", PlayerDataService.hasPerk(player, "Farming", "NoTillNeeded"))
 		end
+
+		Remotes.get("FarmingOutcome"):FireClient(player, {
+			cropId = cropId,
+			displayName = crop and crop.displayName or cropId,
+			bonus = gotBonus,
+			newDiscovery = isNewDiscovery,
+			leveledUp = xpResult.leveledUp,
+			newLevel = xpResult.newLevel,
+		})
 	end)
 
 	-- Growth tick: only accumulates while watered, matching the till ->

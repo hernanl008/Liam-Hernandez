@@ -19,6 +19,7 @@ export type CropDef = {
 	regrowable: boolean, -- true = keeps producing after first harvest (e.g. berry bushes)
 	sellPrice: number,
 	usedInRecipes: { string }, -- RecipeChart ids from RhythmGameConfig
+	description: string, -- shown in the Compendium (GDD.md §12)
 }
 
 local FarmingConfig = {}
@@ -36,6 +37,7 @@ FarmingConfig.Crops: { CropDef } = {
 		regrowable = false,
 		sellPrice = 8,
 		usedInRecipes = {},
+		description = "Orange Ville's staple grain. Glows faintly silver under a full moon — nobody's sure why.",
 	},
 	{
 		-- Regrowable bush crop -- quick first grow, then a short regrow
@@ -52,6 +54,7 @@ FarmingConfig.Crops: { CropDef } = {
 		regrowable = true,
 		sellPrice = 4,
 		usedInRecipes = { "SunpetalJamTart" },
+		description = "Sweet enough to eat off the bush. Most don't make it to the kitchen.",
 	},
 	-- Add more crops as the world/regions are designed.
 }

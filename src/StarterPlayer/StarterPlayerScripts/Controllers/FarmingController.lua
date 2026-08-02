@@ -10,6 +10,8 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local FarmingConfig = require(Modules:WaitForChild("Farming"):WaitForChild("FarmingConfig"))
 local InventoryCache = require(Modules:WaitForChild("Client"):WaitForChild("InventoryCache"))
+local ProgressFeedback = require(Modules:WaitForChild("UI"):WaitForChild("ProgressFeedback"))
+local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
 
 local FarmingController = {}
 
@@ -118,6 +120,18 @@ function FarmingController.init()
 		setupPlot(plot)
 	end
 	CollectionService:GetInstanceAddedSignal(PLOT_TAG):Connect(setupPlot)
+
+	Remotes.get("FarmingOutcome").OnClientEvent:Connect(function(payload: {
+		displayName: string,
+		bonus: boolean,
+		newDiscovery: boolean,
+		leveledUp: boolean,
+		newLevel: number,
+	})
+		ProgressFeedback.announce("FARMING", payload)
+		local suffix = payload.bonus and " (bonus crop!)" or ""
+		StatusToast.setTemporary(`Harvested {payload.displayName}{suffix}`, 2)
+	end)
 end
 
 return FarmingController

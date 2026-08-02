@@ -6,9 +6,12 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Remotes = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Shared"):WaitForChild("Remotes"))
+local Modules = ReplicatedStorage:WaitForChild("Modules")
+local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
+local SkillTreeConfig = require(Modules:WaitForChild("Shared"):WaitForChild("SkillTreeConfig"))
 
 export type ItemCounts = { [string]: number }
+export type DiscoveredSet = { [string]: boolean }
 
 export type PlayerData = {
 	gold: number,
@@ -19,14 +22,27 @@ export type PlayerData = {
 	junk: ItemCounts,
 	flags: { [string]: boolean },
 	assistMode: boolean,
-	fishingLevel: number,
-	catchCount: number,
+	discovered: {
+		fish: DiscoveredSet,
+		dishes: DiscoveredSet,
+		crops: DiscoveredSet,
+		junk: DiscoveredSet,
+	},
+	skillXp: { [SkillTreeConfig.SkillId]: number },
+	skillPoints: { [SkillTreeConfig.SkillId]: number },
+	unlockedPerks: { [SkillTreeConfig.SkillId]: { [string]: boolean } },
 }
 
--- Catches per fishing level-up. GDD.md's zone unlockLevels (FishingConfig
--- .DepthZones) are tuned against this pace — e.g. MidReef's unlockLevel 5
--- is reachable after 12 catches.
-local CATCHES_PER_LEVEL = 3
+-- fish/crops/junk use the same id in inventory and in the Compendium
+-- (GDD.md §12), so addItem can auto-discover them. Seeds aren't a
+-- discoverable "thing" on their own — they share an id with the crop
+-- they grow into, discovered by harvesting instead. Dishes are also
+-- excluded: inventory keys dishes by `{recipeId}_{tier}` (the tier
+-- suffix set by CookingService) so Gold/Silver/etc. can stack
+-- separately, but the Compendium discovers by *recipe*, not by
+-- recipe+tier — so dishes go through PlayerDataService.discover
+-- explicitly instead of this automatic path.
+local AUTO_DISCOVERY_CATEGORIES: { [string]: boolean } = { fish = true, crops = true, junk = true }
 
 local PlayerDataService = {}
 
@@ -42,8 +58,10 @@ local function newPlayerData(): PlayerData
 		junk = {},
 		flags = {},
 		assistMode = false,
-		fishingLevel = 1,
-		catchCount = 0,
+		discovered = { fish = {}, dishes = {}, crops = {}, junk = {} },
+		skillXp = { Farming = 0, Fishing = 0, Cooking = 0 },
+		skillPoints = { Farming = 0, Fishing = 0, Cooking = 0 },
+		unlockedPerks = { Farming = {}, Fishing = {}, Cooking = {} },
 	}
 end
 
@@ -57,18 +75,20 @@ local function setupLeaderstats(player: Player, data: PlayerData)
 	gold.Value = data.gold
 	gold.Parent = leaderstats
 
-	local fishingLevel = Instance.new("IntValue")
-	fishingLevel.Name = "FishingLvl"
-	fishingLevel.Value = data.fishingLevel
-	fishingLevel.Parent = leaderstats
+	for skillId in SkillTreeConfig.Trees do
+		local level = Instance.new("IntValue")
+		level.Name = `{skillId}Lvl`
+		level.Value = 1
+		level.Parent = leaderstats
+	end
 end
 
 function PlayerDataService.get(player: Player): PlayerData?
 	return dataByPlayer[player]
 end
 
--- Inventory counts are server-authoritative, but the client needs a
--- read-only mirror for HUD/inventory UI and for dialogue autoRoute
+-- Server-authoritative data mirrored to the client for HUD/inventory UI,
+-- the Compendium (GDD.md §12), the skill tree UI, and dialogue autoRoute
 -- checks like "does the player have any ingredient" (DialogueController).
 local function syncToClient(player: Player, data: PlayerData)
 	Remotes.get("InventoryUpdate"):FireClient(player, {
@@ -78,18 +98,59 @@ local function syncToClient(player: Player, data: PlayerData)
 		fish = data.fish,
 		dishes = data.dishes,
 		junk = data.junk,
-		fishingLevel = data.fishingLevel,
+		discovered = data.discovered,
+		skillXp = data.skillXp,
+		skillPoints = data.skillPoints,
+		unlockedPerks = data.unlockedPerks,
 	})
 end
 
-function PlayerDataService.addItem(player: Player, category: "seeds" | "crops" | "fish" | "dishes" | "junk", id: string, amount: number)
+-- Marks `id` (a recipe/species/crop id — NOT an inventory key, see the
+-- AUTO_DISCOVERY_CATEGORIES comment above re: dishes) as seen in the
+-- Compendium. Returns true if this was the first time. Syncs on its own
+-- since callers like CookingService use this independently of addItem.
+function PlayerDataService.discover(player: Player, category: "fish" | "dishes" | "crops" | "junk", id: string): boolean
 	local data = dataByPlayer[player]
 	if not data then
-		return
+		return false
 	end
+	local discoveredBucket = data.discovered[category]
+	if discoveredBucket[id] then
+		return false
+	end
+	discoveredBucket[id] = true
+	syncToClient(player, data)
+	return true
+end
+
+-- Returns true if this call discovered `id` in `category` for the first
+-- time (so callers can show a "New Discovery!" moment via SpectacleUI).
+-- See AUTO_DISCOVERY_CATEGORIES for which categories this applies to.
+function PlayerDataService.addItem(
+	player: Player,
+	category: "seeds" | "crops" | "fish" | "dishes" | "junk",
+	id: string,
+	amount: number
+): boolean
+	local data = dataByPlayer[player]
+	if not data then
+		return false
+	end
+
 	local bucket = data[category]
 	bucket[id] = (bucket[id] or 0) + amount
+
+	local isNewDiscovery = false
+	if AUTO_DISCOVERY_CATEGORIES[category] then
+		local discoveredBucket = (data.discovered :: any)[category] :: DiscoveredSet
+		if not discoveredBucket[id] then
+			discoveredBucket[id] = true
+			isNewDiscovery = true
+		end
+	end
+
 	syncToClient(player, data)
+	return isNewDiscovery
 end
 
 function PlayerDataService.hasItem(player: Player, category: "seeds" | "crops" | "fish" | "dishes" | "junk", id: string, amount: number): boolean
@@ -123,30 +184,89 @@ function PlayerDataService.addGold(player: Player, amount: number)
 	end
 end
 
-function PlayerDataService.getFishingLevel(player: Player): number
-	local data = dataByPlayer[player]
-	return data and data.fishingLevel or 1
-end
-
--- Called by FishingService on every successful catch. Leveling here is
--- deliberately simple (a flat catch count, no per-fish weighting) —
--- tune CATCHES_PER_LEVEL above if the pace to unlock MidReef feels off.
-function PlayerDataService.registerCatch(player: Player)
+function PlayerDataService.getSkillLevel(player: Player, skillId: SkillTreeConfig.SkillId): number
 	local data = dataByPlayer[player]
 	if not data then
-		return
+		return 1
 	end
-	data.catchCount += 1
-	local newLevel = 1 + math.floor(data.catchCount / CATCHES_PER_LEVEL)
-	if newLevel ~= data.fishingLevel then
-		data.fishingLevel = newLevel
+	return 1 + math.floor(data.skillXp[skillId] / SkillTreeConfig.xpPerLevel)
+end
+
+export type SkillXpResult = { leveledUp: boolean, newLevel: number }
+
+-- Awards XP toward one of the three pillar skills. A single big award
+-- (e.g. a Legendary catch) can cross multiple level thresholds at once —
+-- one skill point is granted per level gained, not just one per call.
+function PlayerDataService.addSkillXp(player: Player, skillId: SkillTreeConfig.SkillId, amount: number): SkillXpResult
+	local data = dataByPlayer[player]
+	if not data then
+		return { leveledUp = false, newLevel = 1 }
+	end
+
+	local levelBefore = PlayerDataService.getSkillLevel(player, skillId)
+	data.skillXp[skillId] += amount
+	local levelAfter = PlayerDataService.getSkillLevel(player, skillId)
+
+	if levelAfter > levelBefore then
+		data.skillPoints[skillId] += (levelAfter - levelBefore)
 		local leaderstats = player:FindFirstChild("leaderstats")
-		local levelValue = leaderstats and leaderstats:FindFirstChild("FishingLvl")
+		local levelValue = leaderstats and leaderstats:FindFirstChild(`{skillId}Lvl`)
 		if levelValue then
-			(levelValue :: IntValue).Value = newLevel
+			(levelValue :: IntValue).Value = levelAfter
 		end
 	end
+
 	syncToClient(player, data)
+	return { leveledUp = levelAfter > levelBefore, newLevel = levelAfter }
+end
+
+function PlayerDataService.hasPerk(player: Player, skillId: SkillTreeConfig.SkillId, perkId: string): boolean
+	local data = dataByPlayer[player]
+	return data ~= nil and data.unlockedPerks[skillId][perkId] == true
+end
+
+-- Validates level/prerequisite/point-cost and, if all satisfied, spends
+-- the point and unlocks the perk. Returns false + a reason on failure so
+-- the UI can explain why (SkillTreeController.lua).
+function PlayerDataService.unlockPerk(player: Player, skillId: SkillTreeConfig.SkillId, perkId: string): (boolean, string?)
+	local data = dataByPlayer[player]
+	if not data then
+		return false, "No player data"
+	end
+
+	local tree = SkillTreeConfig.Trees[skillId]
+	if not tree then
+		return false, "Unknown skill tree"
+	end
+
+	local perk = nil
+	for _, candidate in tree.perks do
+		if candidate.id == perkId then
+			perk = candidate
+			break
+		end
+	end
+	if not perk then
+		return false, "Unknown perk"
+	end
+
+	if data.unlockedPerks[skillId][perkId] then
+		return false, "Already unlocked"
+	end
+	if PlayerDataService.getSkillLevel(player, skillId) < perk.requiredLevel then
+		return false, "Level too low"
+	end
+	if perk.requires and not data.unlockedPerks[skillId][perk.requires] then
+		return false, "Prerequisite perk not unlocked"
+	end
+	if data.skillPoints[skillId] < perk.cost then
+		return false, "Not enough skill points"
+	end
+
+	data.skillPoints[skillId] -= perk.cost
+	data.unlockedPerks[skillId][perkId] = true
+	syncToClient(player, data)
+	return true, nil
 end
 
 function PlayerDataService.setFlag(player: Player, flag: string, value: boolean)

@@ -14,6 +14,7 @@ local EVENT_NAMES = {
 	"PlantSeed",
 	"WaterPlot",
 	"HarvestCrop",
+	"FarmingOutcome",
 	"RequestCast",
 	"FishBite",
 	"HookAttempt",
@@ -27,6 +28,8 @@ local EVENT_NAMES = {
 	"DialogueAction",
 	"DayCycleUpdate",
 	"InventoryUpdate",
+	"UnlockPerk",
+	"UnlockPerkResult",
 }
 
 local Remotes = {}

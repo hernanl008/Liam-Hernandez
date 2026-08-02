@@ -9,54 +9,20 @@
 
 local CollectionService = game:GetService("CollectionService")
 local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local RhythmUI = require(Modules:WaitForChild("UI"):WaitForChild("RhythmUI"))
 local SpectacleUI = require(Modules:WaitForChild("UI"):WaitForChild("SpectacleUI"))
+local ProgressFeedback = require(Modules:WaitForChild("UI"):WaitForChild("ProgressFeedback"))
+local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 
 local FishingController = {}
 
 local SPOT_TAG = "FishingSpot"
 local HOOK_KEY = Enum.KeyCode.E
-
-local statusGui: ScreenGui? = nil
-local statusLabel: TextLabel
-
-local function ensureStatusGui()
-	if statusGui then
-		return
-	end
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "FishingStatus"
-	gui.ResetOnSpawn = false
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-	statusGui = gui
-
-	statusLabel = Instance.new("TextLabel")
-	statusLabel.Size = UDim2.fromScale(0.4, 0.06)
-	statusLabel.Position = UDim2.fromScale(0.3, 0.6)
-	statusLabel.BackgroundTransparency = 0.4
-	statusLabel.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-	statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	statusLabel.TextScaled = true
-	statusLabel.Text = ""
-	statusLabel.Visible = false
-	statusLabel.Parent = gui
-end
-
-local function setStatus(text: string?)
-	ensureStatusGui()
-	if text then
-		statusLabel.Text = text
-		statusLabel.Visible = true
-	else
-		statusLabel.Visible = false
-	end
-end
 
 function FishingController.init()
 	local awaitingHook = false
@@ -72,14 +38,14 @@ function FishingController.init()
 
 	Remotes.get("FishBite").OnClientEvent:Connect(function()
 		awaitingHook = true
-		setStatus("Something's biting! Press E!")
+		StatusToast.set("Something's biting! Press E!")
 		hookConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if gameProcessed or not awaitingHook then
 				return
 			end
 			if input.KeyCode == HOOK_KEY then
 				stopAwaitingHook()
-				setStatus(nil)
+				StatusToast.set(nil)
 				Remotes.get("HookAttempt"):FireServer()
 			end
 		end)
@@ -87,30 +53,38 @@ function FishingController.init()
 
 	Remotes.get("ReelStart").OnClientEvent:Connect(function(payload: { fishId: string, notes: any })
 		stopAwaitingHook()
-		setStatus(nil)
+		StatusToast.set(nil)
 		RhythmUI.play(payload.notes, function(hits)
 			Remotes.get("ReelResult"):FireServer(hits)
 		end, RhythmGameConfig.TimingWindows)
 	end)
 
-	Remotes.get("CatchResult").OnClientEvent:Connect(function(payload: { outcome: string, displayName: string?, rarity: string?, spectacle: boolean? })
+	Remotes.get("CatchResult").OnClientEvent:Connect(function(payload: {
+		outcome: string,
+		displayName: string?,
+		rarity: string?,
+		spectacle: boolean?,
+		newDiscovery: boolean?,
+		leveledUp: boolean?,
+		newLevel: number?,
+	})
 		stopAwaitingHook()
 		if payload.outcome == "Caught" then
 			if payload.spectacle then
 				local label = payload.rarity == "Legendary" and "LEGENDARY CATCH!" or "AMAZING CATCH!"
 				SpectacleUI.banner(label, Color3.fromRGB(255, 220, 80), { shake = true })
+			else
+				ProgressFeedback.announce("FISHING", payload)
 			end
-			setStatus(`Caught a {payload.displayName}!`)
+			StatusToast.setTemporary(`Caught a {payload.displayName}!`, 2)
 		elseif payload.outcome == "Pull" then
-			setStatus(`Reeled up: {payload.displayName}`)
+			ProgressFeedback.announce("FISHING", payload)
+			StatusToast.setTemporary(`Reeled up: {payload.displayName}`, 2)
 		elseif payload.outcome == "ZoneLocked" then
-			setStatus("This zone needs a higher fishing level.")
+			StatusToast.setTemporary("This zone needs a higher fishing level.", 2)
 		else
-			setStatus("It got away...")
+			StatusToast.setTemporary("It got away...", 2)
 		end
-		task.delay(2, function()
-			setStatus(nil)
-		end)
 	end)
 
 	local function setupSpot(instance: Instance)
@@ -122,7 +96,7 @@ function FishingController.init()
 		prompt.Triggered:Connect(function()
 			local zoneId = instance:GetAttribute("ZoneId")
 			if typeof(zoneId) == "string" then
-				setStatus("Casting...")
+				StatusToast.set("Casting...")
 				Remotes.get("RequestCast"):FireServer(zoneId)
 			else
 				warn(`FishingSpot "{instance:GetFullName()}" has no ZoneId attribute`)

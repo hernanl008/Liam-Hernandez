@@ -3,7 +3,9 @@
 -- wasted-ingredients wipe — per the research-informed "always produces
 -- something, quality varies" decision; quality is instead encoded as a
 -- tier suffix on the dish item id, since inventory here is count-based
--- (see PlayerDataService) rather than per-item unique instances.
+-- (see PlayerDataService) rather than per-item unique instances. The
+-- Compendium (GDD.md §12) discovers dishes by recipe id, not by the
+-- tier-suffixed inventory id — see PlayerDataService.discover.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
@@ -14,6 +16,12 @@ local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("R
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
 
 local CookingService = {}
+
+-- Cooking skill XP awarded per dish, by tier (GDD.md §12).
+local XP_BY_TIER = { Basic = 5, Bronze = 10, Silver = 20, Gold = 35 }
+
+-- EfficientCook: chance to keep your ingredients when starting to cook.
+local EFFICIENT_COOK_SAVE_CHANCE = 0.2
 
 type PendingCook = {
 	recipe: RhythmGameConfig.RecipeChart,
@@ -56,9 +64,14 @@ function CookingService.init()
 			end
 		end
 
-		for _, ingredientId in recipe.ingredients do
-			if not PlayerDataService.removeItem(player, "crops", ingredientId, 1) then
-				PlayerDataService.removeItem(player, "fish", ingredientId, 1)
+		local efficientCookProc = PlayerDataService.hasPerk(player, "Cooking", "EfficientCook")
+			and math.random() < EFFICIENT_COOK_SAVE_CHANCE
+
+		if not efficientCookProc then
+			for _, ingredientId in recipe.ingredients do
+				if not PlayerDataService.removeItem(player, "crops", ingredientId, 1) then
+					PlayerDataService.removeItem(player, "fish", ingredientId, 1)
+				end
 			end
 		end
 
@@ -77,9 +90,16 @@ function CookingService.init()
 		local assistMode = data ~= nil and data.assistMode or false
 		local result = RhythmScoring.evaluate(pending.recipe.notes, hits, RhythmGameConfig.TimingWindows, assistMode)
 		local tier = qualityTier(result.quality)
-		local dishId = `{pending.recipe.id}_{tier}`
 
+		-- ShowStopper: never worse than Bronze.
+		if tier == "Basic" and PlayerDataService.hasPerk(player, "Cooking", "ShowStopper") then
+			tier = "Bronze"
+		end
+
+		local dishId = `{pending.recipe.id}_{tier}`
 		PlayerDataService.addItem(player, "dishes", dishId, 1)
+		local isNewDiscovery = PlayerDataService.discover(player, "dishes", pending.recipe.id)
+		local xpResult = PlayerDataService.addSkillXp(player, "Cooking", XP_BY_TIER[tier] or 5)
 
 		Remotes.get("CookingOutcome"):FireClient(player, {
 			recipeId = pending.recipe.id,
@@ -88,6 +108,9 @@ function CookingService.init()
 			maxCombo = result.maxCombo,
 			tier = tier,
 			estimatedValue = math.floor(pending.recipe.basePrice * math.max(result.quality, 10) / 100),
+			newDiscovery = isNewDiscovery,
+			leveledUp = xpResult.leveledUp,
+			newLevel = xpResult.newLevel,
 			-- GDD.md §11: Gold tier or a big combo triggers CookingController's celebratory banner.
 			spectacle = tier == "Gold" or result.maxCombo >= 5,
 		})

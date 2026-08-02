@@ -239,7 +239,50 @@ scoring, instead of just returning a flat quality number:
   for the Moonlit Serpent; broader weather/spawn-table effects are still
   open per §3.
 
-Deliberately not spectacle-ified: farming and dialogue. Those are meant
-to stay calm/cozy per the tone in `LORE_BIBLE.md` §7 — the spectacle
-layer is reserved for the two skill-based minigames, not the whole game,
-so it doesn't wear out its welcome.
+Deliberately not spectacle-ified: dialogue, and farming's day-to-day
+loop. Those are meant to stay calm/cozy per the tone in `LORE_BIBLE.md`
+§7 — the full flash/shake `SpectacleUI` treatment is reserved for the
+two skill-based minigames. Farming does get the quieter "New Discovery!"/
+"LEVEL UP!" banners (§12) on harvest, same as the other two pillars, just
+never the shake-and-flash version.
+
+## 12. Compendium & Skill Trees
+
+Two systems added this session, both reusing the spectacle/feedback
+plumbing from §11 rather than bolting on new UI patterns.
+
+**Compendium** ("the book," `CompendiumUI.lua`, toggled with **B**): a
+scrollable index of every fish, dish, crop, and junk/treasure pull,
+sectioned by category. Undiscovered entries show as "???" for both name
+and description; discovery happens the first time you catch/cook/harvest/
+pull that specific thing (`PlayerDataService.discover`/`addItem`). Purely
+a reference screen — no gameplay effect from having it open, just the
+payoff of filling it in. Every fish/dish/crop/junk entry got a one-line
+flavor description as part of this pass, so the book actually reads like
+one instead of a bare list.
+
+**Skill trees** (`SkillTreeConfig.lua`, toggled with **P**): one tree per
+pillar (Farming/Fishing/Cooking), a flat 100-XP-per-level curve, one
+skill point per level. Each tree is a short 2-perk linear chain rather
+than a branching graph — enough to feel like real progression without
+needing a graph-layout UI yet:
+
+- **Farming**: Green Thumb (15% bonus-crop chance on harvest) → No Till
+  Needed (harvested plots stay tilled).
+- **Fishing**: Quick Hands (50% longer hook window) → Treasure Hunter
+  (doubles the odds a pull is treasure, GDD.md §3).
+- **Cooking**: Efficient Cook (20% chance to keep ingredients when you
+  start cooking) → Show Stopper (dishes are never worse than Bronze).
+
+XP sources: Fishing awards more for rarer fish (`FishingConfig.RarityXp`,
+up to 100 for the Moonlit Serpent); Cooking awards more for higher dish
+tiers; Farming awards a flat amount per harvest based on the crop's sell
+price. All perks are applied *at the moment of the action* (harvest/
+catch/cook), not via persistent ownership of world objects — sidesteps
+needing real per-player farm-plot ownership (a bigger architecture change
+implied by §7's "instanced farms" but not yet built) while still giving
+Farming perks that do something. See `SkillTreeConfig.lua`'s header
+comment for the full reasoning.
+
+🔲 Open: the XP curve (flat 100/level) and perk costs are unplaytested
+guesses — expect to retune once these have actually been played.

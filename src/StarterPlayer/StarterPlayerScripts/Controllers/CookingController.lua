@@ -4,71 +4,44 @@
 -- placed at a stove/counter in Studio.
 
 local CollectionService = game:GetService("CollectionService")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local RhythmUI = require(Modules:WaitForChild("UI"):WaitForChild("RhythmUI"))
 local SpectacleUI = require(Modules:WaitForChild("UI"):WaitForChild("SpectacleUI"))
+local ProgressFeedback = require(Modules:WaitForChild("UI"):WaitForChild("ProgressFeedback"))
+local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 
 local CookingController = {}
 
 local STATION_TAG = "CookingStation"
 
-local statusGui: ScreenGui? = nil
-local statusLabel: TextLabel
-
-local function ensureStatusGui()
-	if statusGui then
-		return
-	end
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "CookingStatus"
-	gui.ResetOnSpawn = false
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-	statusGui = gui
-
-	statusLabel = Instance.new("TextLabel")
-	statusLabel.Size = UDim2.fromScale(0.4, 0.06)
-	statusLabel.Position = UDim2.fromScale(0.3, 0.55)
-	statusLabel.BackgroundTransparency = 0.4
-	statusLabel.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-	statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	statusLabel.TextScaled = true
-	statusLabel.Text = ""
-	statusLabel.Visible = false
-	statusLabel.Parent = gui
-end
-
-local function setStatus(text: string?)
-	ensureStatusGui()
-	if text then
-		statusLabel.Text = text
-		statusLabel.Visible = true
-	else
-		statusLabel.Visible = false
-	end
-end
-
 function CookingController.init()
 	Remotes.get("CookingStart").OnClientEvent:Connect(function(payload: { recipeId: string, notes: any })
-		setStatus(nil)
+		StatusToast.set(nil)
 		RhythmUI.play(payload.notes, function(hits)
 			Remotes.get("CookingResult"):FireServer(hits)
 		end, RhythmGameConfig.TimingWindows)
 	end)
 
-	Remotes.get("CookingOutcome").OnClientEvent:Connect(function(payload: { displayName: string, tier: string, estimatedValue: number, spectacle: boolean? })
+	Remotes.get("CookingOutcome").OnClientEvent:Connect(function(payload: {
+		displayName: string,
+		tier: string,
+		estimatedValue: number,
+		spectacle: boolean?,
+		newDiscovery: boolean?,
+		leveledUp: boolean?,
+		newLevel: number?,
+	})
 		if payload.spectacle then
 			local color = payload.tier == "Gold" and Color3.fromRGB(255, 215, 60) or Color3.fromRGB(255, 220, 80)
 			SpectacleUI.banner(`{string.upper(payload.tier)} TIER!`, color, { shake = true })
+		else
+			ProgressFeedback.announce("COOKING", payload)
 		end
-		setStatus(`{payload.tier} {payload.displayName} (~{payload.estimatedValue}g)`)
-		task.delay(2.5, function()
-			setStatus(nil)
-		end)
+		StatusToast.setTemporary(`{payload.tier} {payload.displayName} (~{payload.estimatedValue}g)`, 2.5)
 	end)
 
 	local function setupStation(instance: Instance)

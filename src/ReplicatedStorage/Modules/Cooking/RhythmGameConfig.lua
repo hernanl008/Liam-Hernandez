@@ -29,6 +29,7 @@ export type RecipeChart = {
 	bpm: number,
 	notes: { Note },
 	basePrice: number, -- sell price at 100% quality
+	description: string, -- shown in the Compendium (GDD.md §12)
 }
 
 local RhythmGameConfig = {}
@@ -52,6 +53,7 @@ RhythmGameConfig.Recipes: { RecipeChart } = {
 			{ time = 1.8, lane = 3, noteType = "Hold", holdDuration = 0.6 },
 		},
 		basePrice = 15,
+		description = "Hinano's first lesson: plain, quick, forgiving. Everyone starts here.",
 	},
 	{
 		-- Longer/harder chart than the tutorial recipe — deliberately
@@ -72,6 +74,7 @@ RhythmGameConfig.Recipes: { RecipeChart } = {
 			{ time = 3.5, lane = 4, noteType = "Hold", holdDuration = 0.5 },
 		},
 		basePrice = 35,
+		description = "A festival-circuit staple. Vane calls it simple; Hinano calls it honest.",
 	},
 	-- Add more recipes as the food/lore list grows (regional dishes, festival specials, etc.)
 }

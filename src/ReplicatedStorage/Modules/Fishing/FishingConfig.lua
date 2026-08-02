@@ -17,6 +17,7 @@ export type FishDef = {
 	sellPrice: number,
 	nightOnly: boolean?, -- only biteable while DayCycleService.isNight() — see LORE_BIBLE.md §5 (Ren)
 	spectacle: boolean?, -- GDD.md §11: triggers the celebratory catch banner/shake on FishingController
+	description: string, -- shown in the Compendium (GDD.md §12); "???" is shown instead until discovered
 }
 
 export type DepthZone = {
@@ -39,6 +40,7 @@ export type PullDef = {
 	-- Kaleb specifically per LORE_BIBLE.md §5, keeping his black market
 	-- distinct from the legitimate Trade Exchange.
 	value: number,
+	description: string, -- shown in the Compendium (GDD.md §12)
 }
 
 local FishingConfig = {}
@@ -48,13 +50,51 @@ local FishingConfig = {}
 -- so "did I catch a fish" and "did I also get a junk/treasure pull" stay
 -- two independent, easy-to-balance rolls.
 FishingConfig.PullChance = 0.08 -- 8% of casts also yield a junk/treasure pull
-FishingConfig.TreasureShare = 0.25 -- of pulls that happen, 25% are treasure not junk
+FishingConfig.TreasureShare = 0.25 -- of pulls that happen, 25% are treasure not junk (doubled by the TreasureHunter perk)
+
+-- Fishing skill XP awarded per catch (GDD.md §12) — rarer fish level you
+-- up faster, on top of just being worth more to sell.
+FishingConfig.RarityXp: { [Rarity]: number } = {
+	Common = 10,
+	Uncommon = 15,
+	Rare = 25,
+	Epic = 40,
+	Legendary = 100,
+}
 
 FishingConfig.Pulls: { PullDef } = {
-	{ id = "Driftwood", displayName = "Driftwood", pullType = "Junk", sellsTo = "Kaleb", value = 1 },
-	{ id = "OldBoot", displayName = "Old Boot", pullType = "Junk", sellsTo = "Kaleb", value = 1 },
-	{ id = "TarnishedLocket", displayName = "Tarnished Locket", pullType = "Treasure", sellsTo = "Kaleb", value = 25 },
-	{ id = "SunkenCoinPouch", displayName = "Sunken Coin Pouch", pullType = "Treasure", sellsTo = "Kaleb", value = 40 },
+	{
+		id = "Driftwood",
+		displayName = "Driftwood",
+		pullType = "Junk",
+		sellsTo = "Kaleb",
+		value = 1,
+		description = "Waterlogged and split down the middle. Kaleb takes it anyway.",
+	},
+	{
+		id = "OldBoot",
+		displayName = "Old Boot",
+		pullType = "Junk",
+		sellsTo = "Kaleb",
+		value = 1,
+		description = "Nobody in Orange Ville claims to be missing a boot.",
+	},
+	{
+		id = "TarnishedLocket",
+		displayName = "Tarnished Locket",
+		pullType = "Treasure",
+		sellsTo = "Kaleb",
+		value = 25,
+		description = "Empty inside. Whoever it belonged to isn't saying.",
+	},
+	{
+		id = "SunkenCoinPouch",
+		displayName = "Sunken Coin Pouch",
+		pullType = "Treasure",
+		sellsTo = "Kaleb",
+		value = 40,
+		description = "Old coinage, older than the Trade Exchange. Kaleb's eyes light up at these.",
+	},
 }
 
 FishingConfig.DepthZones: { DepthZone } = {
@@ -74,6 +114,7 @@ FishingConfig.Fish: { FishDef } = {
 		bitePatience = NumberRange.new(1, 3),
 		struggleDifficulty = 1,
 		sellPrice = 5,
+		description = "Small, quick, everywhere. Every angler in Orange Ville started here.",
 	},
 	{
 		id = "MoonfinKoi",
@@ -84,6 +125,7 @@ FishingConfig.Fish: { FishDef } = {
 		bitePatience = NumberRange.new(3, 6),
 		struggleDifficulty = 5,
 		sellPrice = 60,
+		description = "Its scales catch the light like they're storing it up for later.",
 	},
 	{
 		-- Ren Amakusa's "one that got away" (LORE_BIBLE.md §5) — the fish
@@ -101,6 +143,7 @@ FishingConfig.Fish: { FishDef } = {
 		sellPrice = 500,
 		nightOnly = true,
 		spectacle = true,
+		description = "Ren swears he saw it once. Now you have too.",
 	},
 	-- Add more species here as the world/lore expands (region-locked fish, event fish, etc.)
 }

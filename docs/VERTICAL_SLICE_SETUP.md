@@ -30,7 +30,10 @@ of Properties.
 - Tag: `FishingSpot`
 - Attribute: `ZoneId` (String) = `"Shallows"`.
 - Optional second spot with `ZoneId` = `"MidReef"` for Moonfin Koi — locked
-  until fishing level 5 (~12 catches), see `PlayerDataService.lua`.
+  until Fishing skill level 5. XP comes from `FishingConfig.RarityXp`
+  (Common = 10 per catch), so at 100 XP/level that's ~40 Shallows catches
+  from scratch — a pacing guess flagged as unplaytested in `GDD.md` §12,
+  expect to retune once this has actually been played.
 - The Shallows also hold the **Moonlit Serpent** — Legendary, only bites
   at night (`FishingConfig.lua`). `DayCycleService` tracks its own clock
   server-side and overwrites `Lighting.ClockTime` every tick, so setting
@@ -85,11 +88,19 @@ connected (see `README.md`):
    play the rhythm chart → get a dish (Bronze/Silver/Gold/Basic tier). A
    Gold-tier result or a 5+ combo should trigger a full-screen banner +
    camera shake (`SpectacleUI.lua`).
-5. Catch ~12 fish to hit fishing level 5 and unlock Mid Reef (if you
-   placed that spot); at night, try the Shallows for the Moonlit Serpent
-   — landing it should always trigger the spectacle banner regardless of
-   combo.
-6. Talk to Kaya again anytime — dialogue re-runs from her root node each
+5. Press **B** to open the Compendium — everything you've caught/cooked/
+   harvested/pulled shows its name and flavor text; everything else shows
+   "???". Press **P** to open Skills — you should see 1 skill point per
+   pillar the first time you level that skill, spendable on that tree's
+   first perk (the second perk needs the first unlocked, plus a higher
+   level).
+6. Fish enough Shallows catches to hit Fishing level 5 and unlock Mid
+   Reef (if you placed that spot); at night, try the Shallows for the
+   Moonlit Serpent — landing it should always trigger the spectacle
+   banner regardless of combo. Try unlocking Quick Hands/Treasure Hunter
+   in the Fishing tree and see if the hook window/treasure odds visibly
+   change.
+7. Talk to Kaya again anytime — dialogue re-runs from her root node each
    time in this vertical slice (no "already met" branching yet, that's
    Phase 3 per `docs/ROADMAP.md`).
 
@@ -100,10 +111,12 @@ connected (see `README.md`):
   state is inspectable via the Part's attributes in Studio while testing.
 - No cast-power meter — casting is instant on trigger (see
   `FishingController.lua` comment for why).
-- No inventory/HUD screen yet — `InventoryCache.lua` mirrors the data
-  client-side already, just needs a UI built on top of it.
+- No general inventory/HUD screen yet (gold/item counts) — the
+  Compendium (B) and Skills (P) screens exist, but a plain "what am I
+  carrying" screen doesn't yet; `InventoryCache.lua` already has the data.
 - No persistence (DataStores) — progress resets when the server restarts/
-  playtest ends. Deliberately deferred to Phase 3/4.
+  playtest ends, including Compendium discoveries and skill points.
+  Deliberately deferred to Phase 3/4.
 
 Report anything that errors in the Studio Output window back here — none
 of this has been run in an actual Roblox environment yet, only
