@@ -18,13 +18,17 @@ protagonist name, etc.).
 ## 2. Core Loop
 
 Day cycle: wake → farm chores (water/harvest/plant) → head out (fish /
-forage / town errands / story beats) → cook using the day's catch+harvest →
-sell / eat / gift → sleep → next day. XP and currency from all four
-pillars (farming, fishing, cooking, social/story) feed back into
-unlocking more of each system.
+forage / town errands / story beats / light combat) → cook using the
+day's catch+harvest → sell / eat / gift / trade → sleep → next day. XP and
+currency from all five pillars (farming, fishing, cooking, social/story,
+trading) feed back into unlocking more of each system.
 
-🔲 Is there combat/dungeon-crawling (like Stardew's mines), or is this
-purely farm/fish/cook/social? This materially changes scope.
+**Decided:** light combat is in scope, not a core pillar. It's pest/monster
+encounters ("Blightspawn" — see `LORE_BIBLE.md`) tied to the Frontier Watch
+faction: clearing farmland threats, escorting caravans, seasonal hunts.
+Think Stardew's mines in spirit, but shallow — a few enemy types, simple
+hit-and-dodge combat, mainly a gate for rare crafting materials and a
+questline, not a skill tree of its own. No PvP (see Non-goals).
 
 ## 3. Fishing — the depth pillar
 
@@ -75,33 +79,64 @@ does it always produce *something*, just lower quality?
 ## 5. Farming
 
 Standard stardew-style: plant → grow (staged, see `FarmingConfig.lua`) →
-harvest → sell/cook/gift. Seasons gate what grows.
-
-🔲 Land expansion model — buy plots, or unlock via story progression?
+harvest → sell/cook/gift/trade. Seasons gate what grows. (Land expansion
+model — see §8.)
 
 ## 6. Anime theme direction
 
-🔲 Needs your input — this is the single biggest lever on asset style,
-lore tone, and character design. Rough spectrum to pick a lane on:
-- Slice-of-life/cozy (Natsume's Book of Friends, Non Non Biyori tone)
-- Shonen-adjacent (mild stakes, rival characters, tournament-style cooking
-  showdowns — think Food Wars energy for the cooking system)
-- Isekai framing (protagonist arrives in the town from elsewhere — gives a
-  built-in reason for an amnesiac/outsider player character, common in
-  farm-sim narratives)
+**Decided: Isekai reincarnation.** Protagonist dies in the real world and
+is reborn as a farmer in an anime fantasy world, opening on a death →
+rebirth cutscene. Full premise, world, and cast in `LORE_BIBLE.md` and
+`NPC_ROSTER.md`; opening cutscene beats in `OPENING_CUTSCENE.md`.
 
-## 7. Systems NOT yet designed
+🔲 **Visual style** — "anime themed... '2D' world" could mean two very
+different engineering paths:
+1. Toon-shaded 3D (cel-shading, flat lighting, anime-proportioned rigs) —
+   Roblox has done this before (see games using outline/toon shaders); full
+   3D movement and camera, just styled to read as anime.
+2. Actual 2D/2.5D — billboarded sprite characters on a 3D or flat plane
+   (à la old-school JRPGs or Roblox's billboard-sprite games), which
+   changes animation pipeline, camera setup, and asset creation entirely.
 
-- Social/relationship system (NPCs, dialogue, gifting, romance?) 🔲 in scope?
-- Progression/currency sinks beyond gear
-- Multiplayer scope — solo-instanced farms, shared-world, or drop-in co-op? 🔲
-  (Big architectural decision — affects how ServerScriptService state is
-  structured from day one.)
+   Went with reading "ykwis"/'2D world' as the toon-shaded-3D look for
+   now since it's far less asset-pipeline risk for a solo month-long
+   project — say the word if you actually meant flat 2D sprites and this
+   flips.
 
-## 8. Non-goals (for now)
+## 7. Multiplayer & Trading
 
-Keeping these explicitly out of scope until the core 3 pillars + lore are
+**Decided:** shared-world with a player-driven trading system.
+
+- Farms are **per-player instanced plots** (like Stardew) — no one
+  trampling your crops — but town hubs (Kotobuki Port especially) are
+  **shared multiplayer spaces**.
+- **Trade Exchange** (Kotobuki Port, run by NPC broker Mira Kessler — see
+  `NPC_ROSTER.md`): players list fish/crops/dishes for other *players* to
+  buy, not just an NPC shop. This is the core of the trading pillar the
+  valley's prosperity narrative hooks into.
+- 🔲 Still open: real-time player stalls (see other players placing/buying
+  live) vs. an async listing board (post an item, it sells whenever
+  someone buys — simpler to build, no need to solve live-economy sync
+  issues early). Recommend starting async for the vertical slice and
+  upgrading to live stalls later if it's landing well.
+- No PvP, no combat trading exploits — trading is cooperative/economic
+  only.
+
+## 8. Social & Progression
+
+- Social/relationship system: **in scope** — 50+ NPCs (`NPC_ROSTER.md`),
+  dialogue, gifting; romance is a 🔲 open question (isekai farm-sims often
+  include it, but it's a large scope add — decide once the vertical slice
+  cast is proven out).
+- Currency/progression sinks: gear tiers (rod/tools), farm plot expansion,
+  Trade Exchange stall upgrades, Frontier Watch gear for combat.
+
+🔲 Land expansion model — buy plots, or unlock via story progression?
+
+## 9. Non-goals (for now)
+
+Keeping these explicitly out of scope until the core pillars + lore are
 solid, to avoid scope creep on a solo month-long project:
 - PvP
-- Trading/marketplace between players
 - Mobile-specific UI pass
+- Live/real-time player-stall trading (start async, see §7)

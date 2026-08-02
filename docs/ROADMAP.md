@@ -12,12 +12,23 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
 - [ ] Liam installs Roblox Studio + Rojo locally, confirms sync works
 
 ## Phase 1 — Lore & Design Lock (~week 1)
-- [ ] Answer the 🔲 open questions in `GDD.md` (scope: combat? multiplayer
-      model? land expansion model?)
-- [ ] Fill out `LORE_BIBLE.md` premise, world, and at least the core
-      cast of characters
-- [ ] Lock anime tone direction (slice-of-life vs shonen-adjacent vs isekai)
-- [ ] Decide the central story conflict that gates content unlocks
+- [x] Combat scope decided: light, non-core (Frontier Watch/Blightspawn)
+- [x] Multiplayer/trading model decided: instanced farms + shared Kotobuki
+      Port with a player-driven Trade Exchange (see `GDD.md` §7)
+- [x] Anime tone locked: isekai reincarnation
+- [x] `LORE_BIBLE.md` premise, world, factions, central conflict, and main
+      cast written
+- [x] `NPC_ROSTER.md` — 52+ NPCs across village/port/Watch/Academy/traveling
+- [x] `OPENING_CUTSCENE.md` — death → rebirth beat sheet
+- [ ] 🔲 Land expansion model (buy plots vs. story-gated) — still open
+- [ ] 🔲 Romance system in/out of scope — still open
+- [ ] 🔲 Visual style: toon-shaded 3D vs. actual 2D/2.5D sprites (`GDD.md`
+      §6) — currently assumed toon-shaded 3D, confirm before art starts
+- [ ] 🔲 Founding myth specifics — what actually happened to the guardian
+      spirit 3 generations ago (`LORE_BIBLE.md` §6) — needed before Act 2
+      content is built
+- [ ] Async vs. live Trade Exchange stalls (`GDD.md` §7) — recommend async
+      for the vertical slice, revisit later
 
 ## Phase 2 — Core Systems, Vertical Slice (~weeks 2-3)
 - [ ] Farming: plant/grow/harvest loop working end-to-end in Studio
