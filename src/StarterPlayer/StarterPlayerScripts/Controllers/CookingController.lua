@@ -19,6 +19,10 @@ local CookingController = {}
 local STATION_TAG = "CookingStation"
 
 function CookingController.init()
+	Remotes.get("CookingRejected").OnClientEvent:Connect(function(reason: string)
+		StatusToast.setTemporary(reason, 2.5)
+	end)
+
 	Remotes.get("CookingStart").OnClientEvent:Connect(function(payload: { recipeId: string, notes: any })
 		StatusToast.set(nil)
 		RhythmUI.play(payload.notes, function(hits)

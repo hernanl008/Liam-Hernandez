@@ -73,6 +73,10 @@ function RhythmUI.play(
 	local LANE_IDLE_COLOR = Color3.fromRGB(55, 40, 60)
 	local LANE_CUE_COLOR = Theme.Colors.AccentGold
 	local LANE_HIT_COLOR = Theme.Colors.Success
+	-- Flashed on *any* keypress that doesn't land a note, so a player can
+	-- tell their input is registering at all (vs. bad timing) — the two
+	-- look identical from "nothing happened" otherwise.
+	local LANE_WHIFF_COLOR = Color3.fromRGB(190, 60, 60)
 
 	local laneFrames: { Frame } = {}
 	for lane = 1, 4 do
@@ -99,6 +103,7 @@ function RhythmUI.play(
 	local startTime = os.clock()
 	local finished = false
 	local flashUntil: { [number]: number } = {}
+	local flashColor: { [number]: Color3 } = {}
 	local liveCombo = 0
 
 	local heartbeatConnection: RBXScriptConnection
@@ -161,10 +166,16 @@ function RhythmUI.play(
 			local offset = elapsed - bestNote.time
 			table.insert(hits, { noteIndex = bestIndex, offsetSeconds = offset })
 			flashUntil[laneIndex] = os.clock() + 0.15
+			flashColor[laneIndex] = LANE_HIT_COLOR
 
 			local window = RhythmScoring.classify(offset, scoringWindows)
 			updateCombo(window.name == topWindowName)
 		else
+			-- No note within HIT_TOLERANCE for this lane right now — still
+			-- flash (red) so the press is visibly acknowledged instead of
+			-- looking identical to a key that didn't register at all.
+			flashUntil[laneIndex] = os.clock() + 0.15
+			flashColor[laneIndex] = LANE_WHIFF_COLOR
 			updateCombo(false) -- whiffed input on this lane breaks the streak too
 		end
 	end)
@@ -180,7 +191,7 @@ function RhythmUI.play(
 
 		for lane, frame in laneFrames do
 			if flashUntil[lane] and os.clock() < flashUntil[lane] then
-				frame.BackgroundColor3 = LANE_HIT_COLOR
+				frame.BackgroundColor3 = flashColor[lane] or LANE_HIT_COLOR
 			else
 				local cueing = false
 				for i, note in notes do

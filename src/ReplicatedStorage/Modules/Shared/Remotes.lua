@@ -22,6 +22,7 @@ local EVENT_NAMES = {
 	"ReelResult",
 	"CatchResult",
 	"StartCooking",
+	"CookingRejected",
 	"CookingStart",
 	"CookingResult",
 	"CookingOutcome",

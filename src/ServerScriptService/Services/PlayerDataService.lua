@@ -57,7 +57,11 @@ local function newPlayerData(): PlayerData
 		dishes = {},
 		junk = {},
 		flags = {},
-		assistMode = false,
+		-- Default on for the vertical slice: no UI toggle for this exists
+		-- yet, and the tight base timing windows (RhythmScoring.lua) are
+		-- rough for a first-ever playthrough. Widens hit tolerance ~1.6x;
+		-- revisit once a settings menu exists to let players choose.
+		assistMode = true,
 		discovered = { fish = {}, dishes = {}, crops = {}, junk = {} },
 		skillXp = { Farming = 0, Fishing = 0, Cooking = 0 },
 		skillPoints = { Farming = 0, Fishing = 0, Cooking = 0 },

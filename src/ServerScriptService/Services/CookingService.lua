@@ -12,10 +12,23 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local RhythmScoring = require(Modules:WaitForChild("Shared"):WaitForChild("RhythmScoring"))
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
+local FishingConfig = require(Modules:WaitForChild("Fishing"):WaitForChild("FishingConfig"))
+local FarmingConfig = require(Modules:WaitForChild("Farming"):WaitForChild("FarmingConfig"))
 
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
 
 local CookingService = {}
+
+-- Ingredient ids are fish ids or crop ids; build a lookup once so a
+-- missing-ingredient rejection can name the thing the player still needs
+-- instead of just refusing silently.
+local INGREDIENT_DISPLAY_NAMES: { [string]: string } = {}
+for _, fish in FishingConfig.Fish do
+	INGREDIENT_DISPLAY_NAMES[fish.id] = fish.displayName
+end
+for _, crop in FarmingConfig.Crops do
+	INGREDIENT_DISPLAY_NAMES[crop.id] = crop.displayName
+end
 
 -- Cooking skill XP awarded per dish, by tier (GDD.md §12).
 local XP_BY_TIER = { Basic = 5, Bronze = 10, Silver = 20, Gold = 35 }
@@ -60,7 +73,9 @@ function CookingService.init()
 			local hasCrop = PlayerDataService.hasItem(player, "crops", ingredientId, 1)
 			local hasFish = PlayerDataService.hasItem(player, "fish", ingredientId, 1)
 			if not hasCrop and not hasFish then
-				return -- missing an ingredient, silently reject (client should have checked first)
+				local ingredientName = INGREDIENT_DISPLAY_NAMES[ingredientId] or ingredientId
+				Remotes.get("CookingRejected"):FireClient(player, `You need a {ingredientName} to cook this.`)
+				return
 			end
 		end
 
