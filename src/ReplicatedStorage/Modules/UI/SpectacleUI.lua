@@ -147,9 +147,9 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 	speedLinesScale.Scale = 0.3
 	speedLines.GroupTransparency = 0
 	TweenService:Create(speedLinesScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
-	task.delay(0.15, function()
+	task.delay(0.1, function()
 		if isCurrent() then
-			TweenService:Create(speedLines, TweenInfo.new(0.5), { GroupTransparency = 1 }):Play()
+			TweenService:Create(speedLines, TweenInfo.new(0.35), { GroupTransparency = 1 }):Play()
 		end
 	end)
 
@@ -165,14 +165,14 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 		pcall(shakeCamera, 0.3, 0.3)
 	end
 
-	local holdSeconds = (options and options.holdSeconds) or 1.6
+	local holdSeconds = (options and options.holdSeconds) or 1.1
 	task.delay(holdSeconds, function()
 		-- Always fade *this* call's own banner text out at the end of its
 		-- hold, even if a newer call has since taken over — otherwise the
 		-- newer call's earlier text could get wiped by this stale timer,
 		-- but skipping it entirely (via isCurrent()) risks the opposite:
 		-- the newest call's fade never happens if something above threw.
-		TweenService:Create(bannerLabel, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		TweenService:Create(bannerLabel, TweenInfo.new(0.3), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 	end)
 end
 

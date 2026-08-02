@@ -18,9 +18,9 @@ export type Payload = {
 
 function ProgressFeedback.announce(skillName: string, payload: Payload)
 	if payload.leveledUp then
-		SpectacleUI.banner(`{skillName} LEVEL {payload.newLevel}!`, Color3.fromRGB(120, 200, 255), { holdSeconds = 1.8 })
+		SpectacleUI.banner(`{skillName} LEVEL {payload.newLevel}!`, Color3.fromRGB(120, 200, 255), { holdSeconds = 1.2 })
 	elseif payload.newDiscovery then
-		SpectacleUI.banner("NEW DISCOVERY!", Color3.fromRGB(160, 255, 160), { holdSeconds = 1.4 })
+		SpectacleUI.banner("NEW DISCOVERY!", Color3.fromRGB(160, 255, 160), { holdSeconds = 1.0 })
 	end
 end
 
