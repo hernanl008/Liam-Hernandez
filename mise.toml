@@ -1,0 +1,23 @@
+# Toolchain manifest for mise (https://mise.jdx.dev) — replaces
+# aftman.toml. Aftman was deprecated and pulled from Homebrew in July
+# 2026; Homebrew now points installs at mise instead, which can install
+# the same GitHub-release tools via its `github:` backend.
+#
+# One-time setup:
+#   brew install mise
+#   echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # or ~/.bashrc etc.
+#   source ~/.zshrc                                   # or open a new terminal
+#
+# Then, from this repo's root:
+#   mise install
+#
+# Version pins left at "latest" for now — aftman.toml's old pins (Rojo
+# 7.4.4, Selene 0.27.1, StyLua 0.20.0, Tarmac 0.7.6) are a reasonable
+# baseline to pin to explicitly later, once someone's confirmed mise's
+# exact expected tag format for each of these tools (e.g. "v7.4.4" vs
+# "7.4.4") — get it running first, tighten the pins after.
+[tools]
+"github:rojo-rbx/rojo" = "latest"
+"github:Kampfkarren/selene" = "latest"
+"github:JohnnyMorganz/StyLua" = "latest"
+"github:rojo-rbx/tarmac" = "latest"

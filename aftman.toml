@@ -1,9 +1,9 @@
-# Aftman toolchain manifest — run `aftman install` after installing Aftman
-# (https://github.com/LPGhatguy/aftman) to get matching versions of these tools.
+# DEPRECATED — Aftman was pulled from Homebrew in July 2026 and is no
+# longer the recommended install path. Use mise.toml instead (see that
+# file for setup). This file is kept only in case you have Aftman
+# installed some other way (e.g. cargo) and it still works for you.
 [tools]
 rojo = "rojo-rbx/rojo@7.4.4"
 selene = "Kampfkarren/selene@0.27.1"
 stylua = "JohnnyMorganz/StyLua@0.20.0"
-# Version pin is a best-effort guess — check github.com/rojo-rbx/tarmac
-# releases for the actual latest tag if `aftman install` can't find this one.
 tarmac = "rojo-rbx/tarmac@0.7.6"

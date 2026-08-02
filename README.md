@@ -23,19 +23,26 @@ pushes it into Studio, you playtest, then commit.
 2. **Install Rojo**:
    - Easiest: get the **Rojo plugin** for Studio from the Roblox toolbox
      (search "Rojo" in Studio's Toolbox), *and*
-   - Install the Rojo **CLI** on your machine. Easiest via
-     [Aftman](https://github.com/LPGhatguy/aftman) (a toolchain manager):
+   - Install the Rojo **CLI** on your machine via
+     [mise](https://mise.jdx.dev) (a toolchain manager — this repo used
+     to use Aftman, but Aftman was pulled from Homebrew in July 2026, so
+     mise is the current path):
      ```
-     # after installing Aftman:
-     aftman install
+     brew install mise
+     echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # or ~/.bashrc, etc.
+     source ~/.zshrc                                   # or open a new terminal
      ```
-     This reads `aftman.toml` in this repo and installs the exact Rojo,
-     Selene (linter), and StyLua (formatter) versions the project uses.
-   - Alternative without Aftman: `cargo install rojo` or download a binary
-     from https://github.com/rojo-rbx/rojo/releases.
+     Then, from this repo's root:
+     ```
+     mise install
+     ```
+     This reads `mise.toml` and installs Rojo, Selene (linter), StyLua
+     (formatter), and Tarmac (asset pipeline).
+   - Alternative: `cargo install rojo` or download a binary from
+     https://github.com/rojo-rbx/rojo/releases.
 3. **Clone this repo** and check out this branch:
    ```
-   git clone <this-repo-url>
+   git clone https://github.com/hernanl008/Liam-Hernandez.git
    cd Liam-Hernandez
    git checkout claude/anime-stardew-roblox-game-6xd7os
    ```
@@ -83,6 +90,7 @@ placeholder pixel-art tiles/sprites already in this repo, is in
 
 ```
 default.project.json   Rojo mapping: filesystem -> Roblox instance tree
+mise.toml               Toolchain manifest (Rojo/Selene/StyLua/Tarmac versions)
 tarmac.toml             Asset upload pipeline config (see "Assets pipeline" above)
 assets/                 Source PNGs for Tarmac to upload (tiles/, sprites/)
 src/
@@ -114,4 +122,4 @@ docs/
 ## Linting / formatting
 
 `selene.toml` and `stylua.toml` are configured. Run `selene src` and
-`stylua src` locally (installed via `aftman install`) before committing.
+`stylua src` locally (installed via `mise install`) before committing.
