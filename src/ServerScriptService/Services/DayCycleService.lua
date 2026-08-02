@@ -20,7 +20,14 @@ local DayCycleService = {}
 local dayLengthSeconds = 20 * 60 -- 20 real-time minutes per in-game day, tune freely
 local currentDay = 1
 local elapsedThisDay = 0
+local currentClockTime = 6 -- 24-hour clock, mirrors Lighting.ClockTime
 local newDayListeners: { (number) -> () } = {}
+
+-- Night-only content (LORE_BIBLE.md §5's Moonlit Serpent) checks this —
+-- kept as a named predicate rather than callers comparing ClockTime
+-- directly, so the definition of "night" only lives in one place.
+local NIGHT_START_CLOCK_TIME = 20 -- 8pm
+local NIGHT_END_CLOCK_TIME = 6 -- 6am
 
 function DayCycleService.setDayLengthSeconds(seconds: number)
 	dayLengthSeconds = math.max(seconds, 30) -- floor so it can never become a busy-loop
@@ -28,6 +35,14 @@ end
 
 function DayCycleService.getCurrentDay(): number
 	return currentDay
+end
+
+function DayCycleService.getClockTime(): number
+	return currentClockTime
+end
+
+function DayCycleService.isNight(): boolean
+	return currentClockTime >= NIGHT_START_CLOCK_TIME or currentClockTime < NIGHT_END_CLOCK_TIME
 end
 
 function DayCycleService.onNewDay(callback: (number) -> ())
@@ -45,7 +60,8 @@ function DayCycleService.init()
 		if os.clock() - lastBroadcast > 0.5 then
 			lastBroadcast = os.clock()
 			local dayProgress = elapsedThisDay / dayLengthSeconds
-			Lighting.ClockTime = 6 + dayProgress * 18 -- 6am -> midnight across the day
+			currentClockTime = 6 + dayProgress * 18 -- 6am -> midnight across the day
+			Lighting.ClockTime = currentClockTime
 			Remotes.get("DayCycleUpdate"):FireAllClients({
 				day = currentDay,
 				dayProgress = dayProgress,

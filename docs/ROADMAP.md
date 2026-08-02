@@ -50,13 +50,25 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       back whatever breaks first.
 - [ ] Inventory/HUD UI (data's already replicated client-side via
       `InventoryCache.lua`, just needs a screen)
+- [x] Combo/spectacle system (`RhythmScoring.lua` combo bonus,
+      `SpectacleUI.lua` banners) shared by fishing reel-in and cooking —
+      the "make it feel more anime" pass, see `GDD.md` §11
+- [x] Moonlit Serpent — Legendary, night-only fish tied to Ren Amakusa's
+      arc (`FishingConfig.lua`, `LORE_BIBLE.md` §5), always triggers the
+      spectacle banner
+- [x] Fishing level + zone unlocking (`PlayerDataService.lua`
+      `fishingLevel`/`registerCatch`) — Mid Reef reachable at level 5
+- [x] Second crop (Sunpetal Berries, regrowable) + second, harder recipe
+      (Sunpetal Jam Tart) to give the combo system room to show off
 
 ## Phase 3 — Content Expansion (~week 4)
-- [ ] Remaining depth zones + fish roster
+- [ ] Remaining depth zones (Deep Trench, Abyssal Rift) + fish roster
 - [ ] Recipe roster tied to lore (regional dishes, festival specials)
 - [ ] Remaining crops + seasons
 - [ ] Story beats implemented per the lore bible's arc
 - [ ] UI/UX pass (HUD, inventory, shop, dialogue box)
+- [ ] Cast-power meter or weather effects on which fish spawn (`GDD.md`
+      §3 — currently only the Moonlit Serpent has any time-of-day gating)
 - [ ] Cast-power meter that actually affects bite odds (deferred from
       Phase 2, see `FishingController.lua`)
 - [ ] Crop growth-stage visuals (model swaps per `FarmingConfig.lua` stage)

@@ -15,6 +15,8 @@ export type FishDef = {
 	bitePatience: NumberRange, -- seconds before a bite, min/max
 	struggleDifficulty: number, -- 1-10, feeds the reel-in minigame
 	sellPrice: number,
+	nightOnly: boolean?, -- only biteable while DayCycleService.isNight() — see LORE_BIBLE.md §5 (Ren)
+	spectacle: boolean?, -- GDD.md §11: triggers the celebratory catch banner/shake on FishingController
 }
 
 export type DepthZone = {
@@ -82,6 +84,23 @@ FishingConfig.Fish: { FishDef } = {
 		bitePatience = NumberRange.new(3, 6),
 		struggleDifficulty = 5,
 		sellPrice = 60,
+	},
+	{
+		-- Ren Amakusa's "one that got away" (LORE_BIBLE.md §5) — the fish
+		-- his postgame redemption questline centers on. Deliberately
+		-- catchable in the Shallows (no need to unlock deeper zones for
+		-- the story payoff to land) but only at night, so it stays a real
+		-- event rather than something players stumble into casually.
+		id = "MoonlitSerpent",
+		displayName = "Moonlit Serpent",
+		rarity = "Legendary",
+		zones = { "Shallows" },
+		baseWeight = NumberRange.new(8, 15),
+		bitePatience = NumberRange.new(4, 8),
+		struggleDifficulty = 9,
+		sellPrice = 500,
+		nightOnly = true,
+		spectacle = true,
 	},
 	-- Add more species here as the world/lore expands (region-locked fish, event fish, etc.)
 }

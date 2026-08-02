@@ -28,17 +28,30 @@ of Properties.
 - Place a **Part** at the water's edge (doesn't need to touch water for
   this vertical slice — the "cast" is instant, no physical bobber yet).
 - Tag: `FishingSpot`
-- Attribute: `ZoneId` (String) = `"Shallows"` (the only zone with fish
-  configured right now — see `FishingConfig.lua`).
+- Attribute: `ZoneId` (String) = `"Shallows"`.
+- Optional second spot with `ZoneId` = `"MidReef"` for Moonfin Koi — locked
+  until fishing level 5 (~12 catches), see `PlayerDataService.lua`.
+- The Shallows also hold the **Moonlit Serpent** — Legendary, only bites
+  at night (`FishingConfig.lua`). `DayCycleService` tracks its own clock
+  server-side and overwrites `Lighting.ClockTime` every tick, so setting
+  `Lighting.ClockTime` by hand in the command bar won't stick. To test
+  night-only content quickly, temporarily change the `dayLengthSeconds`
+  local at the top of `DayCycleService.lua` to something short (e.g. `60`
+  for a 1-minute day) before syncing, so night arrives fast during a test
+  session — remember to change it back before anything resembling a real
+  playtest.
 
 ## 3. A cooking station
 
 - Place a **Part** (stand-in for a stove/counter).
 - Tag: `CookingStation`
-- Attribute: `RecipeId` (String) = `"GrilledMinnowSkewer"` (the only
-  recipe configured right now — see `RhythmGameConfig.lua`).
-- Note this recipe needs a `SilverMinnow` (caught from the Shallows) in
-  inventory to start cooking — go fish first.
+- Attribute: `RecipeId` (String) = `"GrilledMinnowSkewer"` or
+  `"SunpetalJamTart"` (see `RhythmGameConfig.lua`) — place two stations to
+  test both. The Jam Tart's longer chart is the better one to test the
+  combo/spectacle system on (`GDD.md` §11).
+- `GrilledMinnowSkewer` needs a `SilverMinnow` in inventory (go fish
+  first); `SunpetalJamTart` needs `SunpetalBerries` (grow one, or you
+  start with 2 seeds already per `PlayerDataService.lua`).
 
 ## 4. Kaya (first NPC)
 
@@ -66,10 +79,17 @@ connected (see `README.md`):
    progresses while watered — leaving it unwatered pauses growth, it
    doesn't kill the crop.
 3. Walk to the fishing spot → Cast → wait for "Something's biting!" →
-   press E → play the reel-in rhythm prompt (D/F/J/K keys).
+   press E → play the reel-in rhythm prompt (D/F/J/K keys). Chain several
+   Perfect hits in a row and you should see a "Nx COMBO!" counter pulse.
 4. With a caught fish in inventory, walk to the cooking station → Cook →
-   play the rhythm chart → get a dish (Bronze/Silver/Gold/Basic tier).
-5. Talk to Kaya again anytime — dialogue re-runs from her root node each
+   play the rhythm chart → get a dish (Bronze/Silver/Gold/Basic tier). A
+   Gold-tier result or a 5+ combo should trigger a full-screen banner +
+   camera shake (`SpectacleUI.lua`).
+5. Catch ~12 fish to hit fishing level 5 and unlock Mid Reef (if you
+   placed that spot); at night, try the Shallows for the Moonlit Serpent
+   — landing it should always trigger the spectacle banner regardless of
+   combo.
+6. Talk to Kaya again anytime — dialogue re-runs from her root node each
    time in this vertical slice (no "already met" branching yet, that's
    Phase 3 per `docs/ROADMAP.md`).
 

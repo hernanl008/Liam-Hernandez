@@ -37,6 +37,22 @@ FarmingConfig.Crops: { CropDef } = {
 		sellPrice = 8,
 		usedInRecipes = {},
 	},
+	{
+		-- Regrowable bush crop -- quick first grow, then a short regrow
+		-- window each subsequent harvest (see FarmingService's regrowable
+		-- handling). Feeds SunpetalJamTart in RhythmGameConfig.lua.
+		id = "SunpetalBerries",
+		displayName = "Sunpetal Berries",
+		season = "AllSeason",
+		stages = {
+			{ stageIndex = 1, durationSeconds = 60 * 6, modelName = "SunpetalSprout" },
+			{ stageIndex = 2, durationSeconds = 60 * 8, modelName = "SunpetalBush" },
+			{ stageIndex = 3, durationSeconds = 60 * 4, modelName = "SunpetalRipe" },
+		},
+		regrowable = true,
+		sellPrice = 4,
+		usedInRecipes = { "SunpetalJamTart" },
+	},
 	-- Add more crops as the world/regions are designed.
 }
 

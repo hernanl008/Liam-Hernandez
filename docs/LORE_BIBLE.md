@@ -148,11 +148,15 @@ NPCs) is in `NPC_ROSTER.md`. These are the story-critical named cast.
 ### Ren Amakusa
 - Role in town: Fisherfolk Guild dockmaster, Orange Ville.
 - Relationship to player: fishing mentor.
-- Personality / hook: easygoing, but carries quiet regret over a
-  legendary fish he failed to land years ago.
-- Connection to gameplay system: fishing tutorial and rank-gating; his
-  "one that got away" becomes a postgame Legendary Fish questline.
-- Arc: closure via the player landing (or helping him finally land) that fish.
+- Personality / hook: easygoing, but carries quiet regret over the
+  **Moonlit Serpent** — a legendary fish he failed to land years ago,
+  said to only rise from the Shallows after dark.
+- Connection to gameplay system: fishing tutorial and rank-gating; the
+  Moonlit Serpent is implemented (`FishingConfig.lua`, night-only,
+  triggers the spectacle catch banner per `GDD.md` §11) as his "one that
+  got away" made literal — landing it becomes his postgame closure quest.
+- Arc: closure via the player landing (or helping him finally land) the
+  Moonlit Serpent.
 
 ### Chef Hinano
 - Role in town: runs Orange Ville's food stall.

@@ -19,7 +19,14 @@ export type PlayerData = {
 	junk: ItemCounts,
 	flags: { [string]: boolean },
 	assistMode: boolean,
+	fishingLevel: number,
+	catchCount: number,
 }
+
+-- Catches per fishing level-up. GDD.md's zone unlockLevels (FishingConfig
+-- .DepthZones) are tuned against this pace — e.g. MidReef's unlockLevel 5
+-- is reachable after 12 catches.
+local CATCHES_PER_LEVEL = 3
 
 local PlayerDataService = {}
 
@@ -28,13 +35,15 @@ local dataByPlayer: { [Player]: PlayerData } = {}
 local function newPlayerData(): PlayerData
 	return {
 		gold = 100, -- small starter cushion for seeds
-		seeds = { MoonriceStalk = 3 },
+		seeds = { MoonriceStalk = 3, SunpetalBerries = 2 },
 		crops = {},
 		fish = {},
 		dishes = {},
 		junk = {},
 		flags = {},
 		assistMode = false,
+		fishingLevel = 1,
+		catchCount = 0,
 	}
 end
 
@@ -47,6 +56,11 @@ local function setupLeaderstats(player: Player, data: PlayerData)
 	gold.Name = "Gold"
 	gold.Value = data.gold
 	gold.Parent = leaderstats
+
+	local fishingLevel = Instance.new("IntValue")
+	fishingLevel.Name = "FishingLvl"
+	fishingLevel.Value = data.fishingLevel
+	fishingLevel.Parent = leaderstats
 end
 
 function PlayerDataService.get(player: Player): PlayerData?
@@ -64,6 +78,7 @@ local function syncToClient(player: Player, data: PlayerData)
 		fish = data.fish,
 		dishes = data.dishes,
 		junk = data.junk,
+		fishingLevel = data.fishingLevel,
 	})
 end
 
@@ -106,6 +121,32 @@ function PlayerDataService.addGold(player: Player, amount: number)
 	if goldValue then
 		(goldValue :: IntValue).Value = data.gold
 	end
+end
+
+function PlayerDataService.getFishingLevel(player: Player): number
+	local data = dataByPlayer[player]
+	return data and data.fishingLevel or 1
+end
+
+-- Called by FishingService on every successful catch. Leveling here is
+-- deliberately simple (a flat catch count, no per-fish weighting) —
+-- tune CATCHES_PER_LEVEL above if the pace to unlock MidReef feels off.
+function PlayerDataService.registerCatch(player: Player)
+	local data = dataByPlayer[player]
+	if not data then
+		return
+	end
+	data.catchCount += 1
+	local newLevel = 1 + math.floor(data.catchCount / CATCHES_PER_LEVEL)
+	if newLevel ~= data.fishingLevel then
+		data.fishingLevel = newLevel
+		local leaderstats = player:FindFirstChild("leaderstats")
+		local levelValue = leaderstats and leaderstats:FindFirstChild("FishingLvl")
+		if levelValue then
+			(levelValue :: IntValue).Value = newLevel
+		end
+	end
+	syncToClient(player, data)
 end
 
 function PlayerDataService.setFlag(player: Player, flag: string, value: boolean)

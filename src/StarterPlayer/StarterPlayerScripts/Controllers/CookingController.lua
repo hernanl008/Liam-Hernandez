@@ -10,6 +10,8 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local RhythmUI = require(Modules:WaitForChild("UI"):WaitForChild("RhythmUI"))
+local SpectacleUI = require(Modules:WaitForChild("UI"):WaitForChild("SpectacleUI"))
+local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 
 local CookingController = {}
 
@@ -55,10 +57,14 @@ function CookingController.init()
 		setStatus(nil)
 		RhythmUI.play(payload.notes, function(hits)
 			Remotes.get("CookingResult"):FireServer(hits)
-		end)
+		end, RhythmGameConfig.TimingWindows)
 	end)
 
-	Remotes.get("CookingOutcome").OnClientEvent:Connect(function(payload: { displayName: string, tier: string, estimatedValue: number })
+	Remotes.get("CookingOutcome").OnClientEvent:Connect(function(payload: { displayName: string, tier: string, estimatedValue: number, spectacle: boolean? })
+		if payload.spectacle then
+			local color = payload.tier == "Gold" and Color3.fromRGB(255, 215, 60) or Color3.fromRGB(255, 220, 80)
+			SpectacleUI.banner(`{string.upper(payload.tier)} TIER!`, color, { shake = true })
+		end
 		setStatus(`{payload.tier} {payload.displayName} (~{payload.estimatedValue}g)`)
 		task.delay(2.5, function()
 			setStatus(nil)

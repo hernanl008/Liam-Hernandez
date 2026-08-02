@@ -9,15 +9,24 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local FarmingConfig = require(Modules:WaitForChild("Farming"):WaitForChild("FarmingConfig"))
+local InventoryCache = require(Modules:WaitForChild("Client"):WaitForChild("InventoryCache"))
 
 local FarmingController = {}
 
 local PLOT_TAG = "FarmPlot"
 
--- Only one crop exists in FarmingConfig.lua right now, so planting is
--- hardcoded to it — swap this for a seed-selection UI once there's more
--- than one to choose from (docs/ROADMAP.md Phase 3).
-local DEFAULT_SEED_ID = "MoonriceStalk"
+-- No seed-selection UI yet (docs/ROADMAP.md Phase 3) — plants whichever
+-- seed the player has, first-in-table-order if they somehow have more
+-- than one kind. Good enough while there are only two crops to juggle.
+local function pickSeedToPlant(): string?
+	local seeds = InventoryCache.get().seeds
+	for _, crop in FarmingConfig.Crops do
+		if (seeds[crop.id] or 0) > 0 then
+			return crop.id
+		end
+	end
+	return nil
+end
 
 local function maxStageFor(cropId: string): number
 	for _, crop in FarmingConfig.Crops do
@@ -56,7 +65,10 @@ local function triggerAction(plot: BasePart)
 	local cropId = plot:GetAttribute("CropId")
 	if cropId == nil or cropId == "" then
 		if plot:GetAttribute("Tilled") then
-			Remotes.get("PlantSeed"):FireServer(plotId, DEFAULT_SEED_ID)
+			local seedId = pickSeedToPlant()
+			if seedId then
+				Remotes.get("PlantSeed"):FireServer(plotId, seedId)
+			end
 		else
 			Remotes.get("TillSoil"):FireServer(plotId)
 		end

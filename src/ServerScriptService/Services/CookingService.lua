@@ -75,8 +75,8 @@ function CookingService.init()
 
 		local data = PlayerDataService.get(player)
 		local assistMode = data ~= nil and data.assistMode or false
-		local quality = RhythmScoring.score(pending.recipe.notes, hits, RhythmGameConfig.TimingWindows, assistMode)
-		local tier = qualityTier(quality)
+		local result = RhythmScoring.evaluate(pending.recipe.notes, hits, RhythmGameConfig.TimingWindows, assistMode)
+		local tier = qualityTier(result.quality)
 		local dishId = `{pending.recipe.id}_{tier}`
 
 		PlayerDataService.addItem(player, "dishes", dishId, 1)
@@ -84,9 +84,12 @@ function CookingService.init()
 		Remotes.get("CookingOutcome"):FireClient(player, {
 			recipeId = pending.recipe.id,
 			displayName = pending.recipe.displayName,
-			quality = quality,
+			quality = result.quality,
+			maxCombo = result.maxCombo,
 			tier = tier,
-			estimatedValue = math.floor(pending.recipe.basePrice * math.max(quality, 10) / 100),
+			estimatedValue = math.floor(pending.recipe.basePrice * math.max(result.quality, 10) / 100),
+			-- GDD.md §11: Gold tier or a big combo triggers CookingController's celebratory banner.
+			spectacle = tier == "Gold" or result.maxCombo >= 5,
 		})
 	end)
 end

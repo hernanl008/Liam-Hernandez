@@ -15,6 +15,8 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local RhythmUI = require(Modules:WaitForChild("UI"):WaitForChild("RhythmUI"))
+local SpectacleUI = require(Modules:WaitForChild("UI"):WaitForChild("SpectacleUI"))
+local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 
 local FishingController = {}
 
@@ -88,15 +90,21 @@ function FishingController.init()
 		setStatus(nil)
 		RhythmUI.play(payload.notes, function(hits)
 			Remotes.get("ReelResult"):FireServer(hits)
-		end)
+		end, RhythmGameConfig.TimingWindows)
 	end)
 
-	Remotes.get("CatchResult").OnClientEvent:Connect(function(payload: { outcome: string, displayName: string? })
+	Remotes.get("CatchResult").OnClientEvent:Connect(function(payload: { outcome: string, displayName: string?, rarity: string?, spectacle: boolean? })
 		stopAwaitingHook()
 		if payload.outcome == "Caught" then
+			if payload.spectacle then
+				local label = payload.rarity == "Legendary" and "LEGENDARY CATCH!" or "AMAZING CATCH!"
+				SpectacleUI.banner(label, Color3.fromRGB(255, 220, 80), { shake = true })
+			end
 			setStatus(`Caught a {payload.displayName}!`)
 		elseif payload.outcome == "Pull" then
 			setStatus(`Reeled up: {payload.displayName}`)
+		elseif payload.outcome == "ZoneLocked" then
+			setStatus("This zone needs a higher fishing level.")
 		else
 			setStatus("It got away...")
 		end

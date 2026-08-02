@@ -3,11 +3,10 @@
 -- generated rhythm chart scored by the same RhythmScoring module the
 -- cooking system uses (GDD.md §10 — deliberate shared implementation).
 --
--- Vertical slice scope (docs/ROADMAP.md Phase 2): only the Shallows zone
--- needs to be playable end-to-end. Level-gating the deeper zones and
--- weight/quality-driven sell pricing are left as TODOs for Phase 3 —
--- catching a fish here just adds it to inventory; selling is the Trade
--- Exchange's job (GDD.md §7), not this service's.
+-- Zones are level-gated via PlayerDataService.fishingLevel (GDD.md §11);
+-- Shallows and MidReef both have fish configured. Weight/quality-driven
+-- sell pricing is still a TODO for Phase 3 — catching a fish here just
+-- adds it to inventory; selling is the Trade Exchange's job (GDD.md §7).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
@@ -17,6 +16,7 @@ local FishingConfig = require(Modules:WaitForChild("Fishing"):WaitForChild("Fish
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+local DayCycleService = require(script.Parent:WaitForChild("DayCycleService"))
 
 local FishingService = {}
 
@@ -40,9 +40,10 @@ local pendingBites: { [Player]: PendingBite } = {}
 local pendingReels: { [Player]: PendingReel } = {}
 
 local function fishForZone(zoneId: string): { FishingConfig.FishDef }
+	local isNight = DayCycleService.isNight()
 	local matches = {}
 	for _, fish in FishingConfig.Fish do
-		if table.find(fish.zones, zoneId) then
+		if table.find(fish.zones, zoneId) and (not fish.nightOnly or isNight) then
 			table.insert(matches, fish)
 		end
 	end
@@ -88,6 +89,11 @@ function FishingService.init()
 			end
 		end
 		if not zone then
+			return
+		end
+
+		if PlayerDataService.getFishingLevel(player) < zone.unlockLevel then
+			Remotes.get("CatchResult"):FireClient(player, { outcome = "ZoneLocked", zoneId = zoneId })
 			return
 		end
 
@@ -151,19 +157,25 @@ function FishingService.init()
 
 		local data = PlayerDataService.get(player)
 		local assistMode = data ~= nil and data.assistMode or false
-		local quality = RhythmScoring.score(reel.chart, hits, RhythmGameConfig.TimingWindows, assistMode)
+		local result = RhythmScoring.evaluate(reel.chart, hits, RhythmGameConfig.TimingWindows, assistMode)
 
-		if quality < MIN_CATCH_QUALITY then
+		if result.quality < MIN_CATCH_QUALITY then
 			Remotes.get("CatchResult"):FireClient(player, { outcome = "GotAway", fishId = reel.fish.id })
 			return
 		end
 
 		PlayerDataService.addItem(player, "fish", reel.fish.id, 1)
+		PlayerDataService.registerCatch(player)
 		Remotes.get("CatchResult"):FireClient(player, {
 			outcome = "Caught",
 			fishId = reel.fish.id,
 			displayName = reel.fish.displayName,
-			quality = quality,
+			rarity = reel.fish.rarity,
+			quality = result.quality,
+			maxCombo = result.maxCombo,
+			-- GDD.md §11: a fish flagged `spectacle` (or a big combo on any
+			-- fish) triggers FishingController's celebratory banner/shake.
+			spectacle = reel.fish.spectacle == true or result.maxCombo >= 5,
 		})
 	end)
 end

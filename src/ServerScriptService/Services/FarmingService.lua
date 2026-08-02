@@ -86,6 +86,23 @@ local function isFullyGrown(cropId: string, growthSeconds: number): boolean
 	return growthSeconds >= total
 end
 
+-- Regrowable crops (e.g. SunpetalBerries) don't replay their whole growth
+-- cycle after each harvest — just the final stage's duration, matching
+-- the "short regrow window" design in FarmingConfig.lua's comments.
+local function regrowGrowthSeconds(cropId: string): number
+	local crop = getCropDef(cropId)
+	if not crop or #crop.stages == 0 then
+		return 0
+	end
+	local total = 0
+	for i, stage in crop.stages do
+		if i < #crop.stages then
+			total += stage.durationSeconds
+		end
+	end
+	return total
+end
+
 function FarmingService.init()
 	for _, instance in CollectionService:GetTagged(PLOT_TAG) do
 		if instance:IsA("BasePart") then
@@ -158,13 +175,17 @@ function FarmingService.init()
 		PlayerDataService.addItem(player, "crops", cropId, 1)
 
 		local crop = getCropDef(cropId)
-		if crop and not crop.regrowable then
+		if crop and crop.regrowable then
+			-- rewind to just before the final stage, not all the way to
+			-- 0, so regrowing only replays the final stage's duration
+			local regrowSeconds = regrowGrowthSeconds(cropId)
+			plot:SetAttribute("GrowthSeconds", regrowSeconds)
+			plot:SetAttribute("StageIndex", stageAtGrowth(cropId, regrowSeconds))
+			plot:SetAttribute("WateredToday", false)
+		else
 			plot:SetAttribute("CropId", "")
 			plot:SetAttribute("GrowthSeconds", 0)
 			plot:SetAttribute("StageIndex", 0)
-			plot:SetAttribute("WateredToday", false)
-		else
-			-- regrowable crops: reset only the final stage's progress
 			plot:SetAttribute("WateredToday", false)
 		end
 	end)

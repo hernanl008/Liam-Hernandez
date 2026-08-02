@@ -208,3 +208,38 @@ one title.
   tropes](https://www.sportskeeda.com/anime/common-isekai-anime-tropes) —
   validates the existing Otherworld Palate design (a sense, not raw
   power) rather than changing it.
+
+## 11. Spectacle & Combo System
+
+The "make it feel more anime" pass. Both rhythm minigames (fishing
+reel-in, cooking) now share a combo/spectacle layer on top of the base
+scoring, instead of just returning a flat quality number:
+
+- **Combo bonus** (`RhythmScoring.evaluate`): consecutive top-tier
+  ("Perfect") hits build a streak; each streak point adds +2 quality, up
+  to a 5-hit cap (+10 quality). Rewards nailing a run without making the
+  base timing windows meaningless.
+- **Live combo counter** (`RhythmUI.lua`): a "3x COMBO!" style counter
+  during play that pulses every 3rd hit, so the streak feels good in the
+  moment, not just as a number in the results screen.
+- **Spectacle banners** (`SpectacleUI.lua`): a punchy full-screen banner +
+  flash + light camera shake for standout moments — a Legendary catch, a
+  5+ combo, a Gold-tier dish. One shared module, not bespoke VFX per
+  system, so adding a new "big moment" elsewhere is a one-line call.
+- **The Moonlit Serpent** (`LORE_BIBLE.md` §5, Ren Amakusa's arc): the
+  first piece of content actually built around this — a Legendary,
+  night-only fish in the Shallows (no need to grind to a deeper zone for
+  the payoff), always triggers the spectacle banner. Ties a mechanical
+  flex directly to a named story beat instead of being generic loot.
+- **Fishing level & zone gating** (closes the §3 weather/time-of-day
+  question partially): catches now raise a `FishingLvl` stat
+  (`PlayerDataService.lua`), which gates `FishingConfig.DepthZones`'
+  `unlockLevel` — Mid Reef (and its Moonfin Koi) becomes reachable at
+  level 5, roughly 12 catches in. Time-of-day gating exists today only
+  for the Moonlit Serpent; broader weather/spawn-table effects are still
+  open per §3.
+
+Deliberately not spectacle-ified: farming and dialogue. Those are meant
+to stay calm/cozy per the tone in `LORE_BIBLE.md` §7 — the spectacle
+layer is reserved for the two skill-based minigames, not the whole game,
+so it doesn't wear out its welcome.
