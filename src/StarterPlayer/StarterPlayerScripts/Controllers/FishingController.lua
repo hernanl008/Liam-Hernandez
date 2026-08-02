@@ -88,9 +88,14 @@ function FishingController.init()
 	end)
 
 	local function setupSpot(instance: Instance)
-		local prompt = instance:FindFirstChildWhichIsA("ProximityPrompt", true)
-		if not prompt then
+		if not instance:IsA("BasePart") then
 			return
+		end
+		local prompt = instance:FindFirstChildWhichIsA("ProximityPrompt")
+		if not prompt then
+			prompt = Instance.new("ProximityPrompt")
+			prompt.MaxActivationDistance = 10
+			prompt.Parent = instance
 		end
 		prompt.ActionText = "Cast"
 		prompt.Triggered:Connect(function()
