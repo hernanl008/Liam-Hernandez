@@ -16,8 +16,8 @@ and can flag inconsistencies once content is written here.
 
 ## 2. World
 
-- **Setting name**:
-- **Town name**:
+- **Setting name**: 
+- **Town name**: Orange Ville
 - **Region/world map** — how many distinct areas (farm, town, fishing
   zones, dungeon/mine if in scope, festival grounds)?
 - **Time period / tech level** (does magic exist openly, is it hidden,
@@ -36,13 +36,13 @@ and can flag inconsistencies once content is written here.
 Template per character — copy this block per NPC:
 
 ```
-### Name
-- Role in town:
-- Relationship to player:
-- Personality / one-line hook:
+### Name: Kaleb
+- Role in town: a  outcast
+- Relationship to player: is a merchant and sells illegal / mythic / rare items to the player
+- Personality / one-line hook: sus and edgy
 - Connection to a gameplay system (do they teach fishing? run the general
-  store? judge cooking contests?):
-- Character arc across the story (if any):
+  store? judge cooking contests?): they wander onto your property once every day cycle (an hour)
+- Character arc across the story (if any): n/a 
 ```
 
 🔲 Protagonist — name, background, personality, silent-protagonist or
