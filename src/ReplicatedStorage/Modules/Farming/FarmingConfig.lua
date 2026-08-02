@@ -1,6 +1,9 @@
 --!strict
 -- Data-driven config for crops. Growth is stage-based so it can drive both
 -- server-side timers and client-side model swaps (seedling -> mid -> ripe).
+-- No stamina system (GDD.md §5, research-informed decision) — growth only
+-- requires watering once per day (FarmingService.lua), pacing comes from
+-- the day cycle, not an energy bar.
 
 export type GrowthStage = {
 	stageIndex: number,

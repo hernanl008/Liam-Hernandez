@@ -1,6 +1,8 @@
 --!strict
 -- Data-driven config for the fishing system. Tune numbers here; game logic
 -- (rod casting, bite timing, catch minigame) lives in FishingService / FishingController.
+-- Reel-in timing tolerance is widened by PlayerDataService's assistMode
+-- flag (GDD.md §3 "Assist Mode") via RhythmScoring, not modeled here.
 
 export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary"
 
@@ -23,7 +25,35 @@ export type DepthZone = {
 	unlockLevel: number, -- player fishing level required
 }
 
+export type PullType = "Junk" | "Treasure"
+
+export type PullDef = {
+	id: string,
+	displayName: string,
+	pullType: PullType,
+	sellsTo: "Kaleb" | "TradeExchange", -- GDD.md §3: junk/treasure are a
+	-- research-informed addition (Fields of Mistria / Stardew players
+	-- both cite this as a favorite fishing beat); junk sells only to
+	-- Kaleb specifically per LORE_BIBLE.md §5, keeping his black market
+	-- distinct from the legitimate Trade Exchange.
+	value: number,
+}
+
 local FishingConfig = {}
+
+-- Rolled independently of the fish table on every cast — see
+-- FishingService.rollPull. Kept small and separate from FishingConfig.Fish
+-- so "did I catch a fish" and "did I also get a junk/treasure pull" stay
+-- two independent, easy-to-balance rolls.
+FishingConfig.PullChance = 0.08 -- 8% of casts also yield a junk/treasure pull
+FishingConfig.TreasureShare = 0.25 -- of pulls that happen, 25% are treasure not junk
+
+FishingConfig.Pulls: { PullDef } = {
+	{ id = "Driftwood", displayName = "Driftwood", pullType = "Junk", sellsTo = "Kaleb", value = 1 },
+	{ id = "OldBoot", displayName = "Old Boot", pullType = "Junk", sellsTo = "Kaleb", value = 1 },
+	{ id = "TarnishedLocket", displayName = "Tarnished Locket", pullType = "Treasure", sellsTo = "Kaleb", value = 25 },
+	{ id = "SunkenCoinPouch", displayName = "Sunken Coin Pouch", pullType = "Treasure", sellsTo = "Kaleb", value = 40 },
+}
 
 FishingConfig.DepthZones: { DepthZone } = {
 	{ id = "Shallows", displayName = "Shallows", minDepth = 0, maxDepth = 15, unlockLevel = 1 },

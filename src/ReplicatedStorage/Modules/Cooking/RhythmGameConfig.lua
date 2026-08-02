@@ -2,6 +2,11 @@
 -- Data-driven config for the cooking rhythm minigame. Each recipe defines a
 -- note chart; timing accuracy on each note determines dish quality.
 
+-- Note types carry diegetic meaning rather than being abstract lanes
+-- (GDD.md §10, research-informed): Tap = crack/chop/plate, Hold =
+-- stir/simmer (hold duration mirrors the action's real duration), Slide =
+-- flip/toss. Client-side scoring (RhythmScoring.lua) only reads time/lane
+-- today — noteType currently drives animation/VFX choices, not scoring.
 export type NoteType = "Tap" | "Hold" | "Slide"
 
 export type Note = {

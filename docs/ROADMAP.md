@@ -31,11 +31,25 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       for the vertical slice, revisit later
 
 ## Phase 2 — Core Systems, Vertical Slice (~weeks 2-3)
-- [ ] Farming: plant/grow/harvest loop working end-to-end in Studio
-- [ ] Fishing: one depth zone playable (cast → bite → reel minigame)
-- [ ] Cooking: one recipe playable as a rhythm chart end-to-end
-- [ ] Basic day/night or day-counter loop tying the three together
-- [ ] One NPC with dialogue, to prove out the social/story pipeline
+- [x] Farming: till/plant/water/harvest loop coded (`FarmingService.lua` +
+      `FarmingController.lua`) — no stamina system (GDD.md §5)
+- [x] Fishing: Shallows zone cast → bite → reel coded (`FishingService.lua`
+      + `FishingController.lua`), plus junk/treasure pulls
+- [x] Cooking: Grilled Minnow Skewer playable as a rhythm chart end-to-end
+      (`CookingService.lua` + `CookingController.lua`, shares
+      `RhythmScoring.lua`/`RhythmUI.lua` with fishing's reel-in)
+- [x] Day cycle coded (`DayCycleService.lua`) — adjustable length, resets
+      daily watering
+- [x] Kaya's full dialogue tree coded and wired (`DialogueService.lua` +
+      `DialogueController.lua` + `DialogueData.lua`); Elder Souta, Ren,
+      Hinano, and Kaleb's trees are written and ready, just need their
+      NPCs placed in Studio
+- [ ] **Not yet done — needs Liam in Studio**: none of the above has run
+      in an actual Roblox session. Place the parts/tags/attributes in
+      `docs/VERTICAL_SLICE_SETUP.md`, sync via Rojo, and playtest — report
+      back whatever breaks first.
+- [ ] Inventory/HUD UI (data's already replicated client-side via
+      `InventoryCache.lua`, just needs a screen)
 
 ## Phase 3 — Content Expansion (~week 4)
 - [ ] Remaining depth zones + fish roster
@@ -43,6 +57,14 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
 - [ ] Remaining crops + seasons
 - [ ] Story beats implemented per the lore bible's arc
 - [ ] UI/UX pass (HUD, inventory, shop, dialogue box)
+- [ ] Cast-power meter that actually affects bite odds (deferred from
+      Phase 2, see `FishingController.lua`)
+- [ ] Crop growth-stage visuals (model swaps per `FarmingConfig.lua` stage)
+- [ ] Persistence (DataStores) — everything is in-memory only right now
+- [ ] Relationship stat persistence for dialogue `relationshipDelta`
+      choices (currently just logged, see `DialogueController.lua`)
+- [ ] Dialogue "already met" branching (all NPCs currently always start
+      at their root node)
 
 ## Phase 4 — Polish & Pre-release
 - [ ] Playtesting pass, balance tuning (sell prices, XP curves, difficulty)

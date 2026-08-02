@@ -51,7 +51,22 @@ for the data shape already scaffolded):
   specific season/time).
 - **Gear progression**: rod tiers, bait types (bait could bias which fish
   bite, not just bite speed — more interesting than a flat speed buff),
-  eventually a boat/submersible to reach new zones.
+  eventually a boat/submersible to reach new zones. Better rods widen the
+  reel-in tolerance window, not just raw stats (mirrors why Stardew
+  players say fishing gets less punishing as gear improves — see §10).
+- **Junk & treasure catches** (new, research-informed — §10): every cast
+  has a small independent chance of pulling up junk (driftwood, old
+  boots — sellable to Kaleb specifically, not the Trade Exchange, fits
+  his "unaffiliated" characterization) or a treasure catch (bonus
+  currency/rare crafting material). Fields of Mistria and Stardew players
+  both cite this as a favorite fishing beat — cheap to build, adds
+  variance without extra difficulty.
+- **Assist Mode** (accessibility, research-informed): a settings toggle
+  that widens reel-in timing tolerance across the board. Direct response
+  to a recurring complaint that Stardew's fishing minigame difficulty
+  clashes with its chill tone, including players who cite motor/hand
+  tremor difficulty specifically (§10) — costless to add now, expensive
+  to retrofit later.
 
 🔲 Weather/time-of-day affecting fish spawns? (Stardew does this heavily —
 worth deciding early since it touches the day/night + weather systems.)
@@ -69,18 +84,38 @@ Proposed structure (see `RhythmGameConfig.lua`):
   gift reactions from NPCs.
 - Ingredients consumed = crops/fish by id, so the chart system plugs
   directly into Farming/Fishing output.
+- **Note-type semantics** (research-informed, §10): a real cooking-rhythm
+  prototype pattern worth borrowing is giving note types diegetic meaning
+  instead of being purely abstract lanes — `Tap` = crack/chop/plate,
+  `Hold` = stir/simmer (hold matches the physical duration of the action),
+  `Slide` = flip/toss. Makes charts read as "cooking" instead of a
+  disconnected rhythm game bolted onto a farm-sim.
+- **Decided — failure state**: always produces *something*, just at lower
+  quality (never a wasted-ingredients wipe). Directly informed by the
+  Stardew fishing-minigame complaint that punishing minigames clash with
+  a cozy tone (§10) — cooking is meant to feel expressive, not
+  pass/fail.
 
 🔲 Difficulty scaling — fixed chart per recipe, or procedurally
 harder as the player's "chef level" rises (so cooking stays challenging
 late-game)?
-🔲 Failure state — can you botch a dish entirely (wasted ingredients) or
-does it always produce *something*, just lower quality?
 
 ## 5. Farming
 
 Standard stardew-style: plant → grow (staged, see `FarmingConfig.lua`) →
 harvest → sell/cook/gift/trade. Seasons gate what grows. (Land expansion
 model — see §8.)
+
+- **Decided — no stamina system** (research-informed, §10): several
+  competitors in this exact genre (anime-styled Stardew-likes) call out
+  "no stamina grind" as a headline differentiator players specifically
+  praise. Pacing instead comes from day length and the social/story
+  clock (NPCs keep their own schedules), not an energy bar that punishes
+  efficient play.
+- **Adjustable day length** (QoL, research-informed, §10): a settings
+  option to speed up/slow down the day cycle. Cheap to build if the day
+  cycle is driven by one tunable constant from the start (see
+  `DayCycleService.lua`), expensive to retrofit — building it in now.
 
 ## 6. Anime theme direction
 
@@ -128,6 +163,12 @@ different engineering paths:
   dialogue, gifting; romance is a 🔲 open question (isekai farm-sims often
   include it, but it's a large scope add — decide once the vertical slice
   cast is proven out).
+- **Decided — dialogue-choice relationships** (research-informed, §10):
+  friendship moves via meaningful dialogue choices (each conversation
+  offers 2-3 responses that nudge a relationship stat up/down), not pure
+  daily-gift-grinding. Avoids the genre's most common social-system
+  complaint (every NPC needing to be gift-farmed every single day) while
+  keeping gifting as a secondary, not sole, lever.
 - Currency/progression sinks: gear tiers (rod/tools), farm plot expansion,
   Trade Exchange stall upgrades, Frontier Watch gear for combat.
 
@@ -140,3 +181,30 @@ solid, to avoid scope creep on a solo month-long project:
 - PvP
 - Mobile-specific UI pass
 - Live/real-time player-stall trading (start async, see §7)
+
+## 10. Genre research notes
+
+A pass through what players actually say about comparable games, done to
+make sure design decisions above aren't just guesses. Cited inline above
+via "§10" — full sources here rather than repeated per bullet. These
+inform original systems above; nothing here is copied wholesale from any
+one title.
+
+- Fields of Mistria fishing/junk-catch discussion — [Fishing | Fields of
+  Mistria Wiki](https://fields-of-mistria.fandom.com/wiki/Fishing),
+  [Steam community discussions](https://steamcommunity.com/app/2142790/discussions/0/4702413158524946450)
+- Stardew Valley fishing-minigame difficulty/accessibility complaints —
+  [Steam community discussions](https://steamcommunity.com/app/413150/discussions/0/405692758724056415)
+- Sun Haven's no-stamina system, dialogue-choice friendship, adjustable
+  day length — [What does Sun Haven do better than average for the
+  genre?](https://steamcommunity.com/app/1432860/discussions/0/4848777260030684532/),
+  [Top Farming Sims feature — ModDB](https://www.moddb.com/games/sun-haven/features/top-farming-sims)
+- Cooking-rhythm-game note-type design patterns (tap/hold/toss mapped to
+  physical actions) — [Cooking Rhythm Game
+  Prototype](https://clam-meditation.itch.io/crg-prototype), [Cook, Serve,
+  Delicious! 2](https://en.wikipedia.org/wiki/Cook,_Serve,_Delicious!_2)
+- Isekai worldbuilding fan preferences (earned growth over instant power)
+  — [10 most common Isekai anime
+  tropes](https://www.sportskeeda.com/anime/common-isekai-anime-tropes) —
+  validates the existing Otherworld Palate design (a sense, not raw
+  power) rather than changing it.

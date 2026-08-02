@@ -3,5 +3,16 @@
 
 print("[AnimeFarmLife] Client starting...")
 
--- local FishingController = require(game.ReplicatedStorage.Modules.Fishing.FishingController)
--- local CookingController = require(game.ReplicatedStorage.Modules.Cooking.CookingController)
+local Controllers = script.Parent:WaitForChild("Controllers")
+
+local FarmingController = require(Controllers:WaitForChild("FarmingController"))
+local FishingController = require(Controllers:WaitForChild("FishingController"))
+local CookingController = require(Controllers:WaitForChild("CookingController"))
+local DialogueController = require(Controllers:WaitForChild("DialogueController"))
+
+FarmingController.init()
+FishingController.init()
+CookingController.init()
+DialogueController.init()
+
+print("[AnimeFarmLife] Client ready.")
