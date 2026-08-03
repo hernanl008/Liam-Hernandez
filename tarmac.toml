@@ -3,7 +3,7 @@
 # exists (short version: Rojo can't upload images to Roblox, only Tarmac
 # — run by you, with your own login — can).
 #
-# Usage (from the repo root, after installing tarmac via `aftman install`):
+# Usage (from the repo root, after installing tarmac via `mise install`):
 #   tarmac sync --target roblox
 #
 # This uploads every PNG under assets/ that changed since the last sync
@@ -11,6 +11,8 @@
 # the real rbxassetid:// for each one. Commit the updated AssetIds.lua
 # afterward so everyone (and future Claude sessions) can see the mapping
 # without re-uploading.
+
+name = "anime-farm-life"
 
 [[inputs]]
 glob = "assets/**/*.png"
