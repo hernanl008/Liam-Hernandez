@@ -39,6 +39,7 @@ local function ensureBuilt()
 	flashFrame.Size = UDim2.fromScale(1, 1)
 	flashFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	flashFrame.BackgroundTransparency = 1
+	flashFrame.Visible = false
 	flashFrame.ZIndex = 1
 	flashFrame.Parent = gui
 
@@ -52,6 +53,7 @@ local function ensureBuilt()
 	speedLines.Size = UDim2.fromOffset(600, 600)
 	speedLines.BackgroundTransparency = 1
 	speedLines.GroupTransparency = 1
+	speedLines.Visible = false
 	speedLines.ZIndex = 1
 	speedLines.Parent = gui
 
@@ -130,12 +132,14 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 		return currentBannerId == bannerId
 	end
 
+	bannerLabel.Visible = true
 	bannerLabel.Text = text
 	bannerLabel.TextColor3 = color or Theme.Colors.AccentGold
 	bannerLabel.TextTransparency = 1
 	bannerLabel.TextStrokeTransparency = 1
 	bannerLabel.Position = UDim2.fromScale(0.1, 0.12)
 
+	flashFrame.Visible = true
 	local flashIn = TweenService:Create(flashFrame, TweenInfo.new(0.05), { BackgroundTransparency = 0.6 })
 	flashIn:Play()
 	task.delay(0.05, function()
@@ -143,13 +147,29 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 			TweenService:Create(flashFrame, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
 		end
 	end)
+	-- Hard hide, not just relying on the tween landing on transparency = 1:
+	-- GroupTransparency/BackgroundTransparency tweens on these have been
+	-- observed staying visually on screen well past when they should have
+	-- finished fading, so Visible = false is what actually guarantees these
+	-- disappear rather than the tween's end value.
+	task.delay(0.4, function()
+		if isCurrent() then
+			flashFrame.Visible = false
+		end
+	end)
 
+	speedLines.Visible = true
 	speedLinesScale.Scale = 0.3
 	speedLines.GroupTransparency = 0
 	TweenService:Create(speedLinesScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	task.delay(0.1, function()
 		if isCurrent() then
 			TweenService:Create(speedLines, TweenInfo.new(0.35), { GroupTransparency = 1 }):Play()
+		end
+	end)
+	task.delay(0.5, function()
+		if isCurrent() then
+			speedLines.Visible = false
 		end
 	end)
 
@@ -167,12 +187,14 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 
 	local holdSeconds = (options and options.holdSeconds) or 1.1
 	task.delay(holdSeconds, function()
-		-- Always fade *this* call's own banner text out at the end of its
-		-- hold, even if a newer call has since taken over — otherwise the
-		-- newer call's earlier text could get wiped by this stale timer,
-		-- but skipping it entirely (via isCurrent()) risks the opposite:
-		-- the newest call's fade never happens if something above threw.
-		TweenService:Create(bannerLabel, TweenInfo.new(0.3), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		if isCurrent() then
+			TweenService:Create(bannerLabel, TweenInfo.new(0.3), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		end
+	end)
+	task.delay(holdSeconds + 0.35, function()
+		if isCurrent() then
+			bannerLabel.Visible = false
+		end
 	end)
 end
 
