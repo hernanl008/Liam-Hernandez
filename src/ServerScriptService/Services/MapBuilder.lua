@@ -78,17 +78,18 @@ local function placeFarmPlots(folder: Folder)
 	end
 end
 
-local function placeFishingSpot(folder: Folder)
-	local spot = MapConfig.FishingSpot
-	local part = Instance.new("Part")
-	part.Name = "FishingSpot"
-	part.Anchored = true
-	part.Size = Vector3.new(3, 1, 3)
-	part.Position = worldPositionFor(spot) + Vector3.new(0, 0.5, 0)
-	part.Color = Color3.fromRGB(255, 255, 255)
-	part.Transparency = 0.6
-	part.Parent = folder
-	tagPart(part, "FishingSpot", { ZoneId = spot.zoneId })
+local function placeFishingSpots(folder: Folder)
+	for i, spot in MapConfig.FishingSpots do
+		local part = Instance.new("Part")
+		part.Name = `FishingSpot_{i}`
+		part.Anchored = true
+		part.Size = Vector3.new(3, 1, 3)
+		part.Position = worldPositionFor(spot) + Vector3.new(0, 0.5, 0)
+		part.Color = Color3.fromRGB(255, 255, 255)
+		part.Transparency = 0.6
+		part.Parent = folder
+		tagPart(part, "FishingSpot", { ZoneId = spot.zoneId })
+	end
 end
 
 local function placeCookingStations(folder: Folder)
@@ -134,6 +135,32 @@ local function placeNpcs(folder: Folder)
 	end
 end
 
+-- Purely decorative standees (trees, houses, fences, animals, stones —
+-- see MapConfig.PropSpot). A camera-facing flat decal instead of a
+-- modeled object: CameraController's camera is fixed at +Y/+Z relative
+-- to whatever it's looking at and never rotates, so the "Back" face
+-- (Roblox's +Z-facing face on an unrotated part) is always the one
+-- pointed at the camera. Transparency = 1 hides the part's own faces —
+-- Decals render independently of BasePart.Transparency — so only the
+-- sprite itself is visible, not a colored box behind it.
+local function placeProps(folder: Folder)
+	for i, prop in MapConfig.Props do
+		local part = Instance.new("Part")
+		part.Name = `Prop_{i}_{prop.sprite}`
+		part.Anchored = true
+		part.CanCollide = false
+		part.Transparency = 1
+		part.Size = Vector3.new(prop.widthStuds, prop.heightStuds, 0.2)
+		part.Position = worldPositionFor(prop) + Vector3.new(0, prop.heightStuds / 2, 0)
+		part.Parent = folder
+
+		local decal = Instance.new("Decal")
+		decal.Face = Enum.NormalId.Back
+		decal.Texture = AssetIds.sprite(prop.sprite)
+		decal.Parent = part
+	end
+end
+
 local function placeSpawn(folder: Folder)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "GeneratedSpawn"
@@ -158,9 +185,10 @@ function MapBuilder.init()
 
 	buildGround(folder)
 	placeFarmPlots(folder)
-	placeFishingSpot(folder)
+	placeFishingSpots(folder)
 	placeCookingStations(folder)
 	placeNpcs(folder)
+	placeProps(folder)
 	placeSpawn(folder)
 end
 

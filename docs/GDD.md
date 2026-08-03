@@ -374,3 +374,49 @@ presentation *read* more anime/stylized through color grading, UI
 language, and effects, without changing the underlying character
 pipeline. If it still doesn't feel "2D enough" after a real playtest,
 sprites remain the documented fallback.
+
+## 15. World expansion — the "Farm RPG FREE 16x16" asset pack
+
+Liam supplied a real pixel-art pack (itch.io-style free tier: character
+walk/idle sheets, farm animals, a house sheet, interior furniture, maple
+trees, crops, a chest, fences, and stone/road clusters) to replace the
+placeholder art and grow the map. Two things worth recording for future
+sessions:
+
+- **The pack's ground tileset (`Tileset Spring.png`) is broken as
+  shipped** — verified via raw pixel/archive-CRC inspection, not a
+  transfer error: most cells are solid opaque black, including the
+  "plain fill" tile every autotile blob needs, consistent with a
+  stripped free-tier preview of a paid tileset. Only a handful of edge
+  pieces and two intact fill cells (one grass, one dirt/path) survived.
+  Rather than tile the map with visible black gaps, `grass.png`/
+  `path.png` were replaced with those two salvaged fill cells (real
+  pack art, just not the whole sheet); water has no pack equivalent so
+  the earlier placeholder stays.
+- **Everything else in the pack was intact and got sliced into
+  standees**: 2 house variants, small/large maple trees + a stump, a
+  chest, fence rail/post pieces, 2 stone clusters, a cow, and 2 chicken
+  variants — see `assets/sprites/`. These render as camera-facing flat
+  `Decal`s (`MapBuilder.placeProps`, driven by `MapConfig.Props`) rather
+  than 3D models, matching §6's "thin parts read as 2D under a locked
+  camera" approach — no new rendering technique introduced, just decals
+  on the face CameraController's fixed angle always sees.
+- Character walk/idle sheets and the interior-furniture sheet were
+  **not** wired in this pass — swapping the player's 3D avatar for a
+  sprite-based character is the bigger, separately-tracked fallback from
+  §6/§14, and there's no interior-room feature yet for the furniture to
+  furnish. Both are sitting in the extracted pack, ready whenever those
+  features exist.
+- **Map grew from the 10x14 proof-of-concept plot to a 26x34 map**
+  (`MapConfig.lua`) with four named districts around the village square,
+  connected by a path cross: **Maple Hollow** (the forest fringe north
+  of the village — ties into §2's "Blightspawn creep in from the
+  valley's forest edges" lore, and gives Ren's arc a forest to belong
+  to), **Sunpetal Fields** (expanded farmland east, named for the
+  Sunpetal Berries crop it grows), the village's fenced **pasture**
+  (west, cow + chickens), and **the cove** (south — the fishing water,
+  now with a Shallows spot at the shore and a MidReef spot further out
+  for once Fishing level 5 unlocks it, replacing the single fixed
+  fishing spot). This is new flavor for newly-built space, not a change
+  to the established Orange Ville/Veyl Valley/isekai story in
+  `LORE_BIBLE.md`.

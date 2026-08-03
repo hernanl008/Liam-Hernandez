@@ -100,8 +100,14 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       is set up for Liam to run, not run automatically
 - [ ] Upload the placeholder assets (or real art) via `tarmac sync` and
       confirm the generated map actually shows textures instead of flat colors
-- [ ] Real Orange Ville map (this session's map is a small
-      proof-of-concept plot, not the LORE_BIBLE.md village)
+- [x] Grew the map from a 10x14 proof-of-concept plot to a 26x34 map with
+      four named districts (Maple Hollow, Sunpetal Fields, the pasture,
+      the cove) using real pixel art from a pack Liam supplied (`GDD.md`
+      §15) — still not the full canonical LORE_BIBLE.md village, but a
+      real world instead of a single square now
+- [ ] Real Orange Ville map matching LORE_BIBLE.md's full village/valley
+      geography (Kotobuki Port, etc.) — the current map is still just
+      Orange Ville's immediate farm/village outskirts
 - [ ] Wire the actual opening cutscene (`OPENING_CUTSCENE.md`) into a
       playable sequence — currently just written, not implemented
 - [ ] Billboard-sprite characters, if locked-camera-3D doesn't read as
@@ -115,8 +121,16 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
 - [x] Ambient sakura petal particles (`AmbienceController.lua`)
 - [x] Regenerated placeholder art with a more saturated anime palette +
       a decorative sakura-blossom tile variant
-- [ ] Real character/tile art to replace the placeholders (needs Liam to
-      commission/create it and run `tarmac sync`)
+- [x] Real ground-fill/prop art (grass, dirt path, houses, trees, fences,
+      farm animals, chest, stones) from Liam's supplied asset pack,
+      replacing most placeholders — see `GDD.md` §15. The pack's own
+      ground *tileset* file was broken as shipped (only 2 fill cells
+      survived intact), so grass/path use those; water still uses the
+      earlier placeholder since the pack had no water tile.
+- [ ] Character sprite art (the pack's walk/idle sheets are extracted but
+      not wired in — swapping the player's 3D avatar for a sprite is the
+      bigger, separately-tracked change from `GDD.md` §6/§14) and interior
+      furniture (no interior-room feature exists yet to use it)
 
 ## Phase 4 — Polish & Pre-release
 - [ ] Playtesting pass, balance tuning (sell prices, XP curves, difficulty)
