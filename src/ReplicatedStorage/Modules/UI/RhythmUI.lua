@@ -14,6 +14,7 @@ local Players = game:GetService("Players")
 
 local RhythmScoring = require(script.Parent.Parent:WaitForChild("Shared"):WaitForChild("RhythmScoring"))
 local Theme = require(script.Parent:WaitForChild("Theme"))
+local PlayerFreeze = require(script.Parent.Parent:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
 
 local LANE_KEYS = { Enum.KeyCode.D, Enum.KeyCode.F, Enum.KeyCode.J, Enum.KeyCode.K }
 local HIT_TOLERANCE = 0.35 -- seconds around a note's time it can still register as *a* hit; RhythmScoring grades accuracy within this
@@ -48,6 +49,12 @@ function RhythmUI.play(
 
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
+
+	-- Same "walk away mid-chart" gap the cast meter had — freezing here
+	-- too (PlayerFreeze.lua) rather than duplicating that debugging.
+	-- Doesn't consume D/F/J/K (the lane keys below, one of which is also
+	-- a movement key) since it's a position-pin, not an input sink.
+	PlayerFreeze.start()
 
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "RhythmMinigame"
@@ -114,6 +121,7 @@ function RhythmUI.play(
 			return
 		end
 		finished = true
+		PlayerFreeze.stop()
 		if heartbeatConnection then
 			heartbeatConnection:Disconnect()
 		end

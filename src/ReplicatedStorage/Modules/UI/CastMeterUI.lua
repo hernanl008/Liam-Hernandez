@@ -6,37 +6,19 @@
 -- in whatever power it's at, same skill-based "stop the moving bar" beat
 -- as the reel-in minigame but simpler (one axis, no scoring window).
 --
--- While the meter is up, the player is meant to be planted in place.
--- Four earlier attempts at this (SetStateEnabled(Jumping, false),
--- WalkSpeed = 0, sinking individual keys through ContextActionService,
--- PlayerModule.Controls:Disable()) each failed for a different reason —
--- confirmed via debug logging that this project's StarterPlayerScripts
--- doesn't actually have a PlayerModule after Rojo syncs it (so Controls
--- was never reachable), and separately that WalkSpeed = 0 visibly wasn't
--- stopping movement either, meaning whatever drives it here isn't the
--- normal Humanoid pipeline those techniques assume. Instead of chasing
--- the exact mechanism further, this brute-forces it: every single frame
--- the meter is active, the HumanoidRootPart gets snapped back to exactly
--- where it was when the meter opened and its velocity zeroed — it
--- doesn't matter what tried to move it, the position is just overwritten
--- after everything else already had its chance to.
+-- Freezes the player for the duration via PlayerFreeze.lua (Client
+-- module) — see that file's header for why this needed real debugging
+-- to get right (position-pinning alone wasn't enough; WalkSpeed had to
+-- be zeroed too, or the character visibly "walks in place").
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI"):WaitForChild("Theme"))
+local PlayerFreeze = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Client"):WaitForChild("PlayerFreeze"))
 
 local CastMeterUI = {}
-
--- SYNC-VERIFICATION CANARY (temporary): prints once, the moment this
--- module is first required (client startup, well before any fishing
--- happens) — six fixes in a row not taking effect points at least as
--- much at "is Studio actually running the code being pushed" as at the
--- code itself. If this exact line ("CANARY-BRUTEFORCE-v1") isn't the
--- very first CastMeterUI-related thing in Output right after pressing
--- Play, the sync isn't picking up the latest push and nothing below
--- this point matters yet.
-print("[CastMeterUI] loaded — CANARY-BRUTEFORCE-v1")
 
 -- Full 0->1->0 sweep takes 1/CYCLES_PER_SECOND seconds either direction.
 local CYCLES_PER_SECOND = 1.1
@@ -50,41 +32,6 @@ local heartbeatConn: RBXScriptConnection? = nil
 local inputConn: RBXScriptConnection? = nil
 local elapsed = 0
 local finishActive: ((number?) -> ())? = nil
-
--- Set only while frozen; the Heartbeat loop re-pins the root part to
--- this every frame. nil means "not currently freezing position."
-local frozenCFrame: CFrame? = nil
-
-local function getRootPart(): BasePart?
-	local character = Players.LocalPlayer.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if root and root:IsA("BasePart") then
-		return root
-	end
-	return nil
-end
-
-local function setPlayerFrozen(frozen: boolean)
-	if frozen then
-		local root = getRootPart()
-		frozenCFrame = root and root.CFrame
-		print(`[CastMeterDebug] FREEZE start — root={tostring(root)} pos={root and tostring(root.Position) or "N/A"}`)
-	else
-		print(`[CastMeterDebug] FREEZE end — frozenCFrame was {tostring(frozenCFrame)}`)
-		frozenCFrame = nil
-	end
-
-	-- Kept as an extra layer alongside the position-pin above — doesn't
-	-- hurt, and stops jump's animation/sound from playing even though
-	-- the pin would undo the actual displacement regardless.
-	local character = Players.LocalPlayer.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	print(`[CastMeterDebug] setPlayerFrozen({frozen}) — character={tostring(character)} humanoid={tostring(humanoid)}`)
-	if humanoid then
-		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, not frozen)
-		print(`[CastMeterDebug] Jumping state enabled = {humanoid:GetStateEnabled(Enum.HumanoidStateType.Jumping)}`)
-	end
-end
 
 local function ensureBuilt()
 	if screenGui then
@@ -150,7 +97,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	active = true
 	elapsed = 0
 	(screenGui :: ScreenGui).Enabled = true
-	setPlayerFrozen(true)
+	PlayerFreeze.start()
 
 	local function finish(power: number?)
 		if not active then
@@ -158,7 +105,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		end
 		active = false
 		(screenGui :: ScreenGui).Enabled = false
-		setPlayerFrozen(false)
+		PlayerFreeze.stop()
 		if heartbeatConn then
 			heartbeatConn:Disconnect()
 			heartbeatConn = nil
@@ -177,25 +124,9 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		local t = (elapsed * CYCLES_PER_SECOND) % 2
 		local power = t <= 1 and t or (2 - t)
 		fill.Size = UDim2.fromScale(1, power)
-
-		if frozenCFrame then
-			local root = getRootPart()
-			if not root then
-				print("[CastMeterDebug] Heartbeat: frozenCFrame set but getRootPart() returned nil!")
-			else
-				local drift = (root.Position - frozenCFrame.Position).Magnitude
-				if drift > 0.05 then
-					print(`[CastMeterDebug] Heartbeat: DRIFT DETECTED {drift} studs before reset — root was at {root.Position}, resetting to {frozenCFrame.Position}`)
-				end
-				root.CFrame = frozenCFrame
-				root.AssemblyLinearVelocity = Vector3.zero
-				root.AssemblyAngularVelocity = Vector3.zero
-			end
-		end
 	end)
 
 	inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		print(`[CastMeterDebug] InputBegan keyCode={input.KeyCode} gameProcessed={gameProcessed}`)
 		if gameProcessed then
 			return
 		end
