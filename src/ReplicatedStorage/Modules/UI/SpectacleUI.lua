@@ -21,8 +21,32 @@ local bannerLabel: TextLabel
 local flashFrame: Frame
 local speedLines: CanvasGroup
 local speedLinesScale: UIScale
+local retroRibbon: Frame
 
 local SPEED_LINE_COUNT = 14
+local RETRO_RIBBON_CLOSED_SIZE = UDim2.fromScale(0, 0.18)
+local RETRO_RIBBON_OPEN_SIZE = UDim2.fromScale(0.82, 0.18)
+
+-- Small round rivet/stud detail, same "bolted wood plaque" look used by
+-- CastMeterUI/RhythmUI — duplicated rather than shared (see those files'
+-- comments on why: ~15 lines, not worth a shared module for it).
+local function addRivet(parent: Instance, anchorX: number, anchorY: number)
+	local rivet = Instance.new("Frame")
+	rivet.AnchorPoint = Vector2.new(anchorX, anchorY)
+	rivet.Position = UDim2.new(anchorX, anchorX == 0 and 6 or -6, anchorY, anchorY == 0 and 6 or -6)
+	rivet.Size = UDim2.fromOffset(7, 7)
+	rivet.BackgroundColor3 = Theme.RetroColors.Bronze
+	rivet.BorderSizePixel = 0
+	rivet.ZIndex = 2
+	rivet.Parent = parent
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = rivet
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Theme.RetroColors.WoodDark
+	stroke.Thickness = 1
+	stroke.Parent = rivet
+end
 
 local function ensureBuilt()
 	if screenGui then
@@ -72,6 +96,26 @@ local function ensureBuilt()
 		line.Parent = speedLines
 	end
 
+	-- Retro-mode-only backdrop: a parchment plaque that unrolls open behind
+	-- the banner text (Size.X tweened 0 -> full) instead of anime mode's
+	-- text-floating-on-a-flash presentation. Built here but left hidden/
+	-- zero-width — a banner() call only activates it when retro = true, so
+	-- non-retro banners (Gold-tier dishes, level-ups) are completely
+	-- unaffected by its existence.
+	retroRibbon = Instance.new("Frame")
+	retroRibbon.AnchorPoint = Vector2.new(0.5, 0.5)
+	retroRibbon.Position = UDim2.fromScale(0.5, 0.22)
+	retroRibbon.Size = RETRO_RIBBON_CLOSED_SIZE
+	retroRibbon.BorderSizePixel = 0
+	retroRibbon.Visible = false
+	retroRibbon.ZIndex = 1
+	retroRibbon.Parent = gui
+	Theme.applyRetroPanel(retroRibbon, { strokeThickness = 4 })
+	addRivet(retroRibbon, 0, 0)
+	addRivet(retroRibbon, 1, 0)
+	addRivet(retroRibbon, 0, 1)
+	addRivet(retroRibbon, 1, 1)
+
 	bannerLabel = Instance.new("TextLabel")
 	bannerLabel.Size = UDim2.fromScale(0.8, 0.14)
 	bannerLabel.Position = UDim2.fromScale(0.1, 0.15)
@@ -120,6 +164,13 @@ end
 export type BannerOptions = {
 	shake: boolean?,
 	holdSeconds: number?,
+	-- Retro-medieval presentation (pixel font via Theme.styleRetroImpact,
+	-- the parchment ribbon backdrop, a warm cream flash and rarity-tinted
+	-- speed lines instead of white ones) instead of the default anime
+	-- Bangers-font/gold look. Fishing catches opt into this; Gold-tier
+	-- dishes and level-ups stay on the anime presentation until their own
+	-- turn (same "mechanic by mechanic" rollout as the rest of the UI).
+	retro: boolean?,
 }
 
 -- Bumped on every call; each of a call's own delayed fade-outs checks it's
@@ -140,14 +191,34 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 		return currentBannerId == bannerId
 	end
 
+	local retro = options ~= nil and options.retro == true
+	local resolvedColor = color or (retro and Theme.RetroColors.Bronze or Theme.Colors.AccentGold)
+
 	bannerLabel.Visible = true
 	bannerLabel.Text = text
-	bannerLabel.TextColor3 = color or Theme.Colors.AccentGold
 	bannerLabel.TextTransparency = 1
 	bannerLabel.TextStrokeTransparency = 1
 	bannerLabel.Position = UDim2.fromScale(0.1, 0.12)
+	if retro then
+		Theme.styleRetroImpact(bannerLabel, resolvedColor)
+	else
+		Theme.styleImpactText(bannerLabel, resolvedColor)
+	end
+
+	-- Reset every call, not just when retro — otherwise a retro banner
+	-- immediately followed by an anime one (e.g. a spectacle catch, then
+	-- a Gold-tier dish) would leave the ribbon stuck open behind text it
+	-- was never meant to frame.
+	retroRibbon.Visible = retro
+	if retro then
+		retroRibbon.Size = RETRO_RIBBON_CLOSED_SIZE
+		TweenService:Create(retroRibbon, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = RETRO_RIBBON_OPEN_SIZE,
+		}):Play()
+	end
 
 	flashFrame.Visible = true
+	flashFrame.BackgroundColor3 = retro and Theme.RetroColors.Parchment or Color3.fromRGB(255, 255, 255)
 	local flashIn = TweenService:Create(flashFrame, TweenInfo.new(0.05), { BackgroundTransparency = 0.6 })
 	flashIn:Play()
 	task.delay(0.05, function()
@@ -166,6 +237,12 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 		end
 	end)
 
+	local speedLineColor = retro and resolvedColor or Color3.fromRGB(255, 255, 255)
+	for _, line in speedLines:GetChildren() do
+		if line:IsA("Frame") then
+			line.BackgroundColor3 = speedLineColor
+		end
+	end
 	speedLines.Visible = true
 	speedLinesScale.Scale = 0.3
 	speedLines.GroupTransparency = 0
@@ -197,11 +274,15 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 	task.delay(holdSeconds, function()
 		if isCurrent() then
 			TweenService:Create(bannerLabel, TweenInfo.new(0.3), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+			if retro then
+				TweenService:Create(retroRibbon, TweenInfo.new(0.3), { Size = RETRO_RIBBON_CLOSED_SIZE }):Play()
+			end
 		end
 	end)
 	task.delay(holdSeconds + 0.35, function()
 		if isCurrent() then
 			bannerLabel.Visible = false
+			retroRibbon.Visible = false
 		end
 	end)
 end

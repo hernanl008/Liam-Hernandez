@@ -108,6 +108,13 @@ function FishingController.init()
 		stopAwaitingHook()
 		endFishing()
 		if payload.outcome == "Caught" then
+			-- The banner and the "Landed!" toast used to both fire in the
+			-- same instant — technically simultaneous but read as two
+			-- unrelated pops rather than one connected beat. Staggering the
+			-- toast a beat behind the banner's initial pop-in (only when
+			-- there's a banner to follow) makes it read as BANG-then-
+			-- confirmation instead.
+			local celebrationDelaySeconds = 0
 			if payload.spectacle then
 				-- Priority: a Legendary catch always reads as Legendary first;
 				-- otherwise a near-flawless reel-in (FishingService.lua's
@@ -123,11 +130,15 @@ function FishingController.init()
 				else
 					label = "AMAZING CATCH!"
 				end
-				SpectacleUI.banner(label, Color3.fromRGB(255, 220, 80), { shake = true })
+				local accentColor = (payload.rarity and RARITY_ACCENT_COLOR[payload.rarity]) or RARITY_ACCENT_COLOR.Common
+				SpectacleUI.banner(label, accentColor, { shake = true, retro = true })
+				celebrationDelaySeconds = 0.15
 			else
 				ProgressFeedback.announce("FISHING", payload)
 			end
-			StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
+			task.delay(celebrationDelaySeconds, function()
+				StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
+			end)
 		elseif payload.outcome == "Pull" then
 			ProgressFeedback.announce("FISHING", payload)
 			StatusToast.setTemporary(`Hauled from the depths: {payload.displayName}.`, 2, true)
