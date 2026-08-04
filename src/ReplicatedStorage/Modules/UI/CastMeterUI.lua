@@ -28,6 +28,16 @@ local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI
 
 local CastMeterUI = {}
 
+-- SYNC-VERIFICATION CANARY (temporary): prints once, the moment this
+-- module is first required (client startup, well before any fishing
+-- happens) — six fixes in a row not taking effect points at least as
+-- much at "is Studio actually running the code being pushed" as at the
+-- code itself. If this exact line ("CANARY-BRUTEFORCE-v1") isn't the
+-- very first CastMeterUI-related thing in Output right after pressing
+-- Play, the sync isn't picking up the latest push and nothing below
+-- this point matters yet.
+print("[CastMeterUI] loaded — CANARY-BRUTEFORCE-v1")
+
 -- Full 0->1->0 sweep takes 1/CYCLES_PER_SECOND seconds either direction.
 local CYCLES_PER_SECOND = 1.1
 
