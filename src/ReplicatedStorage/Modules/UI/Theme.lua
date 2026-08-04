@@ -34,6 +34,11 @@ Theme.Fonts = {
 	Body = Enum.Font.Gotham,
 	BodyBold = Enum.Font.GothamBold,
 	Impact = Enum.Font.Bangers,
+	-- Blocky 8-bit pixel font, used for the opening cutscene's Weaver line
+	-- (OpeningCutsceneController.lua) — a deliberate one-off "this isn't
+	-- the game world yet" register shift for the pre-rebirth sequence,
+	-- not meant to replace Gotham/Bangers as the game's everyday voice.
+	Retro = Enum.Font.PressStart2P,
 }
 
 Theme.CornerRadius = UDim.new(0, 12)
@@ -82,6 +87,11 @@ function Theme.styleImpactText(label: TextLabel, fillColor: Color3?)
 	label.TextColor3 = fillColor or Theme.Colors.AccentGold
 	label.TextStrokeColor3 = Color3.fromRGB(40, 20, 10)
 	label.TextStrokeTransparency = 0
+end
+
+function Theme.styleRetro(label: TextLabel, color: Color3?)
+	label.Font = Theme.Fonts.Retro
+	label.TextColor3 = color or Theme.Colors.TextPrimary
 end
 
 return Theme
