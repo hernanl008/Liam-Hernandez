@@ -41,11 +41,28 @@ local finishActive: ((number?) -> ())? = nil
 -- never sees it — instead of two separate systems racing each other.
 local SPACE_ACTION = "CastMeterLockSpace"
 
-local function setJumpEnabled(enabled: boolean)
+-- Same freeze idea, extended to walking: WASD still moved the character
+-- while the meter was up, which reads wrong for what's meant to be a
+-- planted "aim and lock" beat. WalkSpeed = 0 rather than another
+-- ContextActionService binding — no default WASD control to fight over
+-- here, just a plain Humanoid property, saved/restored so it doesn't
+-- clobber a WalkSpeed set by anything else (a future sprint mechanic,
+-- a buff, etc).
+local savedWalkSpeed: number? = nil
+
+local function setPlayerFrozen(frozen: boolean)
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, enabled)
+	if not humanoid then
+		return
+	end
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, not frozen)
+	if frozen then
+		savedWalkSpeed = humanoid.WalkSpeed
+		humanoid.WalkSpeed = 0
+	elseif savedWalkSpeed then
+		humanoid.WalkSpeed = savedWalkSpeed
+		savedWalkSpeed = nil
 	end
 end
 
@@ -113,7 +130,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	active = true
 	elapsed = 0
 	(screenGui :: ScreenGui).Enabled = true
-	setJumpEnabled(false)
+	setPlayerFrozen(true)
 
 	local function finish(power: number?)
 		if not active then
@@ -121,7 +138,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		end
 		active = false
 		(screenGui :: ScreenGui).Enabled = false
-		setJumpEnabled(true)
+		setPlayerFrozen(false)
 		ContextActionService:UnbindAction(SPACE_ACTION)
 		if heartbeatConn then
 			heartbeatConn:Disconnect()
