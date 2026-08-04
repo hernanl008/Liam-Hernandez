@@ -79,10 +79,11 @@ local function clockTimeToText(dayProgress: number): string
 	return string.format("%d:%02d %s", hour12, minute, suffix)
 end
 
-function HudUI.setDay(day: number, dayProgress: number, season: string?)
+function HudUI.setDay(day: number, dayProgress: number, season: string?, weather: string?)
 	ensureBuilt()
 	local seasonPrefix = season and `{season}, ` or ""
-	dayLabel.Text = `{seasonPrefix}Day {day} — {clockTimeToText(dayProgress)}`
+	local weatherSuffix = (weather and weather ~= "Clear") and ` ({weather})` or ""
+	dayLabel.Text = `{seasonPrefix}Day {day} — {clockTimeToText(dayProgress)}{weatherSuffix}`
 end
 
 function HudUI.refreshInventory()

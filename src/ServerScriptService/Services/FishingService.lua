@@ -23,6 +23,10 @@ local FishingService = {}
 local BASE_HOOK_WINDOW_SECONDS = 1.2
 local MIN_CATCH_QUALITY = 15 -- below this, the fish gets away even if hooked
 
+-- Rain (DayCycleService.getCurrentWeather) — see the RequestCast handler.
+local RAIN_WEIGHT_BONUS = 0.15
+local RAIN_PATIENCE_MULTIPLIER = 0.85
+
 type PendingBite = {
 	kind: "Fish",
 	fish: FishingConfig.FishDef,
@@ -150,6 +154,14 @@ function FishingService.init()
 		-- only ever sends 0-1, but a modified client could send anything.
 		local castPower = math.clamp(typeof(rawCastPower) == "number" and rawCastPower or 0, 0, 1)
 
+		-- GDD.md §3's "broader weather effects on fish spawns": rain folds
+		-- into the same rarity-weighting bias as a strong cast (a rainy
+		-- Shallows is a better bite regardless of how well-timed the cast
+		-- was) and independently speeds bites up a little, same idea as
+		-- real angling advice that fish bite more in the rain.
+		local isRaining = DayCycleService.getCurrentWeather() == "Rainy"
+		local weightingPower = math.min(castPower + (isRaining and RAIN_WEIGHT_BONUS or 0), 1)
+
 		local isPull = math.random() < FishingConfig.PullChance
 		local patienceSeconds: number
 
@@ -157,7 +169,7 @@ function FishingService.init()
 			pendingBites[player] = { kind = "Pull", pull = pickRandomPull(player) }
 			patienceSeconds = math.random() * 1.5 + 0.5
 		else
-			local fish = pickRandomFish(zoneId, castPower)
+			local fish = pickRandomFish(zoneId, weightingPower)
 			if not fish then
 				return -- no fish configured for this zone yet
 			end
@@ -167,6 +179,9 @@ function FishingService.init()
 			-- castPower = 1), on top of the species-weighting above — a
 			-- weak cast isn't punished, a good one is just extra rewarding.
 			patienceSeconds *= 1 - castPower * 0.15
+			if isRaining then
+				patienceSeconds *= RAIN_PATIENCE_MULTIPLIER
+			end
 		end
 
 		task.delay(patienceSeconds, function()

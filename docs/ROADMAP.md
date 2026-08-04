@@ -134,8 +134,14 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       cast roughly quintuples Legendary odds and more than halves Common,
       a whiffed one just falls back to the un-boosted base weights, never
       gated out entirely) and shaves up to 15% off bite patience.
-      Broader weather effects on fish spawns are still open — currently
-      only the Moonlit Serpent has any time-of-day gating.
+      Weather now also feeds the same bias: `DayCycleService.lua` rolls a
+      `Clear`/`Rainy` weather once per in-game day (30% rain chance,
+      broadcast alongside season in `DayCycleUpdate`) and rain folds an
+      extra +0.15 into the weighting bias plus an independent 15% bite-
+      patience cut, on top of whatever the cast power itself contributed.
+      `AmbienceController.lua` shows it visually (a placeholder particle
+      streak, no rain art in the asset pack) and `HudUI.lua`'s day label
+      now shows current weather when it isn't Clear.
 - [x] Crop growth-stage visuals — not the real per-crop model swaps
       `GrowthStage.modelName` implies (that's ~13 distinct models across 5
       crops, real art out of scope here); `CropVisualController.lua` is a
