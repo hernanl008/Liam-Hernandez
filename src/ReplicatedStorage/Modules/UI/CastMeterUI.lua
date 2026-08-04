@@ -68,7 +68,9 @@ local function setPlayerFrozen(frozen: boolean)
 	if frozen then
 		local root = getRootPart()
 		frozenCFrame = root and root.CFrame
+		print(`[CastMeterDebug] FREEZE start — root={tostring(root)} pos={root and tostring(root.Position) or "N/A"}`)
 	else
+		print(`[CastMeterDebug] FREEZE end — frozenCFrame was {tostring(frozenCFrame)}`)
 		frozenCFrame = nil
 	end
 
@@ -77,8 +79,10 @@ local function setPlayerFrozen(frozen: boolean)
 	-- the pin would undo the actual displacement regardless.
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	print(`[CastMeterDebug] setPlayerFrozen({frozen}) — character={tostring(character)} humanoid={tostring(humanoid)}`)
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, not frozen)
+		print(`[CastMeterDebug] Jumping state enabled = {humanoid:GetStateEnabled(Enum.HumanoidStateType.Jumping)}`)
 	end
 end
 
@@ -176,7 +180,13 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 
 		if frozenCFrame then
 			local root = getRootPart()
-			if root then
+			if not root then
+				print("[CastMeterDebug] Heartbeat: frozenCFrame set but getRootPart() returned nil!")
+			else
+				local drift = (root.Position - frozenCFrame.Position).Magnitude
+				if drift > 0.05 then
+					print(`[CastMeterDebug] Heartbeat: DRIFT DETECTED {drift} studs before reset — root was at {root.Position}, resetting to {frozenCFrame.Position}`)
+				end
 				root.CFrame = frozenCFrame
 				root.AssemblyLinearVelocity = Vector3.zero
 				root.AssemblyAngularVelocity = Vector3.zero
@@ -185,6 +195,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	end)
 
 	inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		print(`[CastMeterDebug] InputBegan keyCode={input.KeyCode} gameProcessed={gameProcessed}`)
 		if gameProcessed then
 			return
 		end
