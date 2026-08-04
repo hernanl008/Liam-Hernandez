@@ -40,6 +40,26 @@ local inputConn: RBXScriptConnection? = nil
 local elapsed = 0
 local finishActive: ((number?) -> ())? = nil
 
+-- Small round rivet/stud, the corner-screw detail medieval wood-UI kits
+-- use to sell "this is bolted together," not just a flat rounded corner.
+local function addRivet(parent: Instance, anchorX: number, anchorY: number)
+	local rivet = Instance.new("Frame")
+	rivet.AnchorPoint = Vector2.new(anchorX, anchorY)
+	rivet.Position = UDim2.new(anchorX, anchorX == 0 and 5 or -5, anchorY, anchorY == 0 and 5 or -5)
+	rivet.Size = UDim2.fromOffset(7, 7)
+	rivet.BackgroundColor3 = Theme.RetroColors.Bronze
+	rivet.BorderSizePixel = 0
+	rivet.ZIndex = 3
+	rivet.Parent = parent
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = rivet
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Theme.RetroColors.WoodDark
+	stroke.Thickness = 1
+	stroke.Parent = rivet
+end
+
 local function ensureBuilt()
 	if screenGui then
 		return
@@ -52,29 +72,62 @@ local function ensureBuilt()
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	screenGui = gui
 
+	-- Slimmer than the first pass, and a drop shadow (an offset, darker
+	-- duplicate sitting behind everything) so the whole thing reads as a
+	-- plaque mounted proud of the screen instead of a flat rectangle.
+	local shadow = Instance.new("Frame")
+	shadow.Size = UDim2.fromScale(0.1, 0.4)
+	shadow.Position = UDim2.fromScale(0.033, 0.308)
+	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.BackgroundTransparency = 0.55
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = 0
+	shadow.Parent = gui
+	local shadowCorner = Instance.new("UICorner")
+	shadowCorner.CornerRadius = UDim.new(0, 6)
+	shadowCorner.Parent = shadow
+
 	local frame = Instance.new("Frame")
-	frame.Size = UDim2.fromScale(0.15, 0.4)
+	frame.Size = UDim2.fromScale(0.1, 0.4)
 	frame.Position = UDim2.fromScale(0.03, 0.3)
 	frame.BorderSizePixel = 0
 	frame.Parent = gui
-	Theme.applyRetroPanel(frame)
+	Theme.applyRetroPanel(frame, { strokeThickness = 3 })
+	addRivet(frame, 0, 0)
+	addRivet(frame, 1, 0)
+	addRivet(frame, 0, 1)
+	addRivet(frame, 1, 1)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.fromScale(0.94, 0.13)
-	title.Position = UDim2.fromScale(0.03, 0.02)
+	title.Size = UDim2.fromScale(0.92, 0.12)
+	title.Position = UDim2.fromScale(0.04, 0.03)
 	title.BackgroundTransparency = 1
 	title.TextScaled = true
 	title.TextWrapped = true
-	title.Text = "CAST POWER"
+	title.Text = "CAST"
 	title.Parent = frame
 	Theme.styleRetroHeader(title)
 
+	-- Thin bronze rule under the title separating it from the gauge —
+	-- an inlay-trim detail rather than a plain gap.
+	local divider = Instance.new("Frame")
+	divider.Size = UDim2.fromScale(0.8, 0)
+	divider.Position = UDim2.fromScale(0.1, 0.16)
+	divider.BorderSizePixel = 0
+	divider.BackgroundColor3 = Theme.RetroColors.Bronze
+	divider.Parent = frame
+	local dividerStroke = Instance.new("UIStroke")
+	dividerStroke.Thickness = 1
+	dividerStroke.Color = Theme.RetroColors.WoodDark
+	dividerStroke.Parent = divider
+
 	-- A "slot carved into wood" look for the bar itself — dark recess,
 	-- lighter wood rim — distinct from the parchment page it sits on.
+	-- Narrower than the first pass so the whole plaque reads slimmer.
 	local track = Instance.new("Frame")
 	track.AnchorPoint = Vector2.new(0.5, 0)
-	track.Position = UDim2.fromScale(0.5, 0.18)
-	track.Size = UDim2.fromScale(0.4, 0.52)
+	track.Position = UDim2.fromScale(0.5, 0.22)
+	track.Size = UDim2.fromScale(0.26, 0.5)
 	track.BorderSizePixel = 0
 	track.BackgroundColor3 = Theme.RetroColors.WoodDark
 	track.Parent = frame
@@ -94,25 +147,34 @@ local function ensureBuilt()
 	fillFrame.BackgroundColor3 = Theme.RetroColors.Bronze
 	fillFrame.Parent = track
 	Theme.applyRetroCard(fillFrame, 3)
+	-- Gold-to-bronze gradient (not a flat fill) so the gauge reads like a
+	-- polished gem/molten-metal charge level rather than a plain bar.
+	local fillGradient = Instance.new("UIGradient")
+	fillGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 221, 143)),
+		ColorSequenceKeypoint.new(1, Theme.RetroColors.Bronze),
+	})
+	fillGradient.Rotation = 90
+	fillGradient.Parent = fillFrame
 	fill = fillFrame
 
 	local spaceHint = Instance.new("TextLabel")
-	spaceHint.Size = UDim2.fromScale(0.94, 0.13)
-	spaceHint.Position = UDim2.fromScale(0.03, 0.74)
+	spaceHint.Size = UDim2.fromScale(0.92, 0.11)
+	spaceHint.Position = UDim2.fromScale(0.04, 0.76)
 	spaceHint.BackgroundTransparency = 1
 	spaceHint.TextScaled = true
 	spaceHint.TextWrapped = true
-	spaceHint.Text = "PRESS SPACE"
+	spaceHint.Text = "SPACE"
 	spaceHint.Parent = frame
 	Theme.styleRetroHeader(spaceHint, Theme.RetroColors.Ink)
 
 	local escHint = Instance.new("TextLabel")
-	escHint.Size = UDim2.fromScale(0.94, 0.1)
-	escHint.Position = UDim2.fromScale(0.03, 0.88)
+	escHint.Size = UDim2.fromScale(0.92, 0.09)
+	escHint.Position = UDim2.fromScale(0.04, 0.89)
 	escHint.BackgroundTransparency = 1
 	escHint.TextScaled = true
 	escHint.TextWrapped = true
-	escHint.Text = "ESC: CANCEL"
+	escHint.Text = "ESC"
 	escHint.Parent = frame
 	Theme.styleRetroBody(escHint, Theme.RetroColors.InkMuted)
 end
