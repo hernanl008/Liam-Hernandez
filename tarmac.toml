@@ -7,15 +7,23 @@
 #   tarmac sync --target roblox
 #
 # This uploads every PNG under assets/ that changed since the last sync
-# and (re)writes src/ReplicatedStorage/Modules/Shared/AssetIds.lua with
-# the real rbxassetid:// for each one. Commit the updated AssetIds.lua
+# and (re)writes src/ReplicatedStorage/Modules/Shared/AssetIds.generated.lua
+# with the real rbxassetid:// for each one. Commit the updated file
 # afterward so everyone (and future Claude sessions) can see the mapping
 # without re-uploading.
+#
+# IMPORTANT: codegen-path below must point at AssetIds.generated.lua, NOT
+# AssetIds.lua — AssetIds.lua is the hand-written wrapper (.tile()/.sprite()
+# functions) that reads from the generated file; pointing tarmac at it
+# directly makes tarmac overwrite (destroy) that wrapper instead of the
+# file it's meant to regenerate. (This was wrong for a while — a tarmac
+# run that got far enough to reach codegen, even after failing every
+# upload, silently wiped AssetIds.lua's functions on whoever ran it.)
 
 name = "anime-farm-life"
 
 [[inputs]]
 glob = "assets/**/*.png"
 codegen = true
-codegen-path = "src/ReplicatedStorage/Modules/Shared/AssetIds.lua"
+codegen-path = "src/ReplicatedStorage/Modules/Shared/AssetIds.generated.lua"
 codegen-base-path = "assets"
