@@ -9,6 +9,7 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI"):WaitForChild("Theme"))
 
@@ -31,11 +32,34 @@ local finishActive: ((number?) -> ())? = nil
 -- also launches the player into the air (ControlScript sees the same
 -- Space press). Look the Humanoid up fresh each time rather than caching
 -- it, since the character can respawn while nothing here is watching.
+-- SetStateEnabled alone turned out not to be enough (still jumped in
+-- testing) — belt and suspenders: also bind Space at a higher
+-- ContextActionPriority than Roblox's own jump control and Sink it, the
+-- standard way to override a default control before it ever fires,
+-- rather than only trying to block the state it would transition into.
+local JUMP_BLOCK_ACTION = "CastMeterBlockJump"
+
+local function sinkSpace(_actionName: string, _inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
+	return Enum.ContextActionResult.Sink
+end
+
 local function setJumpEnabled(enabled: boolean)
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, enabled)
+	end
+
+	if enabled then
+		ContextActionService:UnbindAction(JUMP_BLOCK_ACTION)
+	else
+		ContextActionService:BindActionAtPriority(
+			JUMP_BLOCK_ACTION,
+			sinkSpace,
+			false,
+			Enum.ContextActionPriority.High.Value,
+			Enum.KeyCode.Space
+		)
 	end
 end
 
