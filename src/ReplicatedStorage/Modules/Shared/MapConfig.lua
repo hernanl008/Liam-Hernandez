@@ -135,6 +135,11 @@ MapConfig.FishingSpots = FishingSpots
 local CookingStationSpots: { GridSpot & { recipeId: string } } = {
 	{ row = 8, col = 16, recipeId = "GrilledMinnowSkewer" },
 	{ row = 8, col = 21, recipeId = "SunpetalJamTart" },
+	{ row = 8, col = 14, recipeId = "SpringrootMisoSoup" },
+	{ row = 8, col = 24, recipeId = "FrostberryTart" },
+	-- By the cove rather than the village square — the one recipe that
+	-- actually needs a fish ingredient on hand (RhythmGameConfig.lua).
+	{ row = 20, col = 17, recipeId = "EmberGlazedTrenchEel" },
 }
 MapConfig.CookingStationSpots = CookingStationSpots
 

@@ -83,7 +83,13 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       latent bug found while wiring this up: `DialogueController.showNode`
       was skipping display entirely for any node with both text and an
       autoRoute, so Hinano's greeting line was never actually shown.
-- [ ] Recipe roster tied to lore (regional dishes, festival specials)
+- [x] Recipe roster tied to lore — 3 new recipes (`RhythmGameConfig.lua`)
+      giving the 3 new seasonal crops and the Deep Trench fish somewhere
+      to be used (none of them had a recipe before this). Ember-Glazed
+      Trench Eel is the first recipe to consume two different ingredients
+      (a crop + a fish) — `CookingService.lua`'s ingredient loop already
+      supported that, nothing in the roster had exercised it. Added 3
+      matching cooking station map spots (`MapConfig.lua`).
 - [x] Remaining crops + seasons — `CropDef.season` was declared but never
       enforced anywhere; `DayCycleService.getCurrentSeason()` now tracks
       one (7 in-game days/season, cycling forever) and

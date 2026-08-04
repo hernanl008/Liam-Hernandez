@@ -69,7 +69,7 @@ local Crops: { CropDef } = {
 		},
 		regrowable = false,
 		sellPrice = 6,
-		usedInRecipes = {},
+		usedInRecipes = { "SpringrootMisoSoup" },
 		description = "First thing out of the ground once the frost breaks. Orange Ville "
 			.. "throws a small feast on the day the first batch comes up.",
 	},
@@ -84,7 +84,7 @@ local Crops: { CropDef } = {
 		},
 		regrowable = false,
 		sellPrice = 12,
-		usedInRecipes = {},
+		usedInRecipes = { "EmberGlazedTrenchEel" },
 		description = "Skin the color of the maples in Maple Hollow this time of year — "
 			.. "half the reason anyone plants it is the color, not the flavor.",
 	},
@@ -101,7 +101,7 @@ local Crops: { CropDef } = {
 		},
 		regrowable = true,
 		sellPrice = 10,
-		usedInRecipes = {},
+		usedInRecipes = { "FrostberryTart" },
 		description = "Sweetest right after a hard frost, which everyone insists is not just superstition.",
 	},
 	-- Add more crops as the world/regions are designed.

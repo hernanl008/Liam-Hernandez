@@ -81,6 +81,59 @@ local Recipes: { RecipeChart } = {
 		basePrice = 35,
 		description = "A festival-circuit staple. Vane calls it simple; Hinano calls it honest.",
 	},
+	{
+		id = "SpringrootMisoSoup",
+		displayName = "Springroot Miso Soup",
+		ingredients = { "SpringrootOnion" },
+		bpm = 90,
+		notes = {
+			{ time = 0.6, lane = 1, noteType = "Tap" },
+			{ time = 1.2, lane = 2, noteType = "Tap" },
+			{ time = 1.8, lane = 1, noteType = "Hold", holdDuration = 0.5 },
+			{ time = 2.5, lane = 3, noteType = "Tap" },
+		},
+		basePrice = 12,
+		description = "Orange Ville's first-of-the-season dish — Hinano makes a batch the day "
+			.. "the Springroot comes up, no exceptions.",
+	},
+	{
+		-- Deliberately the first recipe to consume two different
+		-- ingredients (one crop, one fish) — CookingService.lua's
+		-- ingredient loop already supported this from the start, nothing
+		-- else in the recipe roster had exercised it yet.
+		id = "EmberGlazedTrenchEel",
+		displayName = "Ember-Glazed Trench Eel",
+		ingredients = { "EmberleafSquash", "TrenchEel" },
+		bpm = 110,
+		notes = {
+			{ time = 0.5, lane = 1, noteType = "Tap" },
+			{ time = 1.0, lane = 2, noteType = "Tap" },
+			{ time = 1.5, lane = 3, noteType = "Slide" },
+			{ time = 2.0, lane = 1, noteType = "Hold", holdDuration = 0.5 },
+			{ time = 2.7, lane = 4, noteType = "Tap" },
+			{ time = 3.2, lane = 2, noteType = "Tap" },
+			{ time = 3.7, lane = 3, noteType = "Hold", holdDuration = 0.6 },
+		},
+		basePrice = 55,
+		description = "Half farm, half catch — squash from the Fields, eel from the Trench. "
+			.. "A dish that could only come from Orange Ville doing both at once.",
+	},
+	{
+		id = "FrostberryTart",
+		displayName = "Frostberry Tart",
+		ingredients = { "Frostberry" },
+		bpm = 100,
+		notes = {
+			{ time = 0.5, lane = 2, noteType = "Tap" },
+			{ time = 1.0, lane = 3, noteType = "Tap" },
+			{ time = 1.5, lane = 1, noteType = "Slide" },
+			{ time = 2.1, lane = 4, noteType = "Hold", holdDuration = 0.5 },
+			{ time = 2.8, lane = 2, noteType = "Tap" },
+		},
+		basePrice = 22,
+		description = "Best served the same day as a hard frost — Hinano insists the timing "
+			.. "actually matters, Vane insists she's being superstitious.",
+	},
 	-- Add more recipes as the food/lore list grows (regional dishes, festival specials, etc.)
 }
 RhythmGameConfig.Recipes = Recipes
