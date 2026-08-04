@@ -57,7 +57,7 @@ function FishingController.init()
 
 	Remotes.get("FishBite").OnClientEvent:Connect(function()
 		awaitingHook = true
-		StatusToast.set("Something's biting! Press E!")
+		StatusToast.set("Something's biting! Press E!", true)
 		hookConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if gameProcessed or not awaitingHook then
 				return
@@ -110,14 +110,14 @@ function FishingController.init()
 			else
 				ProgressFeedback.announce("FISHING", payload)
 			end
-			StatusToast.setTemporary(`Caught a {payload.displayName}!`, 2)
+			StatusToast.setTemporary(`Caught a {payload.displayName}!`, 2, true)
 		elseif payload.outcome == "Pull" then
 			ProgressFeedback.announce("FISHING", payload)
-			StatusToast.setTemporary(`Reeled up: {payload.displayName}`, 2)
+			StatusToast.setTemporary(`Reeled up: {payload.displayName}`, 2, true)
 		elseif payload.outcome == "ZoneLocked" then
-			StatusToast.setTemporary("This zone needs a higher fishing level.", 2)
+			StatusToast.setTemporary("This zone needs a higher fishing level.", 2, true)
 		else
-			StatusToast.setTemporary("It got away...", 2)
+			StatusToast.setTemporary("It got away...", 2, true)
 		end
 	end)
 
@@ -152,7 +152,7 @@ function FishingController.init()
 						endFishing()
 						return
 					end
-					StatusToast.set("Casting...")
+					StatusToast.set("Casting...", true)
 					Remotes.get("RequestCast"):FireServer(zoneId, power)
 				end)
 			else

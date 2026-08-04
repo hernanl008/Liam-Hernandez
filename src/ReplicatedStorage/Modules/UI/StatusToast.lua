@@ -3,6 +3,13 @@
 -- Silver Minnow!", "Bronze Grilled Minnow Skewer (~8g)") used by the
 -- Farming/Fishing/Cooking controllers instead of each keeping its own
 -- copy of the same tiny GUI. Styled via Theme.lua (GDD.md §14).
+--
+-- One label, but two looks, restyled on the fly per-call rather than a
+-- second GUI: pass `retro = true` and it repaints itself as a parchment
+-- plaque with the cutscene's pixel font (matching CastMeterUI, fishing
+-- being the mechanic currently getting the retro-medieval pass) instead
+-- of the default anime jewel-tone panel every other mechanic still uses.
+-- Style only actually gets rebuilt when it changes, not on every call.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +19,23 @@ local StatusToast = {}
 
 local screenGui: ScreenGui? = nil
 local label: TextLabel
+local currentlyRetro = false
+
+local function applyStyle(retro: boolean)
+	for _, child in label:GetChildren() do
+		if child:IsA("UICorner") or child:IsA("UIStroke") or child:IsA("UIGradient") then
+			child:Destroy()
+		end
+	end
+	if retro then
+		Theme.applyRetroPanel(label, { strokeThickness = 3 })
+		Theme.styleRetroBody(label)
+	else
+		Theme.applyPanel(label, { strokeThickness = 1 })
+		Theme.styleBody(label)
+	end
+	currentlyRetro = retro
+end
 
 local function ensureBuilt()
 	if screenGui then
@@ -30,13 +54,16 @@ local function ensureBuilt()
 	label.Text = ""
 	label.Visible = false
 	label.Parent = gui
-	Theme.applyPanel(label, { strokeThickness = 1 })
-	Theme.styleBody(label)
+	applyStyle(false)
 end
 
-function StatusToast.set(text: string?)
+function StatusToast.set(text: string?, retro: boolean?)
 	ensureBuilt()
 	if text then
+		local wantRetro = retro == true
+		if wantRetro ~= currentlyRetro then
+			applyStyle(wantRetro)
+		end
 		label.Text = text
 		label.Visible = true
 	else
@@ -46,8 +73,8 @@ end
 
 -- Convenience: show `text`, then clear it after `seconds` (unless
 -- something else has already changed it in the meantime).
-function StatusToast.setTemporary(text: string, seconds: number)
-	StatusToast.set(text)
+function StatusToast.setTemporary(text: string, seconds: number, retro: boolean?)
+	StatusToast.set(text, retro)
 	task.delay(seconds, function()
 		if screenGui and label.Text == text then
 			StatusToast.set(nil)

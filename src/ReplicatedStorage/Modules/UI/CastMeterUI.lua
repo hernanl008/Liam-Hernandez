@@ -230,7 +230,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	heartbeatConn = RunService.Heartbeat:Connect(function(dt: number)
 		elapsed += dt
 		if elapsed >= TIMEOUT_SECONDS then
-			StatusToast.setTemporary("Took too long to cast — line reeled back in.", 2.5)
+			StatusToast.setTemporary("Took too long to cast — line reeled back in.", 2.5, true)
 			finish(nil)
 			return
 		end
