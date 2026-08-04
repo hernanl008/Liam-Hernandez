@@ -32,6 +32,9 @@ local FLAG_ONLY_ACTIONS = {
 	Met_Ren = true,
 	Met_Hinano = true,
 	Met_Kaleb = true,
+	-- Fired once by OpeningCutsceneController.lua after the intro sequence
+	-- finishes, so it never replays on a later join (docs/OPENING_CUTSCENE.md).
+	SeenOpeningCutscene = true,
 }
 
 -- Dialogue relationshipDelta values are small hand-authored numbers

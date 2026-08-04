@@ -29,6 +29,10 @@ local AUTO_ROUTE_CHECKS: { [string]: () -> boolean } = {
 	HasMetKaleb = function() return InventoryCache.hasFlag("Met_Kaleb") end,
 }
 
+-- Exposed as DialogueController.startConversation (below) so
+-- OpeningCutsceneController.lua can trigger Kaya's intro directly at the
+-- end of the intro sequence, without needing a world NPC part to walk up
+-- to for that one, once-ever call.
 local function runConversation(npcId: string)
 	local trees = DialogueData[npcId]
 	local rootId = DialogueData.Roots[npcId]
@@ -120,6 +124,8 @@ local function connectNpc(instance: Instance)
 		end
 	end)
 end
+
+DialogueController.startConversation = runConversation
 
 function DialogueController.init()
 	for _, instance in CollectionService:GetTagged(NPC_TAG) do

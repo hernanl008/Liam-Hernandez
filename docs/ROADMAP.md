@@ -120,10 +120,6 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       fields merge onto fresh defaults rather than breaking old saves —
       bump the store name's version suffix for a hard reset if a future
       shape change needs one.
-- [ ] Relationship stat persistence for dialogue `relationshipDelta`
-      choices (currently just logged, see `DialogueController.lua`)
-- [ ] Dialogue "already met" branching (all NPCs currently always start
-      at their root node)
 - [ ] Playtest and retune the skill trees' XP curve/perk costs (`GDD.md`
       §12 — currently unplaytested guesses)
 - [ ] More perks per tree / branching instead of a flat 2-perk chain
@@ -150,8 +146,17 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
 - [ ] Real Orange Ville map matching LORE_BIBLE.md's full village/valley
       geography (Kotobuki Port, etc.) — the current map is still just
       Orange Ville's immediate farm/village outskirts
-- [ ] Wire the actual opening cutscene (`OPENING_CUTSCENE.md`) into a
-      playable sequence — currently just written, not implemented
+- [x] Wire the actual opening cutscene (`OPENING_CUTSCENE.md`) into a
+      playable sequence — `OpeningCutsceneController.lua`, once per player
+      (`SeenOpeningCutscene` flag, persists via the DataStore save). Beats
+      1-3 (old life fading out, the Weaver's line, the fall) as a
+      full-screen GUI sequence exactly as the beat sheet allows ("the fade
+      itself carries the beat... cheap to build," no real camera
+      choreography needed); Beats 4-5 hand off to Kaya's existing
+      kaya_intro_1 dialogue node, which already carries her "Found" line
+      almost verbatim. `DialogueController.startConversation` is now
+      exported so this (and anything else) can start a conversation
+      without needing a world NPC part.
 - [ ] Billboard-sprite characters, if locked-camera-3D doesn't read as
       "2D enough" once playtested (`GDD.md` §6 fallback option)
 - [x] Shared UI Theme (`Theme.lua`) + retrofit of every existing UI

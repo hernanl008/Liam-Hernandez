@@ -16,6 +16,7 @@ local HudController = require(Controllers:WaitForChild("HudController"))
 local AmbienceController = require(Controllers:WaitForChild("AmbienceController"))
 local ShopController = require(Controllers:WaitForChild("ShopController"))
 local CropVisualController = require(Controllers:WaitForChild("CropVisualController"))
+local OpeningCutsceneController = require(Controllers:WaitForChild("OpeningCutsceneController"))
 
 CameraController.init()
 FarmingController.init()
@@ -31,5 +32,8 @@ AmbienceController.init()
 -- Kaleb's part and depends on DialogueController having already claimed/
 -- created the "Talk" one first (see ShopController.lua's header comment).
 ShopController.init()
+-- Runs its own sequence on a background thread (task.spawn internally) so
+-- it doesn't block anything above/below it in this list.
+OpeningCutsceneController.init()
 
 print("[AnimeFarmLife] Client ready.")
