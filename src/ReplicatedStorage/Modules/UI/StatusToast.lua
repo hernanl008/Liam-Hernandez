@@ -4,12 +4,19 @@
 -- Farming/Fishing/Cooking controllers instead of each keeping its own
 -- copy of the same tiny GUI. Styled via Theme.lua (GDD.md §14).
 --
--- One label, but two looks, restyled on the fly per-call rather than a
+-- One GUI, but two looks, restyled on the fly per-call rather than a
 -- second GUI: pass `retro = true` and it repaints itself as a parchment
 -- plaque with the cutscene's pixel font (matching CastMeterUI, fishing
 -- being the mechanic currently getting the retro-medieval pass) instead
 -- of the default anime jewel-tone panel every other mechanic still uses.
 -- Style only actually gets rebuilt when it changes, not on every call.
+--
+-- Background (panel) and text (label) are separate instances, padded,
+-- with an optional drop-shadow + corner rivets behind the panel in retro
+-- mode — the first retro pass just called Theme.applyRetroPanel directly
+-- on the text label with no padding/shadow/rivets, which read as a flat
+-- plain box next to CastMeterUI's much more detailed plaque. This
+-- matches that same level of polish instead of a cheaper version of it.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,20 +25,46 @@ local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI
 local StatusToast = {}
 
 local screenGui: ScreenGui? = nil
+local shadow: Frame
+local panel: Frame
 local label: TextLabel
 local currentlyRetro = false
 
+local function addRivet(anchorX: number, anchorY: number)
+	local rivet = Instance.new("Frame")
+	rivet.Name = "Rivet"
+	rivet.AnchorPoint = Vector2.new(anchorX, anchorY)
+	rivet.Position = UDim2.new(anchorX, anchorX == 0 and 6 or -6, anchorY, anchorY == 0 and 6 or -6)
+	rivet.Size = UDim2.fromOffset(6, 6)
+	rivet.BackgroundColor3 = Theme.RetroColors.Bronze
+	rivet.BorderSizePixel = 0
+	rivet.ZIndex = 3
+	rivet.Parent = panel
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = rivet
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Theme.RetroColors.WoodDark
+	stroke.Thickness = 1
+	stroke.Parent = rivet
+end
+
 local function applyStyle(retro: boolean)
-	for _, child in label:GetChildren() do
-		if child:IsA("UICorner") or child:IsA("UIStroke") or child:IsA("UIGradient") then
+	for _, child in panel:GetChildren() do
+		if child:IsA("UICorner") or child:IsA("UIStroke") or child:IsA("UIGradient") or child.Name == "Rivet" then
 			child:Destroy()
 		end
 	end
+	shadow.Visible = retro
 	if retro then
-		Theme.applyRetroPanel(label, { strokeThickness = 3 })
-		Theme.styleRetroBody(label)
+		Theme.applyRetroPanel(panel, { strokeThickness = 3 })
+		Theme.styleRetroBody(label, Theme.RetroColors.Ink)
+		addRivet(0, 0)
+		addRivet(1, 0)
+		addRivet(0, 1)
+		addRivet(1, 1)
 	else
-		Theme.applyPanel(label, { strokeThickness = 1 })
+		Theme.applyPanel(panel, { strokeThickness = 1 })
 		Theme.styleBody(label)
 	end
 	currentlyRetro = retro
@@ -47,13 +80,43 @@ local function ensureBuilt()
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	screenGui = gui
 
+	shadow = Instance.new("Frame")
+	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+	shadow.Size = UDim2.fromScale(0.42, 0.075)
+	shadow.Position = UDim2.fromScale(0.508, 0.615)
+	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.BackgroundTransparency = 0.55
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = 0
+	shadow.Visible = false
+	shadow.Parent = gui
+	local shadowCorner = Instance.new("UICorner")
+	shadowCorner.CornerRadius = UDim.new(0, 6)
+	shadowCorner.Parent = shadow
+
+	panel = Instance.new("Frame")
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Size = UDim2.fromScale(0.4, 0.07)
+	panel.Position = UDim2.fromScale(0.5, 0.6)
+	panel.BorderSizePixel = 0
+	panel.Visible = false
+	panel.Parent = gui
+
 	label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(0.4, 0.06)
-	label.Position = UDim2.fromScale(0.3, 0.6)
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
 	label.TextScaled = true
+	label.TextWrapped = true
 	label.Text = ""
-	label.Visible = false
-	label.Parent = gui
+	label.Parent = panel
+
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 16)
+	padding.PaddingRight = UDim.new(0, 16)
+	padding.PaddingTop = UDim.new(0, 6)
+	padding.PaddingBottom = UDim.new(0, 6)
+	padding.Parent = label
+
 	applyStyle(false)
 end
 
@@ -65,9 +128,11 @@ function StatusToast.set(text: string?, retro: boolean?)
 			applyStyle(wantRetro)
 		end
 		label.Text = text
-		label.Visible = true
+		panel.Visible = true
+		shadow.Visible = wantRetro
 	else
-		label.Visible = false
+		panel.Visible = false
+		shadow.Visible = false
 	end
 end
 

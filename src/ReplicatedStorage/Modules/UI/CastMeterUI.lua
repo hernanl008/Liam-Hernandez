@@ -20,8 +20,8 @@
 -- pixel-font text was genuinely harder to read, not just off-theme.
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI"):WaitForChild("Theme"))
 local PlayerFreeze = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Client"):WaitForChild("PlayerFreeze"))
@@ -31,6 +31,8 @@ local CastMeterUI = {}
 
 -- Full 0->1->0 sweep takes 1/CYCLES_PER_SECOND seconds either direction.
 local CYCLES_PER_SECOND = 1.1
+
+local ESCAPE_ACTION = "CastMeterCancel"
 
 -- Without this, walking away (or just not reacting) left the meter open
 -- — and the player frozen (PlayerFreeze.lua) — indefinitely. ~7 full
@@ -43,7 +45,6 @@ local fill: Frame
 
 local active = false
 local heartbeatConn: RBXScriptConnection? = nil
-local inputConn: RBXScriptConnection? = nil
 local elapsed = 0
 local finishActive: ((number?) -> ())? = nil
 
@@ -208,10 +209,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 			heartbeatConn:Disconnect()
 			heartbeatConn = nil
 		end
-		if inputConn then
-			inputConn:Disconnect()
-			inputConn = nil
-		end
+		ContextActionService:UnbindAction(ESCAPE_ACTION)
 		finishActive = nil
 		onLocked(power)
 	end
@@ -239,14 +237,23 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		fill.Size = UDim2.fromScale(1, power)
 	end)
 
-	inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then
-			return
-		end
-		if input.KeyCode == Enum.KeyCode.Escape then
-			finish(nil)
-		end
-	end)
+	-- A plain UserInputService listener never got a chance to see Escape —
+	-- Roblox's own core menu binds it first and pops the settings menu
+	-- before this script's handler runs. Sinking it via ContextAction at
+	-- High priority (same trick PlayerFreeze uses for Space/jump) claims
+	-- the key first instead.
+	ContextActionService:BindActionAtPriority(
+		ESCAPE_ACTION,
+		function(_actionName: string, inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
+			if inputState == Enum.UserInputState.Begin then
+				finish(nil)
+			end
+			return Enum.ContextActionResult.Sink
+		end,
+		false,
+		Enum.ContextActionPriority.High.Value,
+		Enum.KeyCode.Escape
+	)
 end
 
 function CastMeterUI.cancel()
