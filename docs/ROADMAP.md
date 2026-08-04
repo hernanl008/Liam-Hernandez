@@ -187,6 +187,20 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       `AmbienceController.lua` shows it visually (a placeholder particle
       streak, no rain art in the asset pack) and `HudUI.lua`'s day label
       now shows current weather when it isn't Clear.
+      - Follow-up, informed by researching how a real fishing-depth wiki
+        models its mechanics: adapted (not ported — our reel-in is a
+        rhythm chart, not a bobber bar) three more ideas.
+        `FishingConfig.DepthZone.junkChanceMultiplier` thins out junk/
+        treasure pulls the deeper the zone (Shallows 1.0x down to
+        AbyssalRift 0.2x), matching "distance from land reduces trash."
+        Fishing skill level now also shaves up to 50% off bite patience
+        (`BITE_TIME_REDUCTION_PER_LEVEL`), on top of cast power/rain.
+        `FishingService.lua`'s flat rarity XP became quality-scaled
+        (0.5x-1.5x by reel quality) with a `PERFECT_CATCH_XP_MULTIPLIER`
+        of 2.4x at 95+ quality — the same "perfect catch" XP multiplier
+        real fishing games use — and a perfect catch now gets its own
+        "PERFECT CATCH!" spectacle banner tier, distinct from the
+        combo-triggered "AMAZING CATCH!" (`FishingController.lua`).
 - [x] Crop growth-stage visuals — not the real per-crop model swaps
       `GrowthStage.modelName` implies (that's ~13 distinct models across 5
       crops, real art out of scope here); `CropVisualController.lua` is a

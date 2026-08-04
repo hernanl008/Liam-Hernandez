@@ -27,6 +27,16 @@ local MIN_CATCH_QUALITY = 15 -- below this, the fish gets away even if hooked
 local RAIN_WEIGHT_BONUS = 0.15
 local RAIN_PATIENCE_MULTIPLIER = 0.85
 
+-- Fishing-wiki-informed tightening pass: real angling games (bite time
+-- scaling with skill, a distinct "Perfect!" catch tier with its own XP
+-- multiplier) adapted to our rhythm-chart reel-in rather than a bobber
+-- minigame — see the RequestCast/ReelResult handlers below for where
+-- each of these actually apply.
+local BITE_TIME_REDUCTION_PER_LEVEL = 0.02 -- multiplicative, not flat seconds — our patience ranges are already small (1-10s)
+local MAX_BITE_TIME_REDUCTION = 0.5 -- floor: patience can never drop below 50% of its rolled value from skill alone
+local PERFECT_CATCH_QUALITY_THRESHOLD = 95
+local PERFECT_CATCH_XP_MULTIPLIER = 2.4
+
 type PendingBite = {
 	kind: "Fish",
 	fish: FishingConfig.FishDef,
@@ -145,7 +155,8 @@ function FishingService.init()
 			return
 		end
 
-		if PlayerDataService.getSkillLevel(player, "Fishing") < zone.unlockLevel then
+		local skillLevel = PlayerDataService.getSkillLevel(player, "Fishing")
+		if skillLevel < zone.unlockLevel then
 			Remotes.get("CatchResult"):FireClient(player, { outcome = "ZoneLocked", zoneId = zoneId })
 			return
 		end
@@ -162,7 +173,10 @@ function FishingService.init()
 		local isRaining = DayCycleService.getCurrentWeather() == "Rainy"
 		local weightingPower = math.min(castPower + (isRaining and RAIN_WEIGHT_BONUS or 0), 1)
 
-		local isPull = math.random() < FishingConfig.PullChance
+		-- Deeper zones thin out junk pulls (fishing-wiki-informed: "distance
+		-- from land" reducing trash odds), same spirit as junkChanceMultiplier
+		-- says on FishingConfig.DepthZone.
+		local isPull = math.random() < FishingConfig.PullChance * zone.junkChanceMultiplier
 		local patienceSeconds: number
 
 		if isPull then
@@ -182,6 +196,10 @@ function FishingService.init()
 			if isRaining then
 				patienceSeconds *= RAIN_PATIENCE_MULTIPLIER
 			end
+			-- Higher Fishing level bites faster too — the skill itself
+			-- mattering for bite speed, not just zone access/perks.
+			local skillReduction = math.min(skillLevel * BITE_TIME_REDUCTION_PER_LEVEL, MAX_BITE_TIME_REDUCTION)
+			patienceSeconds *= 1 - skillReduction
 		end
 
 		task.delay(patienceSeconds, function()
@@ -238,7 +256,21 @@ function FishingService.init()
 		end
 
 		local isNewDiscovery = PlayerDataService.addItem(player, "fish", reel.fish.id, 1)
-		local xpResult = PlayerDataService.addSkillXp(player, "Fishing", FishingConfig.RarityXp[reel.fish.rarity] or 10)
+
+		-- Quality-scaled XP: a barely-passing reel (near MIN_CATCH_QUALITY)
+		-- earns ~0.65x the base rarity XP, a flawless one ~1.5x, and a
+		-- near-perfect chart (>= PERFECT_CATCH_QUALITY_THRESHOLD) gets an
+		-- extra 2.4x on top — the exact "perfect catch" XP multiplier real
+		-- fishing games use, adapted here to our combo-scored quality
+		-- instead of a bobber minigame's in-bar-the-whole-time check.
+		local baseXp = FishingConfig.RarityXp[reel.fish.rarity] or 10
+		local isPerfectCatch = result.quality >= PERFECT_CATCH_QUALITY_THRESHOLD
+		local qualityMultiplier = 0.5 + (result.quality / 100)
+		local xpAward = math.floor(baseXp * qualityMultiplier)
+		if isPerfectCatch then
+			xpAward = math.floor(xpAward * PERFECT_CATCH_XP_MULTIPLIER)
+		end
+		local xpResult = PlayerDataService.addSkillXp(player, "Fishing", xpAward)
 
 		-- LORE_BIBLE.md §5 (Ren Amakusa): the Moonlit Serpent is his "one
 		-- that got away" made literal — landing it (first time only) flags
@@ -259,9 +291,11 @@ function FishingService.init()
 			newDiscovery = isNewDiscovery,
 			leveledUp = xpResult.leveledUp,
 			newLevel = xpResult.newLevel,
+			perfect = isPerfectCatch,
 			-- GDD.md §11: a fish flagged `spectacle` (or a big combo on any
 			-- fish) triggers FishingController's celebratory banner/shake.
-			spectacle = reel.fish.spectacle == true or result.maxCombo >= 5,
+			-- A perfect catch is spectacle-worthy on its own now too.
+			spectacle = reel.fish.spectacle == true or result.maxCombo >= 5 or isPerfectCatch,
 		})
 	end)
 end

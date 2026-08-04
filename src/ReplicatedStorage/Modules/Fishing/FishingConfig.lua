@@ -26,6 +26,13 @@ export type DepthZone = {
 	minDepth: number, -- studs below water surface
 	maxDepth: number,
 	unlockLevel: number, -- player fishing level required
+	-- Real-world fishing wikis (Stardew Valley's in particular) note that
+	-- casting further from land/deeper water both reduces trash odds and
+	-- increases the odds of rarer/harder fish. Our zones (Shallows/MidReef
+	-- /DeepTrench/AbyssalRift) already stand in for "distance"; this scales
+	-- FishingConfig.PullChance per zone so junk pulls thin out the deeper
+	-- you go, same idea, without needing an actual distance-from-land model.
+	junkChanceMultiplier: number,
 }
 
 export type PullType = "Junk" | "Treasure"
@@ -133,10 +140,10 @@ local Pulls: { PullDef } = {
 FishingConfig.Pulls = Pulls
 
 local DepthZones: { DepthZone } = {
-	{ id = "Shallows", displayName = "Shallows", minDepth = 0, maxDepth = 15, unlockLevel = 1 },
-	{ id = "MidReef", displayName = "Mid Reef", minDepth = 15, maxDepth = 40, unlockLevel = 5 },
-	{ id = "DeepTrench", displayName = "Deep Trench", minDepth = 40, maxDepth = 90, unlockLevel = 12 },
-	{ id = "AbyssalRift", displayName = "Abyssal Rift", minDepth = 90, maxDepth = 200, unlockLevel = 20 },
+	{ id = "Shallows", displayName = "Shallows", minDepth = 0, maxDepth = 15, unlockLevel = 1, junkChanceMultiplier = 1 },
+	{ id = "MidReef", displayName = "Mid Reef", minDepth = 15, maxDepth = 40, unlockLevel = 5, junkChanceMultiplier = 0.7 },
+	{ id = "DeepTrench", displayName = "Deep Trench", minDepth = 40, maxDepth = 90, unlockLevel = 12, junkChanceMultiplier = 0.4 },
+	{ id = "AbyssalRift", displayName = "Abyssal Rift", minDepth = 90, maxDepth = 200, unlockLevel = 20, junkChanceMultiplier = 0.2 },
 }
 FishingConfig.DepthZones = DepthZones
 

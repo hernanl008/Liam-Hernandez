@@ -83,6 +83,7 @@ function FishingController.init()
 		displayName: string?,
 		rarity: string?,
 		spectacle: boolean?,
+		perfect: boolean?,
 		newDiscovery: boolean?,
 		leveledUp: boolean?,
 		newLevel: number?,
@@ -91,7 +92,20 @@ function FishingController.init()
 		endFishing()
 		if payload.outcome == "Caught" then
 			if payload.spectacle then
-				local label = payload.rarity == "Legendary" and "LEGENDARY CATCH!" or "AMAZING CATCH!"
+				-- Priority: a Legendary catch always reads as Legendary first;
+				-- otherwise a near-flawless reel-in (FishingService.lua's
+				-- PERFECT_CATCH_QUALITY_THRESHOLD) gets its own distinct
+				-- banner rather than folding into the generic combo-triggered
+				-- "AMAZING CATCH!" — matches fishing games' "Perfect!" catch
+				-- being its own celebrated tier, not just "good enough."
+				local label: string
+				if payload.rarity == "Legendary" then
+					label = "LEGENDARY CATCH!"
+				elseif payload.perfect then
+					label = "PERFECT CATCH!"
+				else
+					label = "AMAZING CATCH!"
+				end
 				SpectacleUI.banner(label, Color3.fromRGB(255, 220, 80), { shake = true })
 			else
 				ProgressFeedback.announce("FISHING", payload)
