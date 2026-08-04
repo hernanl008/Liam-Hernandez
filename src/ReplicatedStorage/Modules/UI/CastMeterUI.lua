@@ -32,7 +32,14 @@ local CastMeterUI = {}
 -- Full 0->1->0 sweep takes 1/CYCLES_PER_SECOND seconds either direction.
 local CYCLES_PER_SECOND = 1.1
 
-local ESCAPE_ACTION = "CastMeterCancel"
+-- Q, not Escape: Escape/the menu key turned out to be un-sinkable from a
+-- LocalScript — Roblox's own core menu claims it below the level any
+-- client script (ContextActionService included, even at Max priority)
+-- can intercept, confirmed after the ContextAction-Sink fix that worked
+-- for Space did nothing here. Q was free (WASD movement, E hook, Space
+-- lock, N/B/P/O menus, D/F/J/K rhythm lanes all already taken).
+local CANCEL_ACTION = "CastMeterCancel"
+local CANCEL_KEY = Enum.KeyCode.Q
 
 -- Without this, walking away (or just not reacting) left the meter open
 -- — and the player frozen (PlayerFreeze.lua) — indefinitely. ~7 full
@@ -176,15 +183,15 @@ local function ensureBuilt()
 	spaceHint.Parent = frame
 	Theme.styleRetroHeader(spaceHint, Theme.RetroColors.Ink)
 
-	local escHint = Instance.new("TextLabel")
-	escHint.Size = UDim2.fromScale(0.92, 0.09)
-	escHint.Position = UDim2.fromScale(0.04, 0.89)
-	escHint.BackgroundTransparency = 1
-	escHint.TextScaled = true
-	escHint.TextWrapped = true
-	escHint.Text = "ESC"
-	escHint.Parent = frame
-	Theme.styleRetroBody(escHint, Theme.RetroColors.InkMuted)
+	local cancelHint = Instance.new("TextLabel")
+	cancelHint.Size = UDim2.fromScale(0.92, 0.09)
+	cancelHint.Position = UDim2.fromScale(0.04, 0.89)
+	cancelHint.BackgroundTransparency = 1
+	cancelHint.TextScaled = true
+	cancelHint.TextWrapped = true
+	cancelHint.Text = "Q CANCEL"
+	cancelHint.Parent = frame
+	Theme.styleRetroBody(cancelHint, Theme.RetroColors.InkMuted)
 end
 
 -- Fires `onLocked(power)` (0-1) once the player presses Space, or
@@ -209,7 +216,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 			heartbeatConn:Disconnect()
 			heartbeatConn = nil
 		end
-		ContextActionService:UnbindAction(ESCAPE_ACTION)
+		ContextActionService:UnbindAction(CANCEL_ACTION)
 		finishActive = nil
 		onLocked(power)
 	end
@@ -237,13 +244,8 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		fill.Size = UDim2.fromScale(1, power)
 	end)
 
-	-- A plain UserInputService listener never got a chance to see Escape —
-	-- Roblox's own core menu binds it first and pops the settings menu
-	-- before this script's handler runs. Sinking it via ContextAction at
-	-- High priority (same trick PlayerFreeze uses for Space/jump) claims
-	-- the key first instead.
 	ContextActionService:BindActionAtPriority(
-		ESCAPE_ACTION,
+		CANCEL_ACTION,
 		function(_actionName: string, inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
 			if inputState == Enum.UserInputState.Begin then
 				finish(nil)
@@ -252,7 +254,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		end,
 		false,
 		Enum.ContextActionPriority.High.Value,
-		Enum.KeyCode.Escape
+		CANCEL_KEY
 	)
 end
 
