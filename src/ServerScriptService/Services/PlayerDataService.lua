@@ -2,10 +2,11 @@
 -- Player data for the Act 1 vertical slice, persisted via DataStoreService
 -- (docs/ROADMAP.md Phase 3). Loaded on join, saved on leave and on server
 -- shutdown. Every DataStore call is pcall-wrapped and falls back to fresh
--- in-memory defaults on failure — a DataStore outage (or, in Studio,
--- forgetting to enable "Studio Access to API Services" under Game
--- Settings > Security) degrades to "progress doesn't save this session"
--- rather than an error.
+-- in-memory defaults on failure — a DataStore outage, forgetting to
+-- enable "Studio Access to API Services" under Game Settings > Security,
+-- or (the most common one when testing locally) the place never having
+-- been published to Roblox at all, all degrade to "progress doesn't save
+-- this session" rather than an error.
 
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
@@ -16,7 +17,22 @@ local SkillTreeConfig = require(Modules:WaitForChild("Shared"):WaitForChild("Ski
 
 -- Bump the suffix (v2, v3, ...) if a future PlayerData shape change should
 -- start everyone fresh instead of merging onto old saves.
-local playerStore = DataStoreService:GetDataStore("AnimeFarmLifePlayerData_v1")
+--
+-- GetDataStore itself can throw — not just GetAsync/SetAsync below — on an
+-- unpublished Studio place ("You must publish this place to the web to
+-- access DataStore"), which is a much more common local-testing state than
+-- "API access disabled" (the case this module's other pcalls already
+-- covered). Uncaught, that throw happened at module load time and took
+-- the entire server down with it (every require after this one in
+-- Main.server.lua never ran). Wrapped the same way as every other
+-- DataStore call in this file: fall back to in-memory-only.
+local playerStoreOk, playerStore = pcall(function()
+	return DataStoreService:GetDataStore("AnimeFarmLifePlayerData_v1")
+end)
+if not playerStoreOk then
+	warn(`[PlayerDataService] DataStore unavailable ({playerStore}) — progress won't persist this session.`)
+	playerStore = nil
+end
 
 export type ItemCounts = { [string]: number }
 export type DiscoveredSet = { [string]: boolean }
@@ -128,6 +144,9 @@ local function storeKeyFor(player: Player): string
 end
 
 local function loadPlayerData(player: Player): PlayerData
+	if not playerStore then
+		return newPlayerData()
+	end
 	local ok, result = pcall(function()
 		return playerStore:GetAsync(storeKeyFor(player))
 	end)
@@ -142,6 +161,9 @@ local function loadPlayerData(player: Player): PlayerData
 end
 
 local function savePlayerData(player: Player, data: PlayerData)
+	if not playerStore then
+		return
+	end
 	local ok, err = pcall(function()
 		playerStore:SetAsync(storeKeyFor(player), data)
 	end)
