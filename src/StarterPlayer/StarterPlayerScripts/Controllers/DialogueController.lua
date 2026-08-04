@@ -12,6 +12,7 @@ local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local DialogueData = require(Modules:WaitForChild("Shared"):WaitForChild("DialogueData"))
 local InventoryCache = require(Modules:WaitForChild("Client"):WaitForChild("InventoryCache"))
 local DialogueUI = require(Modules:WaitForChild("UI"):WaitForChild("DialogueUI"))
+local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
 
 local DialogueController = {}
 
@@ -97,6 +98,12 @@ local function runConversation(npcId: string)
 			end
 			if chosen.relationshipDelta then
 				Remotes.get("DialogueRelationshipDelta"):FireServer(npcId, chosen.relationshipDelta)
+				-- The relationship stat has persisted server-side since
+				-- earlier this session, but nothing ever told the player it
+				-- was changing — this is the only feedback for it right now
+				-- (InventoryUI.lua's Bonds section shows the running total).
+				local sign = chosen.relationshipDelta > 0 and "+" or ""
+				StatusToast.setTemporary(`{node.speaker} {sign}{chosen.relationshipDelta} relationship`, 1.5)
 			end
 			if chosen.action then
 				Remotes.get("DialogueAction"):FireServer(chosen.action)

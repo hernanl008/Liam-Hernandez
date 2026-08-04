@@ -22,8 +22,10 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
 - [x] `OPENING_CUTSCENE.md` — death → rebirth beat sheet
 - [ ] 🔲 Land expansion model (buy plots vs. story-gated) — still open
 - [ ] 🔲 Romance system in/out of scope — still open
-- [ ] 🔲 Visual style: toon-shaded 3D vs. actual 2D/2.5D sprites (`GDD.md`
-      §6) — currently assumed toon-shaded 3D, confirm before art starts
+- [x] 🔲 Visual style: toon-shaded 3D vs. actual 2D/2.5D sprites (`GDD.md`
+      §6) — stale duplicate of the Phase 3 entry below; resolved as
+      top-down 2D presentation (`CameraController.lua`), not toon-shaded
+      3D as originally assumed here
 - [ ] 🔲 Founding myth specifics — what actually happened to the guardian
       spirit 3 generations ago (`LORE_BIBLE.md` §6) — needed before Act 2
       content is built
@@ -123,6 +125,12 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
         founding myth), Chef Hinano (Vane rivalry cook-off), and the
         rest of Act 2/3 arcs are still open.
 - [x] General inventory grid — see Phase 2 entry above (`InventoryUI.lua`)
+- [x] Relationship values surfaced in UI — they've persisted server-side
+      since earlier this session but were never shown anywhere.
+      `DialogueController.lua` now shows a `StatusToast` the moment a
+      choice changes one; `InventoryUI.lua` gained a "Bonds" tile section
+      (met NPCs only, so it can't spoil the roster) showing the running
+      total per NPC.
 - [ ] UI/UX pass (dialogue box polish)
 - [x] Cast-power meter that actually affects bite odds (`GDD.md` §3) —
       `CastMeterUI.lua` (a ping-pong fill bar, Space to lock, Esc to

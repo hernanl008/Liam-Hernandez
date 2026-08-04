@@ -5,7 +5,9 @@
 -- discovered) this only shows what the player is actually carrying right
 -- now, laid out as a real grid (UIGridLayout) rather than CompendiumUI's/
 -- ShopUI's single-column row list, to read as a distinct "inventory" screen
--- rather than a third copy of the same list.
+-- rather than a third copy of the same list. Also the only place NPC
+-- relationship values (persisted since earlier this session, never shown
+-- anywhere) are surfaced — a "Bonds" set of tiles after the item grid.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,6 +25,19 @@ local screenGui: ScreenGui? = nil
 local gridFrame: ScrollingFrame
 local goldLabel: TextLabel
 local visible = false
+
+-- Relationship values have persisted server-side (PlayerDataService.lua)
+-- since earlier this session, but nothing ever showed them to the player
+-- — DialogueController.lua's StatusToast on each change is the only other
+-- feedback. Ordered list (not DialogueData.Roots directly) so display
+-- order is stable regardless of table iteration order.
+local BOND_NPCS: { { id: string, displayName: string } } = {
+	{ id = "Kaya", displayName = "Kaya" },
+	{ id = "ElderSouta", displayName = "Elder Souta" },
+	{ id = "Ren", displayName = "Ren Amakusa" },
+	{ id = "Hinano", displayName = "Chef Hinano" },
+	{ id = "Kaleb", displayName = "Kaleb" },
+}
 
 -- Seeds and harvested crops are both keyed by cropId (FarmingConfig.Crops)
 -- so they share a display-name lookup; dishes are keyed "{recipeId}_{tier}"
@@ -153,6 +168,33 @@ local function addTile(category: string, id: string, count: number, order: numbe
 	Theme.styleBody(nameLabel, Theme.Colors.TextPrimary)
 end
 
+local function addBondTile(displayName: string, value: number, order: number)
+	local tile = Instance.new("Frame")
+	tile.LayoutOrder = order
+	tile.Parent = gridFrame
+	Theme.applyCard(tile, 8)
+	tile.BackgroundColor3 = Color3.fromRGB(60, 32, 45)
+
+	local valueLabel = Instance.new("TextLabel")
+	valueLabel.Size = UDim2.fromScale(1, 0.35)
+	valueLabel.Position = UDim2.fromScale(0, 0)
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.TextScaled = true
+	valueLabel.Text = `\u{2665} {value}`
+	valueLabel.Parent = tile
+	Theme.styleHeader(valueLabel, Theme.Colors.AccentPink)
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.fromScale(0.92, 0.55)
+	nameLabel.Position = UDim2.fromScale(0.04, 0.4)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.TextScaled = true
+	nameLabel.TextWrapped = true
+	nameLabel.Text = displayName
+	nameLabel.Parent = tile
+	Theme.styleBody(nameLabel, Theme.Colors.TextPrimary)
+end
+
 local function rebuild()
 	for _, child in gridFrame:GetChildren() do
 		if not child:IsA("UIGridLayout") then
@@ -189,6 +231,15 @@ local function rebuild()
 		empty.LayoutOrder = nextOrder()
 		empty.Parent = gridFrame
 		Theme.styleBody(empty, Theme.Colors.TextMuted)
+	end
+
+	-- Only NPCs the player has actually met — showing "Elder Souta: 0"
+	-- before ever talking to him would spoil the roster/give away nothing
+	-- meaningful anyway.
+	for _, npc in BOND_NPCS do
+		if snapshot.flags[`Met_{npc.id}`] == true then
+			addBondTile(npc.displayName, snapshot.relationships[npc.id] or 0, nextOrder())
+		end
 	end
 end
 
