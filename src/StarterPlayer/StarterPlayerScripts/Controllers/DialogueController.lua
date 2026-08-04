@@ -27,6 +27,10 @@ local AUTO_ROUTE_CHECKS: { [string]: () -> boolean } = {
 	HasMetRen = function() return InventoryCache.hasFlag("Met_Ren") end,
 	HasMetHinano = function() return InventoryCache.hasFlag("Met_Hinano") end,
 	HasMetKaleb = function() return InventoryCache.hasFlag("Met_Kaleb") end,
+	-- Ren Amakusa's Moonlit Serpent closure beat (LORE_BIBLE.md §5) —
+	-- see DialogueData.lua's ren_post_meet_root/ren_check_serpent_root.
+	HasCaughtMoonlitSerpent = function() return InventoryCache.hasFlag("CaughtMoonlitSerpent") end,
+	HasClosedRenArc = function() return InventoryCache.hasFlag("RenArcClosed") end,
 }
 
 -- Exposed as DialogueController.startConversation (below) so

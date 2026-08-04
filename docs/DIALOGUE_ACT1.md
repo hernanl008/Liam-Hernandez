@@ -144,6 +144,40 @@ first use, and marks the Shallows zone as unlocked if it wasn't already
 (should be unlocked from the start per `FishingConfig.lua`, this is a
 safety net).
 
+## Ren Amakusa — Moonlit Serpent closure (postgame, one-time)
+
+Unlocks the moment the player actually lands the Moonlit Serpent
+(`FishingConfig.lua`, night-only, Shallows) — Ren's "one that got away,"
+made literal (`LORE_BIBLE.md` §5). Plays once; every conversation with
+Ren afterward shows a short permanent acknowledgment instead.
+
+```
+[ren_closure_1] Ren:
+"...That silhouette on your line, out past the reeds — I saw it from the
+dock. Moonlit coloring, too big for anything else that swims here. Tell
+me I'm not imagining it."
+> "You're not. I caught it."                -> ren_closure_2 [relationship +2]
+
+[ren_closure_2] Ren:
+"Years. I chased that thing for years, told myself it was just a story I
+made up to have an excuse to keep casting after dark. Doesn't even
+matter that it was you and not me. Feels like I can finally stop waiting
+for it."
+> "You taught me everything I know about that rod." -> ren_closure_3 [relationship +3]
+
+[ren_closure_3] Ren:
+"...Yeah. Yeah, I suppose I did. Go on, get out of here before I start
+acting sentimental about a fish. Rod's still on the rack, whenever you
+want it."
+-> END [action: RenArcClosed]
+```
+
+Gameplay hook: catching the Moonlit Serpent sets `CaughtMoonlitSerpent`
+(`FishingService.lua`, not a dialogue action — it's not a choice). The
+closure scene itself sets `RenArcClosed` once finished so it never
+replays; both flags gate which node Ren's root autoRoutes to
+(`DialogueData.lua`'s `ren_post_meet_root`/`ren_check_serpent_root`).
+
 ## Chef Hinano — cooking tutorial
 
 ```

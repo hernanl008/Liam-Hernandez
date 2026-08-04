@@ -35,6 +35,11 @@ local FLAG_ONLY_ACTIONS = {
 	-- Fired once by OpeningCutsceneController.lua after the intro sequence
 	-- finishes, so it never replays on a later join (docs/OPENING_CUTSCENE.md).
 	SeenOpeningCutscene = true,
+	-- Fired once the player finishes Ren's Moonlit Serpent closure scene
+	-- (DialogueData.lua's ren_closure_3) — CaughtMoonlitSerpent itself is
+	-- set directly by FishingService.lua, not through here, since it's not
+	-- a dialogue choice.
+	RenArcClosed = true,
 }
 
 -- Dialogue relationshipDelta values are small hand-authored numbers

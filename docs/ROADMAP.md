@@ -112,6 +112,16 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       value) — deliberately worse than the not-yet-built Trade Exchange
       (GDD.md §7) so that remains worth building later, not redundant.
 - [ ] Story beats implemented per the lore bible's arc
+  - [x] First one done: Ren Amakusa's Moonlit Serpent closure
+        (`LORE_BIBLE.md` §5 — "landing it becomes his postgame closure
+        quest"). Catching the fish (`FishingService.lua`) flags
+        `CaughtMoonlitSerpent`; Ren's dialogue root chains two more
+        silent autoRoute checks (`DialogueData.lua`'s
+        `ren_post_meet_root`/`ren_check_serpent_root`) to route into a
+        one-time 3-node closure scene, gated afterward by `RenArcClosed`
+        so it never replays. Elder Souta (grandfather's role in the
+        founding myth), Chef Hinano (Vane rivalry cook-off), and the
+        rest of Act 2/3 arcs are still open.
 - [x] General inventory grid — see Phase 2 entry above (`InventoryUI.lua`)
 - [ ] UI/UX pass (dialogue box polish)
 - [x] Cast-power meter that actually affects bite odds (`GDD.md` §3) —

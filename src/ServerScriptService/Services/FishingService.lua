@@ -225,6 +225,15 @@ function FishingService.init()
 		local isNewDiscovery = PlayerDataService.addItem(player, "fish", reel.fish.id, 1)
 		local xpResult = PlayerDataService.addSkillXp(player, "Fishing", FishingConfig.RarityXp[reel.fish.rarity] or 10)
 
+		-- LORE_BIBLE.md §5 (Ren Amakusa): the Moonlit Serpent is his "one
+		-- that got away" made literal — landing it (first time only) flags
+		-- his postgame closure conversation as available. DialogueData.lua's
+		-- ren_check_serpent_root autoRoute reads this to branch to
+		-- ren_closure_1 instead of the usual short return greeting.
+		if reel.fish.id == "MoonlitSerpent" then
+			PlayerDataService.setFlag(player, "CaughtMoonlitSerpent", true)
+		end
+
 		Remotes.get("CatchResult"):FireClient(player, {
 			outcome = "Caught",
 			fishId = reel.fish.id,

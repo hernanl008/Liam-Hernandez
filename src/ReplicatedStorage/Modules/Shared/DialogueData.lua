@@ -171,11 +171,56 @@ DialogueData.Ren = {
 	ren_root = {
 		speaker = "",
 		text = "",
-		autoRoute = { check = "HasMetRen", ifTrue = "ren_return_1", ifFalse = "ren_intro_1" },
+		autoRoute = { check = "HasMetRen", ifTrue = "ren_post_meet_root", ifFalse = "ren_intro_1" },
+	},
+	-- LORE_BIBLE.md §5's first real story beat: Ren's postgame closure
+	-- quest is "the player lands the Moonlit Serpent (or helps him land
+	-- it)." Two more silent routers chained after the "already met" check
+	-- above — once he's met, check whether the closure scene already
+	-- played (permanent ren_return_2 afterward), then whether the serpent
+	-- has been caught at all (routes to the one-time ren_closure_1 scene).
+	ren_post_meet_root = {
+		speaker = "",
+		text = "",
+		autoRoute = { check = "HasClosedRenArc", ifTrue = "ren_return_2", ifFalse = "ren_check_serpent_root" },
+	},
+	ren_check_serpent_root = {
+		speaker = "",
+		text = "",
+		autoRoute = { check = "HasCaughtMoonlitSerpent", ifTrue = "ren_closure_1", ifFalse = "ren_return_1" },
 	},
 	ren_return_1 = {
 		speaker = "Ren",
 		text = "You again. Rod's still on the rack if you need it. I'm not much for small talk, so—",
+		options = nil,
+	},
+	ren_closure_1 = {
+		speaker = "Ren",
+		text = "...That silhouette on your line, out past the reeds — I saw it from the dock. Moonlit "
+			.. "coloring, too big for anything else that swims here. Tell me I'm not imagining it.",
+		options = {
+			{ text = "You're not. I caught it.", next = "ren_closure_2", relationshipDelta = 2 },
+		},
+	},
+	ren_closure_2 = {
+		speaker = "Ren",
+		text = "Years. I chased that thing for years, told myself it was just a story I made up to have "
+			.. "an excuse to keep casting after dark. Doesn't even matter that it was you and not me. "
+			.. "Feels like I can finally stop waiting for it.",
+		options = {
+			{ text = "You taught me everything I know about that rod.", next = "ren_closure_3", relationshipDelta = 3 },
+		},
+	},
+	ren_closure_3 = {
+		speaker = "Ren",
+		text = "...Yeah. Yeah, I suppose I did. Go on, get out of here before I start acting sentimental "
+			.. "about a fish. Rod's still on the rack, whenever you want it.",
+		options = { { text = "Continue", next = nil :: any, action = "RenArcClosed" } },
+	},
+	ren_return_2 = {
+		speaker = "Ren",
+		text = "Still can't believe you actually landed it. Rod's on the rack, like always — go on, "
+			.. "before I get sentimental again.",
 		options = nil,
 	},
 	ren_intro_1 = {
