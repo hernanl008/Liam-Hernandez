@@ -25,6 +25,7 @@ local currentDay = 1
 local elapsedThisDay = 0
 local currentClockTime = 6 -- 24-hour clock, mirrors Lighting.ClockTime
 local newDayListeners: { (number) -> () } = {}
+local forceNewDay = false
 
 -- GDD.md §3's "broader weather effects on fish spawns" — rolled fresh
 -- once per in-game day (not per-second, so it's a stable daily condition
@@ -80,10 +81,26 @@ function DayCycleService.onNewDay(callback: (number) -> ())
 	table.insert(newDayListeners, callback)
 end
 
+-- Sleeping (Bed-tagged part near the starter house, MapConfig.lua) — the
+-- only way to end a day early instead of waiting out the full real-time
+-- length. Just flags the next Heartbeat tick to treat the day as over
+-- rather than duplicating the rollover logic in DayCycleService.init().
+function DayCycleService.skipToNextDay()
+	forceNewDay = true
+end
+
 function DayCycleService.init()
 	local RunService = game:GetService("RunService")
 	local lastBroadcast = 0
 	currentWeather = rollWeather()
+
+	-- One shared day cycle for the whole server (no per-player instancing
+	-- of it yet, matching the rest of DayCycleService) — any player
+	-- sleeping ends the day for everyone in the server, same as the
+	-- table-flip most farm sims make when one player goes to bed first.
+	Remotes.get("RequestSleep").OnServerEvent:Connect(function(_player: Player)
+		DayCycleService.skipToNextDay()
+	end)
 
 	RunService.Heartbeat:Connect(function(dt: number)
 		elapsedThisDay += dt
@@ -102,8 +119,9 @@ function DayCycleService.init()
 			})
 		end
 
-		if elapsedThisDay >= dayLengthSeconds then
+		if elapsedThisDay >= dayLengthSeconds or forceNewDay then
 			elapsedThisDay = 0
+			forceNewDay = false
 			currentDay += 1
 			currentWeather = rollWeather()
 			for _, listener in newDayListeners do

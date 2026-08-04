@@ -100,6 +100,14 @@ MapConfig.Grid = Grid
 local SpawnPoint: GridSpot = { row = 12, col = 19 }
 MapConfig.SpawnPoint = SpawnPoint
 
+-- Right outside the player's starter house (Props' house_cottage at
+-- row 7, col 15) — the only way to end a day early instead of waiting
+-- out the full real-time day length (DayCycleService.lua). No interior
+-- feature exists yet (docs/ROADMAP.md), so this is a single exterior
+-- prompt rather than an actual bed inside a house.
+local BedSpot: GridSpot = { row = 9, col = 13 }
+MapConfig.BedSpot = BedSpot
+
 -- Original 3 plots by the village square, plus 8 more out in Sunpetal
 -- Fields (GDD.md §5 — no stamina system, so more plots just means more
 -- to water/harvest each day, not a new mechanic).

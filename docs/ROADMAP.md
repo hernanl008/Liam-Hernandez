@@ -145,6 +145,15 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       (press O) — the game's first real settings screen, built as its own
       thing rather than bolted onto the HUD so future toggles have
       somewhere to go.
+- [x] Sleep / skip-to-next-day — there was previously no way to end a day
+      early; players had to wait out the full real-time day length even
+      after finishing everything they wanted to do. A "Bed" prompt just
+      outside the starter house (`MapConfig.lua`/`MapBuilder.lua`) fires
+      `RequestSleep`; `DayCycleService.skipToNextDay()` flags the next
+      Heartbeat tick to roll the day over immediately (same rollover
+      path a full day uses, including the daily watering reset and
+      weather reroll — no duplicated logic). One shared day cycle for the
+      whole server, so anyone sleeping ends the day for everyone in it.
 - [ ] UI/UX pass (dialogue box polish)
 - [x] Cast-power meter that actually affects bite odds (`GDD.md` §3) —
       `CastMeterUI.lua` (a ping-pong fill bar, Space to lock, Esc to

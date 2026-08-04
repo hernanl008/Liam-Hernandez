@@ -166,6 +166,19 @@ local function placeProps(folder: Folder)
 	end
 end
 
+local function placeBed(folder: Folder)
+	local part = Instance.new("Part")
+	part.Name = "Bed"
+	part.Anchored = true
+	part.CanCollide = false
+	part.Size = Vector3.new(3, 1, 3)
+	part.Position = worldPositionFor(MapConfig.BedSpot) + Vector3.new(0, 0.5, 0)
+	part.Color = Color3.fromRGB(140, 100, 200)
+	part.Transparency = 0.4
+	part.Parent = folder
+	CollectionService:AddTag(part, "Bed")
+end
+
 local function placeSpawn(folder: Folder)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "GeneratedSpawn"
@@ -194,6 +207,7 @@ function MapBuilder.init()
 	placeCookingStations(folder)
 	placeNpcs(folder)
 	placeProps(folder)
+	placeBed(folder)
 	placeSpawn(folder)
 end
 
