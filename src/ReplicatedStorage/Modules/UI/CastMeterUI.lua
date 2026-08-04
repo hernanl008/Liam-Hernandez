@@ -5,11 +5,26 @@
 -- argument). A vertical fill bar ping-pongs 0->1->0; pressing Space locks
 -- in whatever power it's at, same skill-based "stop the moving bar" beat
 -- as the reel-in minigame but simpler (one axis, no scoring window).
+--
+-- While the meter is up, the player is meant to be planted in place —
+-- three earlier attempts at blocking movement/jump piecemeal
+-- (SetStateEnabled(Jumping, false), WalkSpeed = 0, sinking individual
+-- keys through ContextActionService) each fixed one symptom without
+-- fully working, most likely because Roblox's default WASD movement
+-- polls key state directly each frame rather than reacting to bound
+-- actions the way jump does — sinking specific keys never touched it,
+-- and the sinking itself turned out to suppress the plain
+-- UserInputService listener this module used to detect the Space lock,
+-- breaking that instead. The actual fix is PlayerModule's Controls
+-- object (GetControls():Disable()/:Enable()) — Roblox's own documented
+-- "turn off all default character input at once" API — which sidesteps
+-- both problems: it's the real mechanism games use for this, and it
+-- doesn't interfere with this module's own plain UserInputService
+-- listener for Space/Escape (a separate, independent system).
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI"):WaitForChild("Theme"))
 
@@ -28,46 +43,54 @@ local inputConn: RBXScriptConnection? = nil
 local elapsed = 0
 local finishActive: ((number?) -> ())? = nil
 
--- Space is Roblox's default jump key. Two earlier attempts at fixing
--- this didn't work out: SetStateEnabled(Jumping, false) alone still let
--- the character jump, and adding a *separate* ContextActionService
--- binding purely to Sink the key (alongside the plain
--- UserInputService.InputBegan listener that was actually detecting the
--- lock) stopped that listener from firing at all — apparently a Sunk
--- ContextAction input doesn't reach UserInputService.InputBegan the same
--- way a plain keypress does. Fix: one single ContextActionService-bound
--- handler does both jobs — detect the press to lock the meter, AND
--- return Sink so Roblox's own jump control (bound at a lower priority)
--- never sees it — instead of two separate systems racing each other.
-local SPACE_ACTION = "CastMeterLockSpace"
+-- Resolved once, lazily, the first time it's needed rather than at
+-- module load — PlayerScripts/PlayerModule should already exist by then
+-- (this module is only ever required from a Controller that's already
+-- running under StarterPlayerScripts), but there's no reason to risk a
+-- module-load-time failure over it given this session's history with
+-- exactly that failure mode. nil if PlayerModule can't be found/required
+-- (e.g. this project's source tree doesn't track it under
+-- StarterPlayerScripts, so it depends on whatever Rojo's sync leaves in
+-- place) — setPlayerFrozen falls back to the Humanoid-level attempts
+-- below in that case, better than nothing even if not fully reliable.
+local controlsResolved = false
+local controls: any = nil
 
--- Same freeze idea, extended to walking: WASD still moved the character
--- while the meter was up. WalkSpeed = 0 turned out to not be enough on
--- its own either (confirmed in testing — same lesson as Space above:
--- disabling the *effect* isn't reliable, the *input* has to actually be
--- blocked from reaching Roblox's default movement controls). So this
--- also Sinks the movement keys via ContextActionService, same mechanism
--- and priority already confirmed to stop jump. WalkSpeed=0 stays too, as
--- a backup for any input path that isn't one of these specific keys
--- (gamepad thumbstick, on-screen touch controls, etc).
-local savedWalkSpeed: number? = nil
-local MOVEMENT_BLOCK_ACTION = "CastMeterBlockMovement"
-local MOVEMENT_KEYS = {
-	Enum.KeyCode.W,
-	Enum.KeyCode.A,
-	Enum.KeyCode.S,
-	Enum.KeyCode.D,
-	Enum.KeyCode.Up,
-	Enum.KeyCode.Down,
-	Enum.KeyCode.Left,
-	Enum.KeyCode.Right,
-}
-
-local function sinkMovement(_actionName: string, _inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
-	return Enum.ContextActionResult.Sink
+local function getControls(): any
+	if controlsResolved then
+		return controls
+	end
+	controlsResolved = true
+	local ok, result = pcall(function()
+		local playerScripts = Players.LocalPlayer:WaitForChild("PlayerScripts", 5)
+		local playerModuleScript = playerScripts and playerScripts:FindFirstChild("PlayerModule")
+		if not playerModuleScript then
+			return nil
+		end
+		local playerModule = require(playerModuleScript :: ModuleScript) :: any
+		return playerModule:GetControls()
+	end)
+	if ok then
+		controls = result
+	end
+	return controls
 end
 
+local savedWalkSpeed: number? = nil
+
 local function setPlayerFrozen(frozen: boolean)
+	local resolvedControls = getControls()
+	if resolvedControls then
+		if frozen then
+			resolvedControls:Disable()
+		else
+			resolvedControls:Enable()
+		end
+	end
+
+	-- Backup layer in case Controls couldn't be resolved — not fully
+	-- reliable on its own (see the header comment) but better than
+	-- nothing.
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
@@ -79,18 +102,6 @@ local function setPlayerFrozen(frozen: boolean)
 			humanoid.WalkSpeed = savedWalkSpeed
 			savedWalkSpeed = nil
 		end
-	end
-
-	if frozen then
-		ContextActionService:BindActionAtPriority(
-			MOVEMENT_BLOCK_ACTION,
-			sinkMovement,
-			false,
-			Enum.ContextActionPriority.High.Value,
-			table.unpack(MOVEMENT_KEYS)
-		)
-	else
-		ContextActionService:UnbindAction(MOVEMENT_BLOCK_ACTION)
 	end
 end
 
@@ -167,7 +178,6 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		active = false
 		(screenGui :: ScreenGui).Enabled = false
 		setPlayerFrozen(false)
-		ContextActionService:UnbindAction(SPACE_ACTION)
 		if heartbeatConn then
 			heartbeatConn:Disconnect()
 			heartbeatConn = nil
@@ -188,33 +198,18 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		fill.Size = UDim2.fromScale(1, power)
 	end)
 
-	-- Single handler for both jobs: locks the meter on press AND sinks
-	-- the input so Roblox's own jump control never sees it — see the
-	-- comment above SPACE_ACTION for why this used to be two separate,
-	-- conflicting mechanisms.
-	local function handleSpace(_actionName: string, inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
-		if inputState == Enum.UserInputState.Begin then
-			local t = (elapsed * CYCLES_PER_SECOND) % 2
-			local power = t <= 1 and t or (2 - t)
-			finish(power)
-		end
-		return Enum.ContextActionResult.Sink
-	end
-	ContextActionService:BindActionAtPriority(
-		SPACE_ACTION,
-		handleSpace,
-		false,
-		Enum.ContextActionPriority.High.Value,
-		Enum.KeyCode.Space
-	)
-
-	-- Escape isn't bound to any default Roblox control, so a plain
-	-- UserInputService listener is fine for it — no race to avoid here.
+	-- Plain input listener — Controls:Disable() above handles keeping
+	-- Roblox's own jump/movement from firing, so there's nothing this
+	-- needs to Sink or race against anymore.
 	inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then
 			return
 		end
-		if input.KeyCode == Enum.KeyCode.Escape then
+		if input.KeyCode == Enum.KeyCode.Space then
+			local t = (elapsed * CYCLES_PER_SECOND) % 2
+			local power = t <= 1 and t or (2 - t)
+			finish(power)
+		elseif input.KeyCode == Enum.KeyCode.Escape then
 			finish(nil)
 		end
 	end)
