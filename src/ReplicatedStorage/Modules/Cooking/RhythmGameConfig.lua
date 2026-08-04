@@ -134,6 +134,27 @@ local Recipes: { RecipeChart } = {
 		description = "Best served the same day as a hard frost — Hinano insists the timing "
 			.. "actually matters, Vane insists she's being superstitious.",
 	},
+	{
+		-- MoonriceStalk has existed since the earliest content this game
+		-- had (FarmingConfig.lua's original Summer crop) but never had a
+		-- recipe of its own — every other crop got one as the roster grew,
+		-- this one was just missed. Named/paced as a second tutorial-tier
+		-- dish, one step past GrilledMinnowSkewer.
+		id = "MoonriceOnigiri",
+		displayName = "Moonrice Onigiri",
+		ingredients = { "MoonriceStalk" },
+		bpm = 95,
+		notes = {
+			{ time = 0.5, lane = 1, noteType = "Tap" },
+			{ time = 1.0, lane = 3, noteType = "Tap" },
+			{ time = 1.5, lane = 2, noteType = "Hold", holdDuration = 0.5 },
+			{ time = 2.2, lane = 4, noteType = "Tap" },
+			{ time = 2.7, lane = 1, noteType = "Tap" },
+		},
+		basePrice = 20,
+		description = "Hinano won't say why she only serves this after dark — just that Moonrice "
+			.. "tastes different by moonlight, and refuses to explain further.",
+	},
 	-- Add more recipes as the food/lore list grows (regional dishes, festival specials, etc.)
 }
 RhythmGameConfig.Recipes = Recipes

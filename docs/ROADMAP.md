@@ -97,6 +97,11 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       (a crop + a fish) — `CookingService.lua`'s ingredient loop already
       supported that, nothing in the roster had exercised it. Added 3
       matching cooking station map spots (`MapConfig.lua`).
+      - Follow-up: auditing every crop's `usedInRecipes` turned up that
+        MoonriceStalk — the original Summer starter crop, present since
+        the earliest content this game had — was the one crop still
+        stuck at `{}`. Added `MoonriceOnigiri` and its cooking station
+        spot to close the gap.
 - [x] Remaining crops + seasons — `CropDef.season` was declared but never
       enforced anywhere; `DayCycleService.getCurrentSeason()` now tracks
       one (7 in-game days/season, cycling forever) and

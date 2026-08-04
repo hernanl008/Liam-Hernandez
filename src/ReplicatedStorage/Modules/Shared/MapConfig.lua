@@ -137,6 +137,9 @@ local CookingStationSpots: { GridSpot & { recipeId: string } } = {
 	{ row = 8, col = 21, recipeId = "SunpetalJamTart" },
 	{ row = 8, col = 14, recipeId = "SpringrootMisoSoup" },
 	{ row = 8, col = 24, recipeId = "FrostberryTart" },
+	-- MoonriceStalk had no recipe at all until MoonriceOnigiri
+	-- (RhythmGameConfig.lua) — this station was missing along with it.
+	{ row = 8, col = 12, recipeId = "MoonriceOnigiri" },
 	-- By the cove rather than the village square — the one recipe that
 	-- actually needs a fish ingredient on hand (RhythmGameConfig.lua).
 	{ row = 20, col = 17, recipeId = "EmberGlazedTrenchEel" },

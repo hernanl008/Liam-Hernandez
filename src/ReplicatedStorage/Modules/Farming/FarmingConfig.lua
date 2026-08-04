@@ -39,7 +39,7 @@ local Crops: { CropDef } = {
 		},
 		regrowable = false,
 		sellPrice = 8,
-		usedInRecipes = {},
+		usedInRecipes = { "MoonriceOnigiri" },
 		description = "Orange Ville's staple grain. Glows faintly silver under a full moon — nobody's sure why.",
 	},
 	{
