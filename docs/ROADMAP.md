@@ -91,8 +91,13 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       weather effects on fish spawns (`GDD.md` §3 — currently only the
       Moonlit Serpent has any time-of-day gating)
 - [ ] Crop growth-stage visuals (model swaps per `FarmingConfig.lua` stage)
-- [ ] Persistence (DataStores) — everything is in-memory only right now,
-      including all Compendium/skill-tree progress from this session
+- [x] Persistence (DataStores) — `PlayerDataService.lua` now loads on join
+      and saves on leave/server shutdown (`game:BindToClose`), pcall-
+      wrapped so a DataStore failure (or Studio API access being off)
+      degrades to "doesn't save this session" instead of erroring. New
+      fields merge onto fresh defaults rather than breaking old saves —
+      bump the store name's version suffix for a hard reset if a future
+      shape change needs one.
 - [ ] Relationship stat persistence for dialogue `relationshipDelta`
       choices (currently just logged, see `DialogueController.lua`)
 - [ ] Dialogue "already met" branching (all NPCs currently always start

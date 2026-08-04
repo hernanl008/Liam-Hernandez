@@ -1,14 +1,22 @@
 --!strict
--- In-memory player data for the Act 1 vertical slice. No DataStore
--- persistence yet — that's a Phase 3/4 concern (see docs/ROADMAP.md);
--- for now this only needs to survive a single play session so the
--- other vertical-slice services have something to read/write.
+-- Player data for the Act 1 vertical slice, persisted via DataStoreService
+-- (docs/ROADMAP.md Phase 3). Loaded on join, saved on leave and on server
+-- shutdown. Every DataStore call is pcall-wrapped and falls back to fresh
+-- in-memory defaults on failure — a DataStore outage (or, in Studio,
+-- forgetting to enable "Studio Access to API Services" under Game
+-- Settings > Security) degrades to "progress doesn't save this session"
+-- rather than an error.
 
 local Players = game:GetService("Players")
+local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local SkillTreeConfig = require(Modules:WaitForChild("Shared"):WaitForChild("SkillTreeConfig"))
+
+-- Bump the suffix (v2, v3, ...) if a future PlayerData shape change should
+-- start everyone fresh instead of merging onto old saves.
+local playerStore = DataStoreService:GetDataStore("AnimeFarmLifePlayerData_v1")
 
 export type ItemCounts = { [string]: number }
 export type DiscoveredSet = { [string]: boolean }
@@ -84,8 +92,58 @@ local function setupLeaderstats(player: Player, data: PlayerData)
 	for skillId in SkillTreeConfig.Trees do
 		local level = Instance.new("IntValue")
 		level.Name = `{skillId}Lvl`
-		level.Value = 1
+		-- Computed from loaded skillXp, not hardcoded to 1 — a returning
+		-- player's leaderstat would otherwise show level 1 until their next
+		-- level-up recalculates it (PlayerDataService.addSkillXp only
+		-- updates this value when a level-up happens on that call).
+		level.Value = 1 + math.floor(data.skillXp[skillId] / SkillTreeConfig.xpPerLevel)
 		level.Parent = leaderstats
+	end
+end
+
+-- Starts from fresh defaults and overlays whatever the save has for each
+-- top-level field, so a schema change (a new field added since the save
+-- was written) fills in with a sane default instead of erroring or leaving
+-- the field nil. Doesn't merge *within* a field — if `saved.crops` exists
+-- it fully replaces the default's `crops`, it's not merged key-by-key.
+local function mergeIntoDefaults(saved: any): PlayerData
+	local data = newPlayerData()
+	if typeof(saved) ~= "table" then
+		return data
+	end
+	for key, defaultValue in data :: any do
+		local savedValue = (saved :: any)[key]
+		if savedValue ~= nil and typeof(savedValue) == typeof(defaultValue) then
+			(data :: any)[key] = savedValue
+		end
+	end
+	return data
+end
+
+local function storeKeyFor(player: Player): string
+	return `Player_{player.UserId}`
+end
+
+local function loadPlayerData(player: Player): PlayerData
+	local ok, result = pcall(function()
+		return playerStore:GetAsync(storeKeyFor(player))
+	end)
+	if not ok then
+		warn(`[PlayerDataService] Failed to load save data for {player.Name}: {result} — starting fresh this session.`)
+		return newPlayerData()
+	end
+	if result == nil then
+		return newPlayerData() -- first time this player has ever joined
+	end
+	return mergeIntoDefaults(result)
+end
+
+local function savePlayerData(player: Player, data: PlayerData)
+	local ok, err = pcall(function()
+		playerStore:SetAsync(storeKeyFor(player), data)
+	end)
+	if not ok then
+		warn(`[PlayerDataService] Failed to save data for {player.Name}: {err}`)
 	end
 end
 
@@ -317,14 +375,29 @@ function PlayerDataService.getRelationship(player: Player, npcId: string): numbe
 end
 
 Players.PlayerAdded:Connect(function(player: Player)
-	local data = newPlayerData()
+	local data = loadPlayerData(player) -- yields (GetAsync); fine here, PlayerAdded doesn't need to return quickly
 	dataByPlayer[player] = data
 	setupLeaderstats(player, data)
 	task.defer(syncToClient, player, data) -- defer so PlayerGui exists for the client's own listener
 end)
 
 Players.PlayerRemoving:Connect(function(player: Player)
+	local data = dataByPlayer[player]
+	if data then
+		savePlayerData(player, data)
+	end
 	dataByPlayer[player] = nil
+end)
+
+-- PlayerRemoving isn't guaranteed to fire (in time) for everyone during a
+-- server shutdown, so save whoever's still connected here too.
+game:BindToClose(function()
+	for _, player in Players:GetPlayers() do
+		local data = dataByPlayer[player]
+		if data then
+			savePlayerData(player, data)
+		end
+	end
 end)
 
 return PlayerDataService
