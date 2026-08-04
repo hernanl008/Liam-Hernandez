@@ -42,27 +42,55 @@ local finishActive: ((number?) -> ())? = nil
 local SPACE_ACTION = "CastMeterLockSpace"
 
 -- Same freeze idea, extended to walking: WASD still moved the character
--- while the meter was up, which reads wrong for what's meant to be a
--- planted "aim and lock" beat. WalkSpeed = 0 rather than another
--- ContextActionService binding — no default WASD control to fight over
--- here, just a plain Humanoid property, saved/restored so it doesn't
--- clobber a WalkSpeed set by anything else (a future sprint mechanic,
--- a buff, etc).
+-- while the meter was up. WalkSpeed = 0 turned out to not be enough on
+-- its own either (confirmed in testing — same lesson as Space above:
+-- disabling the *effect* isn't reliable, the *input* has to actually be
+-- blocked from reaching Roblox's default movement controls). So this
+-- also Sinks the movement keys via ContextActionService, same mechanism
+-- and priority already confirmed to stop jump. WalkSpeed=0 stays too, as
+-- a backup for any input path that isn't one of these specific keys
+-- (gamepad thumbstick, on-screen touch controls, etc).
 local savedWalkSpeed: number? = nil
+local MOVEMENT_BLOCK_ACTION = "CastMeterBlockMovement"
+local MOVEMENT_KEYS = {
+	Enum.KeyCode.W,
+	Enum.KeyCode.A,
+	Enum.KeyCode.S,
+	Enum.KeyCode.D,
+	Enum.KeyCode.Up,
+	Enum.KeyCode.Down,
+	Enum.KeyCode.Left,
+	Enum.KeyCode.Right,
+}
+
+local function sinkMovement(_actionName: string, _inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
+	return Enum.ContextActionResult.Sink
+end
 
 local function setPlayerFrozen(frozen: boolean)
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then
-		return
+	if humanoid then
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, not frozen)
+		if frozen then
+			savedWalkSpeed = humanoid.WalkSpeed
+			humanoid.WalkSpeed = 0
+		elseif savedWalkSpeed then
+			humanoid.WalkSpeed = savedWalkSpeed
+			savedWalkSpeed = nil
+		end
 	end
-	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, not frozen)
+
 	if frozen then
-		savedWalkSpeed = humanoid.WalkSpeed
-		humanoid.WalkSpeed = 0
-	elseif savedWalkSpeed then
-		humanoid.WalkSpeed = savedWalkSpeed
-		savedWalkSpeed = nil
+		ContextActionService:BindActionAtPriority(
+			MOVEMENT_BLOCK_ACTION,
+			sinkMovement,
+			false,
+			Enum.ContextActionPriority.High.Value,
+			table.unpack(MOVEMENT_KEYS)
+		)
+	else
+		ContextActionService:UnbindAction(MOVEMENT_BLOCK_ACTION)
 	end
 end
 
