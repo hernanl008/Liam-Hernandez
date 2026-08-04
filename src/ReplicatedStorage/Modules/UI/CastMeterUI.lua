@@ -97,7 +97,6 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	active = true
 	elapsed = 0
 	(screenGui :: ScreenGui).Enabled = true
-	PlayerFreeze.start()
 
 	local function finish(power: number?)
 		if not active then
@@ -119,6 +118,16 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	end
 	finishActive = finish
 
+	-- Space is sunk by PlayerFreeze (to block jump), so the lock has to
+	-- happen from inside that same handler rather than a separate
+	-- UserInputService listener for Space — see PlayerFreeze.lua's header
+	-- comment for why a parallel listener doesn't reliably see it.
+	PlayerFreeze.start(function()
+		local t = (elapsed * CYCLES_PER_SECOND) % 2
+		local power = t <= 1 and t or (2 - t)
+		finish(power)
+	end)
+
 	heartbeatConn = RunService.Heartbeat:Connect(function(dt: number)
 		elapsed += dt
 		local t = (elapsed * CYCLES_PER_SECOND) % 2
@@ -130,11 +139,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		if gameProcessed then
 			return
 		end
-		if input.KeyCode == Enum.KeyCode.Space then
-			local t = (elapsed * CYCLES_PER_SECOND) % 2
-			local power = t <= 1 and t or (2 - t)
-			finish(power)
-		elseif input.KeyCode == Enum.KeyCode.Escape then
+		if input.KeyCode == Enum.KeyCode.Escape then
 			finish(nil)
 		end
 	end)
