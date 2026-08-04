@@ -149,7 +149,12 @@ local function placeProps(folder: Folder)
 		part.Name = `Prop_{i}_{prop.sprite}`
 		part.Anchored = true
 		part.CanCollide = false
-		part.Transparency = 1
+		-- Not exactly 1: a part whose Transparency is 1 from the moment
+		-- it's created never renders its Decal either, even though decals
+		-- are supposed to be independent of part transparency (a known
+		-- Roblox engine quirk, not our Decal usage being wrong). 0.999
+		-- reads as fully invisible but avoids that "initially 1" code path.
+		part.Transparency = 0.999
 		part.Size = Vector3.new(prop.widthStuds, prop.heightStuds, 0.2)
 		part.Position = worldPositionFor(prop) + Vector3.new(0, prop.heightStuds / 2, 0)
 		part.Parent = folder
