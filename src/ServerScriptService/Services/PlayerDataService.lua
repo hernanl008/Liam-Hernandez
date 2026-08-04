@@ -60,7 +60,11 @@ local dataByPlayer: { [Player]: PlayerData } = {}
 local function newPlayerData(): PlayerData
 	return {
 		gold = 100, -- small starter cushion for seeds
-		seeds = { MoonriceStalk = 3, SunpetalBerries = 2 },
+		-- Both plantable on Day 1 (Spring) now that FarmingConfig.lua's
+		-- season field is actually enforced (FarmingService.PlantSeed) —
+		-- MoonriceStalk is Summer-only, so it can't be a starter seed
+		-- without breaking Kaya's tutorial for every new player.
+		seeds = { SpringrootOnion = 3, SunpetalBerries = 2 },
 		crops = {},
 		fish = {},
 		dishes = {},

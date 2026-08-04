@@ -16,8 +16,8 @@ function HudController.init()
 		HudUI.refreshInventory()
 	end)
 
-	Remotes.get("DayCycleUpdate").OnClientEvent:Connect(function(payload: { day: number, dayProgress: number })
-		HudUI.setDay(payload.day, payload.dayProgress)
+	Remotes.get("DayCycleUpdate").OnClientEvent:Connect(function(payload: { day: number, dayProgress: number, season: string? })
+		HudUI.setDay(payload.day, payload.dayProgress, payload.season)
 	end)
 end
 

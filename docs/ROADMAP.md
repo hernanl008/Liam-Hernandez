@@ -84,7 +84,14 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       was skipping display entirely for any node with both text and an
       autoRoute, so Hinano's greeting line was never actually shown.
 - [ ] Recipe roster tied to lore (regional dishes, festival specials)
-- [ ] Remaining crops + seasons
+- [x] Remaining crops + seasons — `CropDef.season` was declared but never
+      enforced anywhere; `DayCycleService.getCurrentSeason()` now tracks
+      one (7 in-game days/season, cycling forever) and
+      `FarmingService.PlantSeed` rejects an out-of-season seed with an
+      explicit message (`PlantSeedRejected`) instead of silently no-oping.
+      Added 3 crops (Spring/Fall/Winter) so every season has something to
+      grow, and swapped the starter kit's Summer-only seed for the new
+      Spring one so Kaya's tutorial still works on Day 1.
 - [ ] Story beats implemented per the lore bible's arc
 - [ ] UI/UX pass (HUD, inventory, shop, dialogue box)
 - [ ] Cast-power meter that actually affects bite odds, and/or broader

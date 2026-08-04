@@ -59,6 +59,51 @@ local Crops: { CropDef } = {
 		usedInRecipes = { "SunpetalJamTart" },
 		description = "Sweet enough to eat off the bush. Most don't make it to the kitchen.",
 	},
+	{
+		id = "SpringrootOnion",
+		displayName = "Springroot Onion",
+		season = "Spring",
+		stages = {
+			{ stageIndex = 1, durationSeconds = 60 * 5, modelName = "SpringrootSprout" },
+			{ stageIndex = 2, durationSeconds = 60 * 5, modelName = "SpringrootRipe" },
+		},
+		regrowable = false,
+		sellPrice = 6,
+		usedInRecipes = {},
+		description = "First thing out of the ground once the frost breaks. Orange Ville "
+			.. "throws a small feast on the day the first batch comes up.",
+	},
+	{
+		id = "EmberleafSquash",
+		displayName = "Emberleaf Squash",
+		season = "Fall",
+		stages = {
+			{ stageIndex = 1, durationSeconds = 60 * 8, modelName = "EmberleafSeedling" },
+			{ stageIndex = 2, durationSeconds = 60 * 10, modelName = "EmberleafMidGrowth" },
+			{ stageIndex = 3, durationSeconds = 60 * 8, modelName = "EmberleafRipe" },
+		},
+		regrowable = false,
+		sellPrice = 12,
+		usedInRecipes = {},
+		description = "Skin the color of the maples in Maple Hollow this time of year — "
+			.. "half the reason anyone plants it is the color, not the flavor.",
+	},
+	{
+		-- Regrowable, like SunpetalBerries — a cold-hardy bush rather than
+		-- something replanted each cycle, so Winter (usually the thin
+		-- season in farm sims) still has a crop worth checking on daily.
+		id = "Frostberry",
+		displayName = "Frostberry",
+		season = "Winter",
+		stages = {
+			{ stageIndex = 1, durationSeconds = 60 * 10, modelName = "FrostberrySprout" },
+			{ stageIndex = 2, durationSeconds = 60 * 6, modelName = "FrostberryRipe" },
+		},
+		regrowable = true,
+		sellPrice = 10,
+		usedInRecipes = {},
+		description = "Sweetest right after a hard frost, which everyone insists is not just superstition.",
+	},
 	-- Add more crops as the world/regions are designed.
 }
 FarmingConfig.Crops = Crops

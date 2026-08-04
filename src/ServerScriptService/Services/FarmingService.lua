@@ -18,6 +18,7 @@ local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local FarmingConfig = require(Modules:WaitForChild("Farming"):WaitForChild("FarmingConfig"))
 
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+local DayCycleService = require(script.Parent:WaitForChild("DayCycleService"))
 
 local FarmingService = {}
 
@@ -140,8 +141,17 @@ function FarmingService.init()
 		if not plot:GetAttribute("Tilled") or plot:GetAttribute("CropId") ~= "" then
 			return
 		end
-		if not getCropDef(cropId) then
+		local crop = getCropDef(cropId)
+		if not crop then
 			warn(`Unknown cropId "{cropId}" requested by {player.Name}`)
+			return
+		end
+		local currentSeason = DayCycleService.getCurrentSeason()
+		if crop.season ~= "AllSeason" and crop.season ~= currentSeason then
+			Remotes.get("PlantSeedRejected"):FireClient(
+				player,
+				`{crop.displayName} only grows in {crop.season} — it's {currentSeason} right now.`
+			)
 			return
 		end
 		if not PlayerDataService.removeItem(player, "seeds", cropId, 1) then

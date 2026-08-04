@@ -12,6 +12,7 @@ local FOLDER_NAME = "Remotes"
 local EVENT_NAMES = {
 	"TillSoil",
 	"PlantSeed",
+	"PlantSeedRejected",
 	"WaterPlot",
 	"HarvestCrop",
 	"FarmingOutcome",

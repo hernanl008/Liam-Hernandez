@@ -17,17 +17,29 @@ local FarmingController = {}
 
 local PLOT_TAG = "FarmPlot"
 
+-- Updated from DayCycleUpdate; only used to *prefer* an in-season seed
+-- when picking which one to auto-plant below — the server is what
+-- actually enforces season (FarmingService.lua), this is just to avoid
+-- reliably picking a doomed-to-be-rejected seed when the player is
+-- holding more than one kind.
+local currentSeason: string = "Spring"
+
 -- No seed-selection UI yet (docs/ROADMAP.md Phase 3) — plants whichever
--- seed the player has, first-in-table-order if they somehow have more
--- than one kind. Good enough while there are only two crops to juggle.
+-- seed the player has, preferring one that's actually in season this time
+-- of year, first-in-table-order among ties. Good enough while there are
+-- only a handful of crops to juggle.
 local function pickSeedToPlant(): string?
 	local seeds = InventoryCache.get().seeds
+	local fallback: string? = nil
 	for _, crop in FarmingConfig.Crops do
 		if (seeds[crop.id] or 0) > 0 then
-			return crop.id
+			if crop.season == "AllSeason" or crop.season == currentSeason then
+				return crop.id
+			end
+			fallback = fallback or crop.id
 		end
 	end
-	return nil
+	return fallback
 end
 
 local function maxStageFor(cropId: string): number
@@ -131,6 +143,16 @@ function FarmingController.init()
 		ProgressFeedback.announce("FARMING", payload)
 		local suffix = payload.bonus and " (bonus crop!)" or ""
 		StatusToast.setTemporary(`Harvested {payload.displayName}{suffix}`, 2)
+	end)
+
+	Remotes.get("PlantSeedRejected").OnClientEvent:Connect(function(reason: string)
+		StatusToast.setTemporary(reason, 3)
+	end)
+
+	Remotes.get("DayCycleUpdate").OnClientEvent:Connect(function(payload: { season: string? })
+		if payload.season then
+			currentSeason = payload.season
+		end
 	end)
 end
 

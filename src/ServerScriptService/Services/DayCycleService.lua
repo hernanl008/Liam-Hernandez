@@ -17,6 +17,8 @@ local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 
 local DayCycleService = {}
 
+export type Season = "Spring" | "Summer" | "Fall" | "Winter"
+
 local dayLengthSeconds = 20 * 60 -- 20 real-time minutes per in-game day, tune freely
 local currentDay = 1
 local elapsedThisDay = 0
@@ -28,6 +30,13 @@ local newDayListeners: { (number) -> () } = {}
 -- directly, so the definition of "night" only lives in one place.
 local NIGHT_START_CLOCK_TIME = 20 -- 8pm
 local NIGHT_END_CLOCK_TIME = 6 -- 6am
+
+-- 7 in-game days per season (a real Stardew-length 28 would make season-
+-- locked crops in FarmingConfig.lua nearly untestable within one sitting
+-- — this is a vertical-slice pacing choice, tune freely). Cycles forever,
+-- doesn't track in-world years.
+local SEASON_ORDER: { Season } = { "Spring", "Summer", "Fall", "Winter" }
+local DAYS_PER_SEASON = 7
 
 function DayCycleService.setDayLengthSeconds(seconds: number)
 	dayLengthSeconds = math.max(seconds, 30) -- floor so it can never become a busy-loop
@@ -43,6 +52,11 @@ end
 
 function DayCycleService.isNight(): boolean
 	return currentClockTime >= NIGHT_START_CLOCK_TIME or currentClockTime < NIGHT_END_CLOCK_TIME
+end
+
+function DayCycleService.getCurrentSeason(): Season
+	local seasonIndex = math.floor((currentDay - 1) / DAYS_PER_SEASON) % #SEASON_ORDER
+	return SEASON_ORDER[seasonIndex + 1]
 end
 
 function DayCycleService.onNewDay(callback: (number) -> ())
@@ -65,6 +79,7 @@ function DayCycleService.init()
 			Remotes.get("DayCycleUpdate"):FireAllClients({
 				day = currentDay,
 				dayProgress = dayProgress,
+				season = DayCycleService.getCurrentSeason(),
 			})
 		end
 
