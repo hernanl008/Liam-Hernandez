@@ -23,7 +23,21 @@ local FLAG_ONLY_ACTIONS = {
 	StartCookingTutorial = true,
 	FoundingMythIntroduced = true,
 	UnlockKalebShop = true,
+	-- Fired once per NPC when a conversation starts (DialogueController),
+	-- so their root node can autoRoute to a short return greeting instead
+	-- of replaying the first-meeting intro every time (docs/ROADMAP.md
+	-- Phase 3 "already met" branching) — see DialogueData.lua's *_root nodes.
+	Met_Kaya = true,
+	Met_ElderSouta = true,
+	Met_Ren = true,
+	Met_Hinano = true,
+	Met_Kaleb = true,
 }
+
+-- Dialogue relationshipDelta values are small hand-authored numbers
+-- (DialogueData.lua currently only ever uses -1/+1); clamp defensively so
+-- a modified client can't FireServer arbitrary deltas.
+local MAX_RELATIONSHIP_DELTA = 5
 
 function DialogueService.init()
 	Remotes.get("DialogueAction").OnServerEvent:Connect(function(player: Player, action: string)
@@ -42,6 +56,14 @@ function DialogueService.init()
 		end
 
 		warn(`Unknown dialogue action "{action}" from {player.Name}`)
+	end)
+
+	Remotes.get("DialogueRelationshipDelta").OnServerEvent:Connect(function(player: Player, npcId: string, delta: number)
+		if typeof(npcId) ~= "string" or typeof(delta) ~= "number" then
+			return
+		end
+		local clamped = math.clamp(delta, -MAX_RELATIONSHIP_DELTA, MAX_RELATIONSHIP_DELTA)
+		PlayerDataService.addRelationship(player, npcId, clamped)
 	end)
 end
 

@@ -27,6 +27,8 @@ export type Snapshot = {
 	skillXp: { [string]: number },
 	skillPoints: { [string]: number },
 	unlockedPerks: { [string]: { [string]: boolean } },
+	flags: { [string]: boolean },
+	relationships: { [string]: number },
 }
 
 local InventoryCache = {}
@@ -42,6 +44,8 @@ local snapshot: Snapshot = {
 	skillXp = { Farming = 0, Fishing = 0, Cooking = 0 },
 	skillPoints = { Farming = 0, Fishing = 0, Cooking = 0 },
 	unlockedPerks = { Farming = {}, Fishing = {}, Cooking = {} },
+	flags = {},
+	relationships = {},
 }
 
 local initialized = false
@@ -74,6 +78,16 @@ function InventoryCache.hasAnyIngredient(): boolean
 		end
 	end
 	return false
+end
+
+function InventoryCache.hasFlag(flag: string): boolean
+	init()
+	return snapshot.flags[flag] == true
+end
+
+function InventoryCache.getRelationship(npcId: string): number
+	init()
+	return snapshot.relationships[npcId] or 0
 end
 
 return InventoryCache

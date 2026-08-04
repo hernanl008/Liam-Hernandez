@@ -118,11 +118,17 @@ local FarmPlotSpots: { GridSpot } = {
 }
 MapConfig.FarmPlotSpots = FarmPlotSpots
 
--- Shallows at the cove's shore (always open); MidReef further out in
--- deeper water for once Fishing level 5 unlocks it (FishingConfig.lua).
+-- Shallows at the cove's shore (always open); the other three sit
+-- further out in the same small cove, gated by Fishing level
+-- (FishingConfig.lua's DepthZones) rather than real distance — the cove
+-- isn't literally deep enough for an "abyssal rift," this is provisional
+-- placement so the level-12/20 fish roster (GDD.md §15-adjacent content
+-- pass) has *somewhere* to be caught until a real deep-water area exists.
 local FishingSpots: { GridSpot & { zoneId: string } } = {
 	{ row = 21, col = 7, zoneId = "Shallows" },
 	{ row = 23, col = 10, zoneId = "MidReef" },
+	{ row = 22, col = 5, zoneId = "DeepTrench" },
+	{ row = 24, col = 8, zoneId = "AbyssalRift" },
 }
 MapConfig.FishingSpots = FishingSpots
 

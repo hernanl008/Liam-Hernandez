@@ -153,6 +153,68 @@ local Fish: { FishDef } = {
 		spectacle = true,
 		description = "Ren swears he saw it once. Now you have too.",
 	},
+	{
+		id = "TrenchEel",
+		displayName = "Trench Eel",
+		rarity = "Uncommon",
+		zones = { "DeepTrench" },
+		baseWeight = NumberRange.new(2, 6),
+		bitePatience = NumberRange.new(3, 7),
+		struggleDifficulty = 6,
+		sellPrice = 45,
+		description = "Longer than it has any business being, and it knows it — half the "
+			.. "fight is just keeping the line straight.",
+	},
+	{
+		-- LORE_BIBLE.md §6/§8: the valley's magic has been declining for
+		-- three generations and Blightspawn creep in from its fringes —
+		-- this is what that decline looks like underwater. Deliberately
+		-- *not* explained by any NPC (the founding myth is secondhand
+		-- legend to everyone but Kaleb per §8's consistency rule); it's
+		-- just a wrong-looking fish the player can notice on their own.
+		id = "BlightscaleCarp",
+		displayName = "Blightscale Carp",
+		rarity = "Epic",
+		zones = { "DeepTrench" },
+		baseWeight = NumberRange.new(3, 8),
+		bitePatience = NumberRange.new(4, 8),
+		struggleDifficulty = 7,
+		sellPrice = 90,
+		description = "Its scales have a faint, sickly shimmer that has nothing to do with "
+			.. "the light. Something out here isn't right.",
+	},
+	{
+		id = "AbyssalAnglerfish",
+		displayName = "Abyssal Anglerfish",
+		rarity = "Rare",
+		zones = { "AbyssalRift" },
+		baseWeight = NumberRange.new(4, 10),
+		bitePatience = NumberRange.new(5, 9),
+		struggleDifficulty = 8,
+		sellPrice = 120,
+		description = "Its lure was still glowing when you pulled it up. Something else was watching it.",
+	},
+	{
+		-- LORE_BIBLE.md §5 (Mossom): a small spirit-animal companion
+		-- "revealed to be a fragment of the original guardian spirit."
+		-- This is the deepest, rarest catch in the game — a wondrous,
+		-- unexplained echo of that same presence, found where nothing
+		-- should still be thriving. No NPC comments on it (§8's rule
+		-- that nobody alive remembers the founding myth firsthand); the
+		-- moment is meant to land on its own, foreshadowing without
+		-- spoiling Act 2.
+		id = "GuardiansEcho",
+		displayName = "Guardian's Echo",
+		rarity = "Legendary",
+		zones = { "AbyssalRift" },
+		baseWeight = NumberRange.new(10, 20),
+		bitePatience = NumberRange.new(6, 10),
+		struggleDifficulty = 10,
+		sellPrice = 800,
+		spectacle = true,
+		description = "It shouldn't be alive down here. It shouldn't be alive at all, if half "
+			.. "of what Elder Souta says about this valley is true. And yet.",
+	},
 	-- Add more species here as the world/lore expands (region-locked fish, event fish, etc.)
 }
 FishingConfig.Fish = Fish

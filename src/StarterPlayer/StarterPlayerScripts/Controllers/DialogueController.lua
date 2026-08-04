@@ -19,6 +19,14 @@ local NPC_TAG = "NPC"
 
 local AUTO_ROUTE_CHECKS: { [string]: () -> boolean } = {
 	HasAnyIngredient = InventoryCache.hasAnyIngredient,
+	-- One per NPC rather than a single parameterized check: autoRoute.check
+	-- is just a no-arg lookup key today (matches HasAnyIngredient above),
+	-- and five explicit entries is simpler than reworking that for one caller.
+	HasMetKaya = function() return InventoryCache.hasFlag("Met_Kaya") end,
+	HasMetElderSouta = function() return InventoryCache.hasFlag("Met_ElderSouta") end,
+	HasMetRen = function() return InventoryCache.hasFlag("Met_Ren") end,
+	HasMetHinano = function() return InventoryCache.hasFlag("Met_Hinano") end,
+	HasMetKaleb = function() return InventoryCache.hasFlag("Met_Kaleb") end,
 }
 
 local function runConversation(npcId: string)
@@ -28,6 +36,12 @@ local function runConversation(npcId: string)
 		warn(`No dialogue configured for NpcId "{npcId}"`)
 		return
 	end
+
+	-- Fired every conversation (server no-ops repeats, DialogueService.lua)
+	-- rather than checked-then-fired here, since the check that matters —
+	-- whether THIS conversation should show the return greeting — already
+	-- reads the cache as of *before* this line runs.
+	Remotes.get("DialogueAction"):FireServer(`Met_{npcId}`)
 
 	local function showNode(nodeId: string?)
 		if not nodeId then
@@ -43,9 +57,21 @@ local function runConversation(npcId: string)
 		end
 
 		if node.autoRoute then
-			local check = AUTO_ROUTE_CHECKS[node.autoRoute.check]
-			local result = check ~= nil and check() or false
-			showNode(result and node.autoRoute.ifTrue or node.autoRoute.ifFalse)
+			local function resolveRoute(_index: number?)
+				local check = AUTO_ROUTE_CHECKS[node.autoRoute.check]
+				local result = check ~= nil and check() or false
+				showNode(result and node.autoRoute.ifTrue or node.autoRoute.ifFalse)
+			end
+			if node.text == "" then
+				-- Silent router (e.g. the *_root nodes): nothing to show,
+				-- resolve immediately — same behavior as before this fix.
+				resolveRoute()
+			else
+				-- Has an actual line to speak (e.g. Hinano's greeting)
+				-- before the routing decision — show it first instead of
+				-- silently skipping straight to whichever branch it picks.
+				DialogueUI.show(node.speaker, node.text, { { text = "Continue" } }, resolveRoute)
+			end
 			return
 		end
 
@@ -62,9 +88,7 @@ local function runConversation(npcId: string)
 				return
 			end
 			if chosen.relationshipDelta then
-				-- No persisted relationship stat yet (docs/ROADMAP.md
-				-- Phase 3) — logged so the hook exists once that lands.
-				print(`[Dialogue] {npcId} relationship {chosen.relationshipDelta > 0 and "+" or ""}{chosen.relationshipDelta}`)
+				Remotes.get("DialogueRelationshipDelta"):FireServer(npcId, chosen.relationshipDelta)
 			end
 			if chosen.action then
 				Remotes.get("DialogueAction"):FireServer(chosen.action)

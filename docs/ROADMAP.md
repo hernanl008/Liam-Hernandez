@@ -67,7 +67,22 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       gameplay hooks (Green Thumb, Quick Hands, Efficient Cook, etc.)
 
 ## Phase 3 — Content Expansion (~week 4)
-- [ ] Remaining depth zones (Deep Trench, Abyssal Rift) + fish roster
+- [x] Remaining depth zones (Deep Trench, Abyssal Rift) + fish roster —
+      4 new fish (`FishingConfig.lua`), including Guardian's Echo, a
+      Legendary tied to the founding myth/Mossom without any NPC
+      explaining it (LORE_BIBLE.md §5/§8). Placed provisionally in the
+      existing cove (`MapConfig.lua`) since there's no real deep-water
+      area yet — same small lake, gated by Fishing level, not distance.
+- [x] Dialogue relationship stat actually persists now (was logged and
+      discarded client-side before) — `PlayerDataService.addRelationship`
+      + `Remotes.DialogueRelationshipDelta`
+- [x] Dialogue "already met" branching — all 5 NPCs now route their root
+      node through a `HasMet<Npc>` autoRoute check to a short return
+      greeting instead of always replaying the first-meeting intro
+      (`DialogueData.lua`'s `*_root`/`*_return_1` nodes). Also fixed a
+      latent bug found while wiring this up: `DialogueController.showNode`
+      was skipping display entirely for any node with both text and an
+      autoRoute, so Hinano's greeting line was never actually shown.
 - [ ] Recipe roster tied to lore (regional dishes, festival specials)
 - [ ] Remaining crops + seasons
 - [ ] Story beats implemented per the lore bible's arc

@@ -21,6 +21,7 @@ export type PlayerData = {
 	dishes: ItemCounts,
 	junk: ItemCounts,
 	flags: { [string]: boolean },
+	relationships: { [string]: number }, -- keyed by NpcId (DialogueData.lua)
 	assistMode: boolean,
 	discovered: {
 		fish: DiscoveredSet,
@@ -57,6 +58,7 @@ local function newPlayerData(): PlayerData
 		dishes = {},
 		junk = {},
 		flags = {},
+		relationships = {},
 		-- Default on for the vertical slice: no UI toggle for this exists
 		-- yet, and the tight base timing windows (RhythmScoring.lua) are
 		-- rough for a first-ever playthrough. Widens hit tolerance ~1.6x;
@@ -106,6 +108,8 @@ local function syncToClient(player: Player, data: PlayerData)
 		skillXp = data.skillXp,
 		skillPoints = data.skillPoints,
 		unlockedPerks = data.unlockedPerks,
+		flags = data.flags,
+		relationships = data.relationships,
 	})
 end
 
@@ -273,16 +277,43 @@ function PlayerDataService.unlockPerk(player: Player, skillId: SkillTreeConfig.S
 	return true, nil
 end
 
+-- Syncs so client-side dialogue autoRoute checks (e.g. "already met this
+-- NPC") see the change without a separate round trip.
 function PlayerDataService.setFlag(player: Player, flag: string, value: boolean)
 	local data = dataByPlayer[player]
 	if data then
 		data.flags[flag] = value
+		syncToClient(player, data)
 	end
 end
 
 function PlayerDataService.hasFlag(player: Player, flag: string): boolean
 	local data = dataByPlayer[player]
 	return data ~= nil and data.flags[flag] == true
+end
+
+-- Dialogue choices with a relationshipDelta (DialogueData.lua) round-trip
+-- here instead of just being logged client-side (docs/ROADMAP.md Phase 3).
+-- Callers should clamp delta themselves (DialogueService.lua does, since
+-- it's the one exposed to a client-fired remote) — this function trusts
+-- whatever it's given.
+function PlayerDataService.addRelationship(player: Player, npcId: string, delta: number): number
+	local data = dataByPlayer[player]
+	if not data then
+		return 0
+	end
+	local newValue = (data.relationships[npcId] or 0) + delta
+	data.relationships[npcId] = newValue
+	syncToClient(player, data)
+	return newValue
+end
+
+function PlayerDataService.getRelationship(player: Player, npcId: string): number
+	local data = dataByPlayer[player]
+	if not data then
+		return 0
+	end
+	return data.relationships[npcId] or 0
 end
 
 Players.PlayerAdded:Connect(function(player: Player)

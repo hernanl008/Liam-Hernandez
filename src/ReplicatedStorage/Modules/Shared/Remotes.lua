@@ -27,6 +27,7 @@ local EVENT_NAMES = {
 	"CookingResult",
 	"CookingOutcome",
 	"DialogueAction",
+	"DialogueRelationshipDelta",
 	"DayCycleUpdate",
 	"InventoryUpdate",
 	"UnlockPerk",

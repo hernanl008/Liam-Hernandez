@@ -30,18 +30,30 @@ local DialogueData: { [string]: { [string]: DialogueNode } } = {}
 
 -- Entry point per NPC. An NPC instance in the world sets its "NpcId"
 -- attribute to one of these keys (e.g. "Kaya"); DialogueController looks
--- up DialogueData.Roots[npcId] for where to start the conversation.
--- Vertical-slice scope only has one entry point per NPC (no "already met
--- them, show a different greeting" branching yet — that's Phase 3).
+-- up DialogueData.Roots[npcId] for where to start the conversation. Each
+-- root is an autoRoute node (see DialogueController's AUTO_ROUTE_CHECKS)
+-- that sends first-time visitors to the full intro tree below and repeat
+-- visitors to a short `*_return_1` greeting instead (docs/ROADMAP.md
+-- Phase 3 "already met" branching).
 DialogueData.Roots = {
-	Kaya = "kaya_intro_1",
-	ElderSouta = "souta_notice_1",
-	Ren = "ren_intro_1",
-	Hinano = "hinano_intro_1",
-	Kaleb = "kaleb_first_1",
+	Kaya = "kaya_root",
+	ElderSouta = "souta_root",
+	Ren = "ren_root",
+	Hinano = "hinano_root",
+	Kaleb = "kaleb_root",
 }
 
 DialogueData.Kaya = {
+	kaya_root = {
+		speaker = "",
+		text = "",
+		autoRoute = { check = "HasMetKaya", ifTrue = "kaya_return_1", ifFalse = "kaya_intro_1" },
+	},
+	kaya_return_1 = {
+		speaker = "Kaya",
+		text = "Hey, you're back. Everything holding together out on the field, or did something go sideways?",
+		options = nil,
+	},
 	kaya_intro_1 = {
 		speaker = "Kaya",
 		text = "Hey — hey! Are you alright? You picked a strange place for a nap... can you stand?",
@@ -115,6 +127,16 @@ DialogueData.Kaya = {
 }
 
 DialogueData.ElderSouta = {
+	souta_root = {
+		speaker = "",
+		text = "",
+		autoRoute = { check = "HasMetElderSouta", ifTrue = "souta_return_1", ifFalse = "souta_notice_1" },
+	},
+	souta_return_1 = {
+		speaker = "Elder Souta",
+		text = "Ah — you again. I hope the valley's still been... noticing you back. Come by anytime; I meant what I said.",
+		options = nil,
+	},
 	souta_notice_1 = {
 		speaker = "Elder Souta",
 		text = "Kaya tells me you're settling in well. May I?",
@@ -146,6 +168,16 @@ DialogueData.ElderSouta = {
 }
 
 DialogueData.Ren = {
+	ren_root = {
+		speaker = "",
+		text = "",
+		autoRoute = { check = "HasMetRen", ifTrue = "ren_return_1", ifFalse = "ren_intro_1" },
+	},
+	ren_return_1 = {
+		speaker = "Ren",
+		text = "You again. Rod's still on the rack if you need it. I'm not much for small talk, so—",
+		options = nil,
+	},
 	ren_intro_1 = {
 		speaker = "Ren",
 		text = "You must be the one Kaya's been telling everyone about. Farmer by day, apparently. "
@@ -176,6 +208,18 @@ DialogueData.Ren = {
 }
 
 DialogueData.Hinano = {
+	hinano_root = {
+		speaker = "",
+		text = "",
+		autoRoute = { check = "HasMetHinano", ifTrue = "hinano_return_1", ifFalse = "hinano_intro_1" },
+	},
+	-- Reuses the existing ingredient check instead of just ending the
+	-- conversation, so returning to Hinano still leads into cooking.
+	hinano_return_1 = {
+		speaker = "Hinano",
+		text = "Back again. What did you bring me this time?",
+		autoRoute = { check = "HasAnyIngredient", ifTrue = "hinano_tutorial_1", ifFalse = "hinano_intro_1b" },
+	},
 	hinano_intro_1 = {
 		speaker = "Hinano",
 		text = "You're the new farmer. Good — bring me something worth cooking sometime. What did you bring today?",
@@ -202,6 +246,16 @@ DialogueData.Hinano = {
 }
 
 DialogueData.Kaleb = {
+	kaleb_root = {
+		speaker = "",
+		text = "",
+		autoRoute = { check = "HasMetKaleb", ifTrue = "kaleb_return_1", ifFalse = "kaleb_first_1" },
+	},
+	kaleb_return_1 = {
+		speaker = "Kaleb",
+		text = "Didn't expect you back so soon. Or maybe I did — hard to surprise me twice. What do you need?",
+		options = nil,
+	},
 	kaleb_first_1 = {
 		speaker = "Kaleb",
 		text = "Didn't peg you as the farming type. Then again, didn't peg you as anything, seeing as "
