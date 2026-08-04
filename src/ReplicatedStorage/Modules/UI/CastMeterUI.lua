@@ -27,6 +27,18 @@ local inputConn: RBXScriptConnection? = nil
 local elapsed = 0
 local finishActive: ((number?) -> ())? = nil
 
+-- Space is Roblox's default jump key — without this, locking in a cast
+-- also launches the player into the air (ControlScript sees the same
+-- Space press). Look the Humanoid up fresh each time rather than caching
+-- it, since the character can respawn while nothing here is watching.
+local function setJumpEnabled(enabled: boolean)
+	local character = Players.LocalPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, enabled)
+	end
+end
+
 local function ensureBuilt()
 	if screenGui then
 		return
@@ -91,6 +103,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	active = true
 	elapsed = 0
 	(screenGui :: ScreenGui).Enabled = true
+	setJumpEnabled(false)
 
 	local function finish(power: number?)
 		if not active then
@@ -98,6 +111,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		end
 		active = false
 		(screenGui :: ScreenGui).Enabled = false
+		setJumpEnabled(true)
 		if heartbeatConn then
 			heartbeatConn:Disconnect()
 			heartbeatConn = nil
