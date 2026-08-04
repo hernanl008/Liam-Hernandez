@@ -3,11 +3,11 @@
 -- cost per GDD.md §5 (research-informed decision) — pacing comes from
 -- needing to revisit/rewater plots each day, not an energy bar.
 --
--- Plots are Parts tagged "FarmPlot" in the Studio place (placed by hand
--- in the world editor — see README.md on what Rojo does and doesn't
--- sync) with a unique string attribute "PlotId" set per part. This
--- service manages the rest of the plot's state as attributes on that
--- same Part, so plot state is inspectable live in Studio while testing.
+-- Plots are Parts tagged "FarmPlot", auto-placed at server start by
+-- MapBuilder.lua from MapConfig.FarmPlotSpots, each with a unique string
+-- attribute "PlotId". This service manages the rest of the plot's state
+-- as attributes on that same Part, so plot state is inspectable live in
+-- Studio while testing.
 
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
