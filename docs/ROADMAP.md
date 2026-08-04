@@ -48,8 +48,13 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       in an actual Roblox session. Place the parts/tags/attributes in
       `docs/VERTICAL_SLICE_SETUP.md`, sync via Rojo, and playtest — report
       back whatever breaks first.
-- [ ] Inventory/HUD UI (data's already replicated client-side via
-      `InventoryCache.lua`, just needs a screen)
+- [x] Inventory/HUD UI (data's already replicated client-side via
+      `InventoryCache.lua`, just needed a screen) — `InventoryUI.lua`
+      (press I), a real grid (`UIGridLayout`, distinct from Compendium's
+      single-column list) of everything currently held: seeds, crops,
+      fish, dishes, junk, plus gold. Only shows owned items (unlike the
+      Compendium, which indexes every possible item as "???" until
+      discovered) and refreshes live off `InventoryUpdate` while open.
 - [x] Combo/spectacle system (`RhythmScoring.lua` combo bonus,
       `SpectacleUI.lua` banners) shared by fishing reel-in and cooking —
       the "make it feel more anime" pass, see `GDD.md` §11
@@ -107,7 +112,8 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       value) — deliberately worse than the not-yet-built Trade Exchange
       (GDD.md §7) so that remains worth building later, not redundant.
 - [ ] Story beats implemented per the lore bible's arc
-- [ ] UI/UX pass (general inventory grid, dialogue box polish)
+- [x] General inventory grid — see Phase 2 entry above (`InventoryUI.lua`)
+- [ ] UI/UX pass (dialogue box polish)
 - [ ] Cast-power meter that actually affects bite odds, and/or broader
       weather effects on fish spawns (`GDD.md` §3 — currently only the
       Moonlit Serpent has any time-of-day gating)
