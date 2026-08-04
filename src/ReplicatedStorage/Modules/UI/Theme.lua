@@ -63,6 +63,70 @@ end
 -- named font can't be resolved.
 Theme.RetroFontFace = safeNamedFont("PressStart2P", Enum.Font.Code)
 
+-- Retro-medieval wood/parchment look — the game's new target visual
+-- direction, being rolled out one mechanic at a time (fishing first)
+-- rather than all at once, so the rest of the UI (dialogue, shop,
+-- compendium, etc.) intentionally stays on the anime jewel-tone palette
+-- above until its own turn comes. Flat colors + a UIStroke border for
+-- now, same "no texture assets yet" approach the anime pass started
+-- with — real wood-grain/parchment textures can replace these once art
+-- exists, without callers needing to change.
+Theme.RetroColors = {
+	WoodDark = Color3.fromRGB(64, 38, 24), -- outer frame/border
+	WoodMid = Color3.fromRGB(120, 76, 42), -- wood panel fill
+	WoodLight = Color3.fromRGB(168, 118, 66), -- wood highlight/accent border
+	Parchment = Color3.fromRGB(230, 200, 148), -- page background (top of gradient)
+	ParchmentShadow = Color3.fromRGB(202, 168, 112), -- page background (bottom of gradient)
+	Ink = Color3.fromRGB(58, 36, 22), -- primary text — dark ink on parchment
+	InkMuted = Color3.fromRGB(112, 84, 56), -- secondary/hint text
+	Bronze = Color3.fromRGB(198, 150, 78), -- gold/bronze accent (fills, highlights)
+	Rust = Color3.fromRGB(140, 58, 40), -- warnings/cancel accents
+}
+
+-- A parchment page inset into a thick wood frame — the retro-medieval
+-- equivalent of applyPanel above.
+function Theme.applyRetroPanel(frame: Frame | ImageLabel, options: { strokeThickness: number? }?)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6) -- boxier than the anime theme's rounder corners, reads more "carved wood"
+	corner.Parent = frame
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Theme.RetroColors.WoodDark
+	stroke.Thickness = (options and options.strokeThickness) or 4
+	stroke.Parent = frame
+
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new(Theme.RetroColors.Parchment, Theme.RetroColors.ParchmentShadow)
+	gradient.Rotation = 90
+	gradient.Parent = frame
+end
+
+-- Smaller wood-trimmed card (interior rows/slots) — the retro-medieval
+-- equivalent of applyCard above.
+function Theme.applyRetroCard(frame: Frame, radius: number?)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 4)
+	corner.Parent = frame
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Theme.RetroColors.WoodMid
+	stroke.Thickness = 2
+	stroke.Parent = frame
+end
+
+-- Retro pixel font (Theme.RetroFontFace) + ink color — dark text on the
+-- light parchment background reads far better than the anime theme's
+-- light-text-on-dark convention would with a blocky pixel font.
+function Theme.styleRetroHeader(label: TextLabel, color: Color3?)
+	label.FontFace = Theme.RetroFontFace
+	label.TextColor3 = color or Theme.RetroColors.Ink
+end
+
+function Theme.styleRetroBody(label: TextLabel, color: Color3?)
+	label.FontFace = Theme.RetroFontFace
+	label.TextColor3 = color or Theme.RetroColors.InkMuted
+end
+
 Theme.CornerRadius = UDim.new(0, 12)
 
 -- Rounded corners + a gold stroke border + a subtle top-to-bottom
