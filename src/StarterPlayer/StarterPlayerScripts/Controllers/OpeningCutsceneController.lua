@@ -77,11 +77,13 @@ local function playSequence(onComplete: () -> ())
 	weaverText.TextWrapped = true
 	weaverText.TextScaled = true
 	weaverText.TextTransparency = 1
-	-- Blocky 8-bit pixel font (Theme.Fonts.Retro) rather than the game's
-	-- everyday Gotham — a deliberate register shift for the pre-rebirth
-	-- "between worlds" sequence, since this beat happens before the
-	-- player has actually arrived in Orange Ville.
-	weaverText.Font = Theme.Fonts.Retro
+	-- Blocky pixel-style font (Theme.RetroFontFace, set via FontFace — not
+	-- the legacy .Font property, since this isn't a legacy Enum.Font
+	-- value) rather than the game's everyday Gotham — a deliberate
+	-- register shift for the pre-rebirth "between worlds" sequence, since
+	-- this beat happens before the player has actually arrived in Orange
+	-- Ville.
+	weaverText.FontFace = Theme.RetroFontFace
 	weaverText.TextColor3 = Color3.fromRGB(230, 225, 240)
 	weaverText.Text = ""
 	weaverText.Parent = background

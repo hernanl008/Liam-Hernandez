@@ -34,12 +34,34 @@ Theme.Fonts = {
 	Body = Enum.Font.Gotham,
 	BodyBold = Enum.Font.GothamBold,
 	Impact = Enum.Font.Bangers,
-	-- Blocky 8-bit pixel font, used for the opening cutscene's Weaver line
-	-- (OpeningCutsceneController.lua) — a deliberate one-off "this isn't
-	-- the game world yet" register shift for the pre-rebirth sequence,
-	-- not meant to replace Gotham/Bangers as the game's everyday voice.
-	Retro = Enum.Font.PressStart2P,
 }
+
+-- "PressStart2P" is NOT a member of the legacy Enum.Font list (confirmed
+-- the hard way: referencing it directly at module load time — as every
+-- other entry in Theme.Fonts above does — threw immediately and crashed
+-- every UI module that requires Theme, i.e. the entire client). Pixel/
+-- retro fonts like it only exist in Roblox's newer Font-catalog system
+-- (Font.fromName, assigned via TextLabel.FontFace, not .Font), and that
+-- catalog can still fail to resolve an unrecognized name — so this is
+-- pcall-wrapped with a guaranteed-valid fallback (Font.fromEnum, built
+-- from a legacy Enum.Font member that's been proven safe elsewhere in
+-- this very file) rather than trusted blind a second time.
+local function safeNamedFont(name: string, fallback: Enum.Font): Font
+	local ok, result = pcall(Font.fromName, name)
+	if ok and result then
+		return result
+	end
+	return Font.fromEnum(fallback)
+end
+
+-- Blocky pixel-style font for the opening cutscene's Weaver line
+-- (OpeningCutsceneController.lua, set via TextLabel.FontFace) — a
+-- deliberate one-off "this isn't the game world yet" register shift for
+-- the pre-rebirth sequence, not meant to replace Gotham/Bangers as the
+-- game's everyday voice. Falls back to the monospace legacy Code font
+-- (definitely valid, been part of Enum.Font since it existed) if the
+-- named font can't be resolved.
+Theme.RetroFontFace = safeNamedFont("PressStart2P", Enum.Font.Code)
 
 Theme.CornerRadius = UDim.new(0, 12)
 
@@ -90,7 +112,7 @@ function Theme.styleImpactText(label: TextLabel, fillColor: Color3?)
 end
 
 function Theme.styleRetro(label: TextLabel, color: Color3?)
-	label.Font = Theme.Fonts.Retro
+	label.FontFace = Theme.RetroFontFace
 	label.TextColor3 = color or Theme.Colors.TextPrimary
 end
 
