@@ -50,12 +50,36 @@ local function fishForZone(zoneId: string): { FishingConfig.FishDef }
 	return matches
 end
 
-local function pickRandomFish(zoneId: string): FishingConfig.FishDef?
+-- Cast-power meter (GDD.md §3): `castPower` (0-1, from CastMeterUI.lua)
+-- biases which fish in the zone gets picked, interpolating each rarity's
+-- weight from FishingConfig.RarityWeight (castPower = 0) toward
+-- RarityWeight * (1 + RarityPowerBonus) (castPower = 1). A weak/whiffed
+-- cast still can land anything in the zone — it's a bias, not a gate.
+local function pickRandomFish(zoneId: string, castPower: number): FishingConfig.FishDef?
 	local candidates = fishForZone(zoneId)
 	if #candidates == 0 then
 		return nil
 	end
-	return candidates[math.random(1, #candidates)]
+
+	local totalWeight = 0
+	local weights: { number } = {}
+	for i, fish in candidates do
+		local baseWeight = FishingConfig.RarityWeight[fish.rarity] or 1
+		local bonus = FishingConfig.RarityPowerBonus[fish.rarity] or 0
+		local weight = math.max(baseWeight * (1 + bonus * castPower), 0.01)
+		weights[i] = weight
+		totalWeight += weight
+	end
+
+	local roll = math.random() * totalWeight
+	local cumulative = 0
+	for i, weight in weights do
+		cumulative += weight
+		if roll <= cumulative then
+			return candidates[i]
+		end
+	end
+	return candidates[#candidates]
 end
 
 -- TreasureHunter perk doubles the odds a pull is treasure rather than junk.
@@ -105,7 +129,7 @@ local function generateReelChart(struggleDifficulty: number, player: Player): { 
 end
 
 function FishingService.init()
-	Remotes.get("RequestCast").OnServerEvent:Connect(function(player: Player, zoneId: string)
+	Remotes.get("RequestCast").OnServerEvent:Connect(function(player: Player, zoneId: string, rawCastPower: number?)
 		local zone: FishingConfig.DepthZone? = nil
 		for _, z in FishingConfig.DepthZones do
 			if z.id == zoneId then
@@ -122,6 +146,10 @@ function FishingService.init()
 			return
 		end
 
+		-- Trust nothing from the client past clamping — CastMeterUI.lua
+		-- only ever sends 0-1, but a modified client could send anything.
+		local castPower = math.clamp(typeof(rawCastPower) == "number" and rawCastPower or 0, 0, 1)
+
 		local isPull = math.random() < FishingConfig.PullChance
 		local patienceSeconds: number
 
@@ -129,12 +157,16 @@ function FishingService.init()
 			pendingBites[player] = { kind = "Pull", pull = pickRandomPull(player) }
 			patienceSeconds = math.random() * 1.5 + 0.5
 		else
-			local fish = pickRandomFish(zoneId)
+			local fish = pickRandomFish(zoneId, castPower)
 			if not fish then
 				return -- no fish configured for this zone yet
 			end
 			pendingBites[player] = { kind = "Fish", fish = fish }
 			patienceSeconds = fish.bitePatience.Min + math.random() * (fish.bitePatience.Max - fish.bitePatience.Min)
+			-- A strong cast also bites a bit faster (up to 15% sooner at
+			-- castPower = 1), on top of the species-weighting above — a
+			-- weak cast isn't punished, a good one is just extra rewarding.
+			patienceSeconds *= 1 - castPower * 0.15
 		end
 
 		task.delay(patienceSeconds, function()

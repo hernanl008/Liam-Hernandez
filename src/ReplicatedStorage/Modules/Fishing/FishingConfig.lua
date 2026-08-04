@@ -68,6 +68,34 @@ local RarityXp: { [Rarity]: number } = {
 }
 FishingConfig.RarityXp = RarityXp
 
+-- Cast-power meter (GDD.md §3, FishingController.lua's CastMeterUI): base
+-- odds a candidate fish is picked from its zone, before the cast-power
+-- bonus below is applied. A weaker cast still has some chance at anything
+-- in the zone (rarer fish are just uncommon), it just isn't biased toward
+-- them.
+local RarityWeight: { [Rarity]: number } = {
+	Common = 50,
+	Uncommon = 25,
+	Rare = 12,
+	Epic = 5,
+	Legendary = 1,
+}
+FishingConfig.RarityWeight = RarityWeight
+
+-- At castPower = 1 (a perfectly-timed cast), a rarity's weight is
+-- multiplied by (1 + bonus) — Legendary quintuples, Common is cut by
+-- more than half. At castPower = 0 the table has no effect at all
+-- (weights are exactly RarityWeight above). Interpolated linearly by
+-- castPower in between, see FishingService.weightedFishPick.
+local RarityPowerBonus: { [Rarity]: number } = {
+	Common = -0.65,
+	Uncommon = 0,
+	Rare = 1,
+	Epic = 2.5,
+	Legendary = 4,
+}
+FishingConfig.RarityPowerBonus = RarityPowerBonus
+
 local Pulls: { PullDef } = {
 	{
 		id = "Driftwood",

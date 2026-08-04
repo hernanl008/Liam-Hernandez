@@ -1,11 +1,12 @@
 --!strict
 -- Cast -> bite -> reel, driven from a ProximityPrompt on Parts tagged
 -- "FishingSpot" (attribute "ZoneId", e.g. "Shallows") placed at the
--- water's edge in Studio. The cast-power meter described in GDD.md §3 is
--- deliberately not built yet — FishingService doesn't consume a cast
--- quality value today, so a meter here would be UI with nothing behind
--- it. Casting is instant on trigger for this vertical slice; the meter
--- is a Phase 3 addition once it actually affects bite odds server-side.
+-- water's edge in Studio. Triggering the prompt starts CastMeterUI's
+-- power meter (GDD.md §3); RequestCast only fires once the player locks
+-- in a power by pressing Space, and FishingService.pickRandomFish uses
+-- that value to bias which fish in the zone gets picked (see its comment
+-- for the weighting math) — a whiffed cast isn't gated out, just biased
+-- toward commoner fish.
 
 local CollectionService = game:GetService("CollectionService")
 local UserInputService = game:GetService("UserInputService")
@@ -17,6 +18,7 @@ local RhythmUI = require(Modules:WaitForChild("UI"):WaitForChild("RhythmUI"))
 local SpectacleUI = require(Modules:WaitForChild("UI"):WaitForChild("SpectacleUI"))
 local ProgressFeedback = require(Modules:WaitForChild("UI"):WaitForChild("ProgressFeedback"))
 local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
+local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 
 local FishingController = {}
@@ -130,8 +132,15 @@ function FishingController.init()
 				isFishing = true
 				activePrompt = prompt
 				prompt.Enabled = false
-				StatusToast.set("Casting...")
-				Remotes.get("RequestCast"):FireServer(zoneId)
+				CastMeterUI.start(function(power: number?)
+					if not power then
+						-- cancelled (e.g. walked away) — nothing was cast
+						endFishing()
+						return
+					end
+					StatusToast.set("Casting...")
+					Remotes.get("RequestCast"):FireServer(zoneId, power)
+				end)
 			else
 				warn(`FishingSpot "{instance:GetFullName()}" has no ZoneId attribute`)
 			end

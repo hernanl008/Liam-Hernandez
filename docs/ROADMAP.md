@@ -114,9 +114,18 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
 - [ ] Story beats implemented per the lore bible's arc
 - [x] General inventory grid — see Phase 2 entry above (`InventoryUI.lua`)
 - [ ] UI/UX pass (dialogue box polish)
-- [ ] Cast-power meter that actually affects bite odds, and/or broader
-      weather effects on fish spawns (`GDD.md` §3 — currently only the
-      Moonlit Serpent has any time-of-day gating)
+- [x] Cast-power meter that actually affects bite odds (`GDD.md` §3) —
+      `CastMeterUI.lua` (a ping-pong fill bar, Space to lock, Esc to
+      cancel) replaces the old instant-cast-on-trigger flow
+      (`FishingController.lua`). `RequestCast` now carries that 0-1
+      power to the server, clamped there since nothing client-sent can be
+      trusted; `FishingService.pickRandomFish` uses it to weight rarity
+      odds (`FishingConfig.RarityWeight`/`RarityPowerBonus` — a perfect
+      cast roughly quintuples Legendary odds and more than halves Common,
+      a whiffed one just falls back to the un-boosted base weights, never
+      gated out entirely) and shaves up to 15% off bite patience.
+      Broader weather effects on fish spawns are still open — currently
+      only the Moonlit Serpent has any time-of-day gating.
 - [x] Crop growth-stage visuals — not the real per-crop model swaps
       `GrowthStage.modelName` implies (that's ~13 distinct models across 5
       crops, real art out of scope here); `CropVisualController.lua` is a
