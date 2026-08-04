@@ -90,4 +90,12 @@ function PlayerFreeze.stop()
 	savedWalkSpeed = nil
 end
 
+-- Whether the player is currently frozen for a minigame (cast meter or
+-- reel-in/cooking chart) — the single source of truth other UI
+-- (Compendium/Shop/Inventory/Settings/SkillTree controllers) checks
+-- before opening a full-screen panel on top of one.
+function PlayerFreeze.isActive(): boolean
+	return heartbeatConn ~= nil
+end
+
 return PlayerFreeze

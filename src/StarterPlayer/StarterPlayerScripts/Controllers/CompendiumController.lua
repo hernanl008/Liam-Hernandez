@@ -5,7 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local CompendiumUI = require(Modules:WaitForChild("UI"):WaitForChild("CompendiumUI"))
-local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
+local PlayerFreeze = require(Modules:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
 
 local CompendiumController = {}
 
@@ -16,9 +16,9 @@ function CompendiumController.init()
 		if gameProcessed then
 			return
 		end
-		-- Don't let another full-screen panel open on top of the cast
-		-- meter (GDD.md §3) while it's aiming a cast.
-		if CastMeterUI.isActive() then
+		-- Don't let another full-screen panel open on top of a minigame
+		-- (cast meter or reel-in/cooking chart) while it's active.
+		if PlayerFreeze.isActive() then
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then

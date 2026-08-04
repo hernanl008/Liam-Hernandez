@@ -15,7 +15,7 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local ShopUI = require(Modules:WaitForChild("UI"):WaitForChild("ShopUI"))
 local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
-local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
+local PlayerFreeze = require(Modules:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
 
 local ShopController = {}
 
@@ -34,6 +34,9 @@ local function setupShopPrompt(instance: Instance)
 	prompt.MaxActivationDistance = 8
 	prompt.Parent = instance
 	prompt.Triggered:Connect(function()
+		if PlayerFreeze.isActive() then
+			return
+		end
 		ShopUI.toggle()
 	end)
 end
@@ -48,7 +51,7 @@ function ShopController.init()
 		if gameProcessed then
 			return
 		end
-		if CastMeterUI.isActive() then
+		if PlayerFreeze.isActive() then
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then

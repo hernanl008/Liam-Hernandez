@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local SettingsUI = require(Modules:WaitForChild("UI"):WaitForChild("SettingsUI"))
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
-local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
+local PlayerFreeze = require(Modules:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
 
 local SettingsController = {}
 
@@ -19,7 +19,7 @@ function SettingsController.init()
 		if gameProcessed then
 			return
 		end
-		if CastMeterUI.isActive() then
+		if PlayerFreeze.isActive() then
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then
