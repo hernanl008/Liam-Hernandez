@@ -189,7 +189,7 @@ local function ensureBuilt()
 	cancelHint.BackgroundTransparency = 1
 	cancelHint.TextScaled = true
 	cancelHint.TextWrapped = true
-	cancelHint.Text = "Q CANCEL"
+	cancelHint.Text = "Q"
 	cancelHint.Parent = frame
 	Theme.styleRetroBody(cancelHint, Theme.RetroColors.InkMuted)
 end
@@ -235,7 +235,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	heartbeatConn = RunService.Heartbeat:Connect(function(dt: number)
 		elapsed += dt
 		if elapsed >= TIMEOUT_SECONDS then
-			StatusToast.setTemporary("Took too long to cast — line reeled back in.", 2.5, true)
+			StatusToast.setTemporary("You hesitated too long — the line snaps back empty.", 2.5, true)
 			finish(nil)
 			return
 		end
