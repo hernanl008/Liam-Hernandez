@@ -15,9 +15,11 @@ local SkillTreeController = require(Controllers:WaitForChild("SkillTreeControlle
 local HudController = require(Controllers:WaitForChild("HudController"))
 local AmbienceController = require(Controllers:WaitForChild("AmbienceController"))
 local ShopController = require(Controllers:WaitForChild("ShopController"))
+local CropVisualController = require(Controllers:WaitForChild("CropVisualController"))
 
 CameraController.init()
 FarmingController.init()
+CropVisualController.init()
 FishingController.init()
 CookingController.init()
 DialogueController.init()

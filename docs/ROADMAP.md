@@ -105,7 +105,14 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
 - [ ] Cast-power meter that actually affects bite odds, and/or broader
       weather effects on fish spawns (`GDD.md` §3 — currently only the
       Moonlit Serpent has any time-of-day gating)
-- [ ] Crop growth-stage visuals (model swaps per `FarmingConfig.lua` stage)
+- [x] Crop growth-stage visuals — not the real per-crop model swaps
+      `GrowthStage.modelName` implies (that's ~13 distinct models across 5
+      crops, real art out of scope here); `CropVisualController.lua` is a
+      crop-agnostic marker that grows taller/shifts green-to-gold with
+      StageIndex instead, purely client-side off FarmPlot's existing
+      Attributes. Before this a planted plot looked identical at every
+      stage — only the prompt text ("Water"/"Growing..."/"Harvest") said
+      otherwise.
 - [x] Persistence (DataStores) — `PlayerDataService.lua` now loads on join
       and saves on leave/server shutdown (`game:BindToClose`), pcall-
       wrapped so a DataStore failure (or Studio API access being off)
