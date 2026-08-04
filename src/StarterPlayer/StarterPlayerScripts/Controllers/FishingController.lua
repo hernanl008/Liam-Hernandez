@@ -26,6 +26,18 @@ local FishingController = {}
 local SPOT_TAG = "FishingSpot"
 local HOOK_KEY = Enum.KeyCode.E
 
+-- Tints the reel-in minigame (RhythmUI's `accentColor` option) by the
+-- fish's own rarity, so a Legendary fight visibly reads as a bigger deal
+-- than a Common one before a single note is even hit — rivets, the catch
+-- meter, the lane-cue flash, and the combo counter all pick this up.
+local RARITY_ACCENT_COLOR: { [string]: Color3 } = {
+	Common = Color3.fromRGB(198, 150, 78), -- Theme.RetroColors.Bronze
+	Uncommon = Color3.fromRGB(122, 150, 88),
+	Rare = Color3.fromRGB(90, 130, 168),
+	Epic = Color3.fromRGB(150, 96, 168),
+	Legendary = Color3.fromRGB(230, 178, 60),
+}
+
 function FishingController.init()
 	local awaitingHook = false
 	local hookConnection: RBXScriptConnection? = nil
@@ -70,12 +82,17 @@ function FishingController.init()
 		end)
 	end)
 
-	Remotes.get("ReelStart").OnClientEvent:Connect(function(payload: { fishId: string, notes: any })
+	Remotes.get("ReelStart").OnClientEvent:Connect(function(payload: { fishId: string, displayName: string, rarity: string, notes: any })
 		stopAwaitingHook()
 		StatusToast.set(nil)
 		RhythmUI.play(payload.notes, function(hits)
 			Remotes.get("ReelResult"):FireServer(hits)
-		end, RhythmGameConfig.TimingWindows, { title = "REEL IT IN!", retro = true })
+		end, RhythmGameConfig.TimingWindows, {
+			title = "REEL IT IN!",
+			subtitle = `{payload.rarity} — {payload.displayName}`,
+			retro = true,
+			accentColor = RARITY_ACCENT_COLOR[payload.rarity],
+		})
 	end)
 
 	Remotes.get("CatchResult").OnClientEvent:Connect(function(payload: {

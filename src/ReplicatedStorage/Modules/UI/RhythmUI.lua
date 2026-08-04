@@ -58,18 +58,25 @@ local RhythmUI = {}
 
 export type PlayOptions = {
 	title: string?,
+	subtitle: string?,
 	retro: boolean?,
+	-- Retro mode only. Lets a caller tint rivets/meter/lane-cue/combo/
+	-- title-stroke to reflect something about *what's* being reeled in —
+	-- fishing uses this for a rarity color, so a Legendary fight visibly
+	-- reads as a bigger deal than a Common one before a single note is
+	-- even hit. Defaults to the standard bronze accent when omitted.
+	accentColor: Color3?,
 }
 
 -- Small round rivet/stud detail, same "bolted wood plaque" look as
 -- CastMeterUI's — duplicated rather than shared since it's ~15 lines and
 -- pulling in a whole module for it isn't worth the indirection.
-local function addRivet(parent: Instance, anchorX: number, anchorY: number)
+local function addRivet(parent: Instance, anchorX: number, anchorY: number, color: Color3)
 	local rivet = Instance.new("Frame")
 	rivet.AnchorPoint = Vector2.new(anchorX, anchorY)
 	rivet.Position = UDim2.new(anchorX, anchorX == 0 and 5 or -5, anchorY, anchorY == 0 and 5 or -5)
 	rivet.Size = UDim2.fromOffset(7, 7)
-	rivet.BackgroundColor3 = Theme.RetroColors.Bronze
+	rivet.BackgroundColor3 = color
 	rivet.BorderSizePixel = 0
 	rivet.ZIndex = 3
 	rivet.Parent = parent
@@ -99,6 +106,8 @@ function RhythmUI.play(
 
 	local retro = options ~= nil and options.retro == true
 	local title = (options and options.title) or "REEL IT IN!"
+	local subtitle = options and options.subtitle
+	local accentColor = (options and options.accentColor) or Theme.RetroColors.Bronze
 
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
@@ -137,7 +146,7 @@ function RhythmUI.play(
 	comboLabel.Parent = parent
 	if retro then
 		comboLabel.Position = UDim2.fromScale(0.29, 0.2)
-		Theme.styleRetroImpact(comboLabel)
+		Theme.styleRetroImpact(comboLabel, accentColor)
 	else
 		comboLabel.Position = UDim2.fromScale(0.35, 0.68)
 		Theme.styleImpactText(comboLabel)
@@ -160,23 +169,37 @@ function RhythmUI.play(
 		container.Size = UDim2.fromScale(0.46, 0.34)
 		container.Position = UDim2.fromScale(0.44, 0.52)
 		Theme.applyRetroPanel(container, { strokeThickness = 3 })
-		addRivet(container, 0, 0)
-		addRivet(container, 1, 0)
-		addRivet(container, 0, 1)
-		addRivet(container, 1, 1)
+		addRivet(container, 0, 0, accentColor)
+		addRivet(container, 1, 0, accentColor)
+		addRivet(container, 0, 1, accentColor)
+		addRivet(container, 1, 1, accentColor)
 
 		local titleLabel = Instance.new("TextLabel")
-		titleLabel.Size = UDim2.fromScale(0.9, 0.14)
-		titleLabel.Position = UDim2.fromScale(0.05, 0.04)
+		titleLabel.Size = UDim2.fromScale(0.9, subtitle and 0.12 or 0.14)
+		titleLabel.Position = UDim2.fromScale(0.05, 0.03)
 		titleLabel.BackgroundTransparency = 1
 		titleLabel.TextScaled = true
 		titleLabel.TextWrapped = true
 		titleLabel.Text = title
 		titleLabel.Parent = container
 		Theme.styleRetroHeader(titleLabel)
+		titleLabel.TextStrokeColor3 = accentColor
+		titleLabel.TextStrokeTransparency = 0.4
+
+		if subtitle then
+			local subtitleLabel = Instance.new("TextLabel")
+			subtitleLabel.Size = UDim2.fromScale(0.9, 0.07)
+			subtitleLabel.Position = UDim2.fromScale(0.05, 0.15)
+			subtitleLabel.BackgroundTransparency = 1
+			subtitleLabel.TextScaled = true
+			subtitleLabel.TextWrapped = true
+			subtitleLabel.Text = subtitle
+			subtitleLabel.Parent = container
+			Theme.styleRetroBody(subtitleLabel, accentColor)
+		end
 
 		laneIdleColor = Theme.RetroColors.WoodMid
-		laneCueColor = Theme.RetroColors.Bronze
+		laneCueColor = accentColor
 		laneHitColor = Color3.fromRGB(120, 176, 98)
 		laneWhiffColor = Theme.RetroColors.Rust
 
@@ -203,10 +226,10 @@ function RhythmUI.play(
 		meterFrame.BorderSizePixel = 0
 		meterFrame.Parent = parent
 		Theme.applyRetroPanel(meterFrame, { strokeThickness = 3 })
-		addRivet(meterFrame, 0, 0)
-		addRivet(meterFrame, 1, 0)
-		addRivet(meterFrame, 0, 1)
-		addRivet(meterFrame, 1, 1)
+		addRivet(meterFrame, 0, 0, accentColor)
+		addRivet(meterFrame, 1, 0, accentColor)
+		addRivet(meterFrame, 0, 1, accentColor)
+		addRivet(meterFrame, 1, 1, accentColor)
 
 		local meterCaption = Instance.new("TextLabel")
 		meterCaption.Size = UDim2.fromScale(0.92, 0.1)
@@ -238,13 +261,13 @@ function RhythmUI.play(
 		fillFrame.Position = UDim2.fromScale(0, 1)
 		fillFrame.Size = UDim2.fromScale(1, METER_START)
 		fillFrame.BorderSizePixel = 0
-		fillFrame.BackgroundColor3 = Theme.RetroColors.Bronze
+		fillFrame.BackgroundColor3 = accentColor
 		fillFrame.Parent = meterTrack
 		Theme.applyRetroCard(fillFrame, 3)
 		local fillGradient = Instance.new("UIGradient")
 		fillGradient.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 221, 143)),
-			ColorSequenceKeypoint.new(1, Theme.RetroColors.Bronze),
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255):Lerp(accentColor, 0.35)),
+			ColorSequenceKeypoint.new(1, accentColor),
 		})
 		fillGradient.Rotation = 90
 		fillGradient.Parent = fillFrame

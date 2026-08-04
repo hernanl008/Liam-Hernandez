@@ -128,16 +128,27 @@ end
 -- play, not just more forgiving to grade.
 local STEADY_HANDS_DIFFICULTY_REDUCTION = 2
 
+-- Found via live testing: the old formula (noteCount = 4 + difficulty/2,
+-- tempo = 0.9 - difficulty*0.05) made harder fish denser and faster, but
+-- those two effects roughly cancel out — total chart length
+-- (noteCount * tempo) stayed pinned around 3.4-3.6s from struggleDifficulty
+-- 1 all the way to 10, so every fish's reel-in *felt* the same length even
+-- though it was technically harder. Rebalanced so duration actually grows
+-- with difficulty too (a Common fish's chart runs ~3s; a Legendary's runs
+-- ~5.5s) on top of being denser and faster, instead of only the latter.
 local function generateReelChart(struggleDifficulty: number, player: Player): { RhythmScoring.Note }
 	local effectiveDifficulty = struggleDifficulty
 	if PlayerDataService.hasPerk(player, "Fishing", "SteadyHands") then
 		effectiveDifficulty = math.max(1, struggleDifficulty - STEADY_HANDS_DIFFICULTY_REDUCTION)
 	end
-	local noteCount = 4 + math.floor(effectiveDifficulty / 2)
-	local tempo = math.max(0.9 - effectiveDifficulty * 0.05, 0.35)
+	local noteCount = 4 + math.floor(effectiveDifficulty * 0.9)
+	local tempo = math.max(0.78 - effectiveDifficulty * 0.035, 0.4)
 	local notes = {}
 	for i = 1, noteCount do
-		table.insert(notes, { time = i * tempo, lane = math.random(1, 3) })
+		-- All 4 lanes (D/F/J/K), not just 3 — the reel-in UI has always had
+		-- 4 lane cards, but this only ever rolled the first 3, so the 4th
+		-- (K) never lit up.
+		table.insert(notes, { time = i * tempo, lane = math.random(1, 4) })
 	end
 	return notes
 end
@@ -236,7 +247,12 @@ function FishingService.init()
 
 		local chart = generateReelChart(bite.fish.struggleDifficulty, player)
 		pendingReels[player] = { fish = bite.fish, chart = chart }
-		Remotes.get("ReelStart"):FireClient(player, { fishId = bite.fish.id, notes = chart })
+		Remotes.get("ReelStart"):FireClient(player, {
+			fishId = bite.fish.id,
+			displayName = bite.fish.displayName,
+			rarity = bite.fish.rarity,
+			notes = chart,
+		})
 	end)
 
 	Remotes.get("ReelResult").OnServerEvent:Connect(function(player: Player, hits: { RhythmScoring.Hit })
