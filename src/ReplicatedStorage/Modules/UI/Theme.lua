@@ -127,6 +127,17 @@ function Theme.styleRetroBody(label: TextLabel, color: Color3?)
 	label.TextColor3 = color or Theme.RetroColors.InkMuted
 end
 
+-- Retro-medieval equivalent of styleImpactText — same "thick dark stroke
+-- behind a bright fill" punch, pixel font + wood-toned stroke instead of
+-- Bangers + a plain dark stroke, for combo counters on retro-skinned
+-- minigames (the fishing reel-in chart).
+function Theme.styleRetroImpact(label: TextLabel, fillColor: Color3?)
+	label.FontFace = Theme.RetroFontFace
+	label.TextColor3 = fillColor or Color3.fromRGB(255, 221, 143)
+	label.TextStrokeColor3 = Theme.RetroColors.WoodDark
+	label.TextStrokeTransparency = 0
+end
+
 Theme.CornerRadius = UDim.new(0, 12)
 
 -- Rounded corners + a gold stroke border + a subtle top-to-bottom

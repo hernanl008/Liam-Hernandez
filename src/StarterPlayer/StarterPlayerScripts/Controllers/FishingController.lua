@@ -75,7 +75,7 @@ function FishingController.init()
 		StatusToast.set(nil)
 		RhythmUI.play(payload.notes, function(hits)
 			Remotes.get("ReelResult"):FireServer(hits)
-		end, RhythmGameConfig.TimingWindows)
+		end, RhythmGameConfig.TimingWindows, { title = "REEL IT IN!", retro = true })
 	end)
 
 	Remotes.get("CatchResult").OnClientEvent:Connect(function(payload: {
