@@ -8,6 +8,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
+local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
 
 local SleepController = {}
 
@@ -34,6 +35,10 @@ function SleepController.init()
 		setupBed(instance)
 	end
 	CollectionService:GetInstanceAddedSignal(BED_TAG):Connect(setupBed)
+
+	Remotes.get("SleepRejected").OnClientEvent:Connect(function(reason: string)
+		StatusToast.setTemporary(reason, 3)
+	end)
 end
 
 return SleepController

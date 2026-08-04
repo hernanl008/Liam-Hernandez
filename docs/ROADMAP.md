@@ -154,6 +154,20 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       path a full day uses, including the daily watering reset and
       weather reroll — no duplicated logic). One shared day cycle for the
       whole server, so anyone sleeping ends the day for everyone in it.
+      - Follow-up from live testing: added a full-screen black fade
+        (`DayTransitionController.lua`) on every day change, driven by a
+        dedicated `DayChanged` event (fired once per actual rollover,
+        unlike `DayCycleUpdate` which fires several times a second) so
+        "and then it's the next day" reads as a real beat instead of the
+        world silently relabeling itself. Also closed a real exploit
+        flagged during testing: sleeping repeatedly reset the day/time
+        with nothing stopping it, so spamming the bed could blow through
+        days (and 7-day seasons) in seconds. Sleep now requires at least
+        25% real progress into the current day
+        (`MIN_DAY_PROGRESS_TO_SLEEP`, `DayCycleService.lua`) — a free
+        throttle since sleeping is what zeroes that value in the first
+        place — with a `SleepRejected` toast ("It's too early to sleep")
+        matching the project's existing rejection-feedback pattern.
 - [ ] UI/UX pass (dialogue box polish)
 - [x] Cast-power meter that actually affects bite odds (`GDD.md` §3) —
       `CastMeterUI.lua` (a ping-pong fill bar, Space to lock, Esc to

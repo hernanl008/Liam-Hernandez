@@ -89,6 +89,15 @@ function DayCycleService.skipToNextDay()
 	forceNewDay = true
 end
 
+-- Without this, sleeping resets elapsedThisDay to 0 but nothing stops the
+-- player immediately sleeping again — repeat that and days (and seasons,
+-- 7 days each) blow past in seconds, which isn't "skip the boring part,"
+-- it's the day cycle not mattering at all. Requiring some real progress
+-- into the day before you can sleep again throttles that for free — no
+-- separate cooldown timer needed, since sleeping already zeroes the
+-- thing this checks.
+local MIN_DAY_PROGRESS_TO_SLEEP = 0.25
+
 function DayCycleService.init()
 	local RunService = game:GetService("RunService")
 	local lastBroadcast = 0
@@ -98,7 +107,12 @@ function DayCycleService.init()
 	-- of it yet, matching the rest of DayCycleService) — any player
 	-- sleeping ends the day for everyone in the server, same as the
 	-- table-flip most farm sims make when one player goes to bed first.
-	Remotes.get("RequestSleep").OnServerEvent:Connect(function(_player: Player)
+	Remotes.get("RequestSleep").OnServerEvent:Connect(function(player: Player)
+		local dayProgress = elapsedThisDay / dayLengthSeconds
+		if dayProgress < MIN_DAY_PROGRESS_TO_SLEEP then
+			Remotes.get("SleepRejected"):FireClient(player, "It's too early to sleep — you just woke up.")
+			return
+		end
 		DayCycleService.skipToNextDay()
 	end)
 
@@ -124,6 +138,11 @@ function DayCycleService.init()
 			forceNewDay = false
 			currentDay += 1
 			currentWeather = rollWeather()
+			-- Fired for both a natural rollover and a sleep-triggered one —
+			-- DayTransitionController.lua uses this (not DayCycleUpdate,
+			-- which fires several times a second) to play the fade exactly
+			-- once per actual day change.
+			Remotes.get("DayChanged"):FireAllClients(currentDay)
 			for _, listener in newDayListeners do
 				listener(currentDay)
 			end

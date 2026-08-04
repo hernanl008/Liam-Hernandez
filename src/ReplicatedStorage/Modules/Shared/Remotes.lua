@@ -37,6 +37,8 @@ local EVENT_NAMES = {
 	"SellItemRejected",
 	"SetAssistMode",
 	"RequestSleep",
+	"SleepRejected",
+	"DayChanged",
 }
 
 local Remotes = {}
