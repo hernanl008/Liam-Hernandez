@@ -56,6 +56,11 @@ local finishActive: ((number?) -> ())? = nil
 local controlsResolved = false
 local controls: any = nil
 
+-- TEMPORARY diagnostic logging (prefixed "[CastMeterDebug]") — four
+-- attempts at blocking movement/jump have each failed for a different,
+-- non-obvious reason, so this prints exactly what's actually happening
+-- instead of guessing at a fifth fix blind. Remove once the real cause
+-- is confirmed from Studio's Output window.
 local function getControls(): any
 	if controlsResolved then
 		return controls
@@ -63,13 +68,17 @@ local function getControls(): any
 	controlsResolved = true
 	local ok, result = pcall(function()
 		local playerScripts = Players.LocalPlayer:WaitForChild("PlayerScripts", 5)
+		print(`[CastMeterDebug] PlayerScripts found: {playerScripts ~= nil}`)
 		local playerModuleScript = playerScripts and playerScripts:FindFirstChild("PlayerModule")
+		print(`[CastMeterDebug] PlayerModule found: {playerModuleScript ~= nil}`)
 		if not playerModuleScript then
 			return nil
 		end
 		local playerModule = require(playerModuleScript :: ModuleScript) :: any
+		print(`[CastMeterDebug] PlayerModule required OK, has GetControls: {typeof(playerModule.GetControls) == "function"}`)
 		return playerModule:GetControls()
 	end)
+	print(`[CastMeterDebug] getControls pcall ok={ok} result={tostring(result)}`)
 	if ok then
 		controls = result
 	end
@@ -80,6 +89,7 @@ local savedWalkSpeed: number? = nil
 
 local function setPlayerFrozen(frozen: boolean)
 	local resolvedControls = getControls()
+	print(`[CastMeterDebug] setPlayerFrozen({frozen}) — resolvedControls={tostring(resolvedControls)}`)
 	if resolvedControls then
 		if frozen then
 			resolvedControls:Disable()
@@ -93,14 +103,17 @@ local function setPlayerFrozen(frozen: boolean)
 	-- nothing.
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	print(`[CastMeterDebug] character={tostring(character)} humanoid={tostring(humanoid)}`)
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, not frozen)
 		if frozen then
 			savedWalkSpeed = humanoid.WalkSpeed
 			humanoid.WalkSpeed = 0
+			print(`[CastMeterDebug] froze — WalkSpeed now {humanoid.WalkSpeed}, saved was {savedWalkSpeed}`)
 		elseif savedWalkSpeed then
 			humanoid.WalkSpeed = savedWalkSpeed
 			savedWalkSpeed = nil
+			print(`[CastMeterDebug] unfroze — WalkSpeed restored to {humanoid.WalkSpeed}`)
 		end
 	end
 end
@@ -162,6 +175,7 @@ end
 -- Fires `onLocked(power)` (0-1) once the player presses Space, or
 -- `onLocked(nil)` if `cancel()` is called first (e.g. player walks away).
 function CastMeterUI.start(onLocked: (power: number?) -> ())
+	print("[CastMeterDebug] CastMeterUI.start called")
 	ensureBuilt()
 	if active then
 		return
@@ -202,12 +216,14 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 	-- Roblox's own jump/movement from firing, so there's nothing this
 	-- needs to Sink or race against anymore.
 	inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		print(`[CastMeterDebug] InputBegan keyCode={input.KeyCode} gameProcessed={gameProcessed}`)
 		if gameProcessed then
 			return
 		end
 		if input.KeyCode == Enum.KeyCode.Space then
 			local t = (elapsed * CYCLES_PER_SECOND) % 2
 			local power = t <= 1 and t or (2 - t)
+			print(`[CastMeterDebug] Space locked at power={power}`)
 			finish(power)
 		elseif input.KeyCode == Enum.KeyCode.Escape then
 			finish(nil)
