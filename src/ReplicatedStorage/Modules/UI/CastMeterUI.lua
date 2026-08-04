@@ -25,11 +25,18 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI"):WaitForChild("Theme"))
 local PlayerFreeze = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Client"):WaitForChild("PlayerFreeze"))
+local StatusToast = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI"):WaitForChild("StatusToast"))
 
 local CastMeterUI = {}
 
 -- Full 0->1->0 sweep takes 1/CYCLES_PER_SECOND seconds either direction.
 local CYCLES_PER_SECOND = 1.1
+
+-- Without this, walking away (or just not reacting) left the meter open
+-- — and the player frozen (PlayerFreeze.lua) — indefinitely. ~7 full
+-- sweeps at the cycle speed above; long enough not to feel rushed, short
+-- enough that abandoning a cast doesn't strand the player.
+local TIMEOUT_SECONDS = 8
 
 local screenGui: ScreenGui? = nil
 local fill: Frame
@@ -222,6 +229,11 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 
 	heartbeatConn = RunService.Heartbeat:Connect(function(dt: number)
 		elapsed += dt
+		if elapsed >= TIMEOUT_SECONDS then
+			StatusToast.setTemporary("Took too long to cast — line reeled back in.", 2.5)
+			finish(nil)
+			return
+		end
 		local t = (elapsed * CYCLES_PER_SECOND) % 2
 		local power = t <= 1 and t or (2 - t)
 		fill.Size = UDim2.fromScale(1, power)
