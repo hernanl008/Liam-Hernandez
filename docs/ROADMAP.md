@@ -131,6 +131,15 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       choice changes one; `InventoryUI.lua` gained a "Bonds" tile section
       (met NPCs only, so it can't spoil the roster) showing the running
       total per NPC.
+- [x] Assist Mode settings toggle (`GDD.md` §10) — spec'd from the start
+      as "a settings toggle" but `assistMode` was hardcoded `true`
+      server-side with no remote to change it and wasn't even included
+      in the `InventoryUpdate` sync payload, so the client couldn't have
+      shown its state either way. New `SettingsService.lua`
+      (`SetAssistMode` remote) + `SettingsUI.lua`/`SettingsController.lua`
+      (press O) — the game's first real settings screen, built as its own
+      thing rather than bolted onto the HUD so future toggles have
+      somewhere to go.
 - [ ] UI/UX pass (dialogue box polish)
 - [x] Cast-power meter that actually affects bite odds (`GDD.md` §3) —
       `CastMeterUI.lua` (a ping-pong fill bar, Space to lock, Esc to

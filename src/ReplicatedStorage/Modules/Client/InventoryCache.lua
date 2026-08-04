@@ -29,6 +29,7 @@ export type Snapshot = {
 	unlockedPerks: { [string]: { [string]: boolean } },
 	flags: { [string]: boolean },
 	relationships: { [string]: number },
+	assistMode: boolean,
 }
 
 local InventoryCache = {}
@@ -46,6 +47,7 @@ local snapshot: Snapshot = {
 	unlockedPerks = { Farming = {}, Fishing = {}, Cooking = {} },
 	flags = {},
 	relationships = {},
+	assistMode = true,
 }
 
 local initialized = false

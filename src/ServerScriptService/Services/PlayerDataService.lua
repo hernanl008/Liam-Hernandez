@@ -71,10 +71,9 @@ local function newPlayerData(): PlayerData
 		junk = {},
 		flags = {},
 		relationships = {},
-		-- Default on for the vertical slice: no UI toggle for this exists
-		-- yet, and the tight base timing windows (RhythmScoring.lua) are
-		-- rough for a first-ever playthrough. Widens hit tolerance ~1.6x;
-		-- revisit once a settings menu exists to let players choose.
+		-- Default on: the tight base timing windows (RhythmScoring.lua) are
+		-- rough for a first-ever playthrough. Widens hit tolerance ~1.6x.
+		-- Togglable via SettingsUI.lua (press O) / SetAssistMode remote.
 		assistMode = true,
 		discovered = { fish = {}, dishes = {}, crops = {}, junk = {} },
 		skillXp = { Farming = 0, Fishing = 0, Cooking = 0 },
@@ -172,6 +171,7 @@ local function syncToClient(player: Player, data: PlayerData)
 		unlockedPerks = data.unlockedPerks,
 		flags = data.flags,
 		relationships = data.relationships,
+		assistMode = data.assistMode,
 	})
 end
 
@@ -376,6 +376,17 @@ function PlayerDataService.getRelationship(player: Player, npcId: string): numbe
 		return 0
 	end
 	return data.relationships[npcId] or 0
+end
+
+-- GDD.md §10: Assist Mode was always documented as "a settings toggle,"
+-- but until now it was just a hardcoded default with no way to turn it
+-- off (SettingsService.lua's SetAssistMode handler is the only caller).
+function PlayerDataService.setAssistMode(player: Player, enabled: boolean)
+	local data = dataByPlayer[player]
+	if data then
+		data.assistMode = enabled
+		syncToClient(player, data)
+	end
 end
 
 Players.PlayerAdded:Connect(function(player: Player)

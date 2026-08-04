@@ -35,6 +35,7 @@ local EVENT_NAMES = {
 	"UnlockPerkResult",
 	"SellItem",
 	"SellItemRejected",
+	"SetAssistMode",
 }
 
 local Remotes = {}
