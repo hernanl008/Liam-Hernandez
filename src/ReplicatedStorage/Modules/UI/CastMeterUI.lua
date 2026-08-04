@@ -28,38 +28,24 @@ local inputConn: RBXScriptConnection? = nil
 local elapsed = 0
 local finishActive: ((number?) -> ())? = nil
 
--- Space is Roblox's default jump key — without this, locking in a cast
--- also launches the player into the air (ControlScript sees the same
--- Space press). Look the Humanoid up fresh each time rather than caching
--- it, since the character can respawn while nothing here is watching.
--- SetStateEnabled alone turned out not to be enough (still jumped in
--- testing) — belt and suspenders: also bind Space at a higher
--- ContextActionPriority than Roblox's own jump control and Sink it, the
--- standard way to override a default control before it ever fires,
--- rather than only trying to block the state it would transition into.
-local JUMP_BLOCK_ACTION = "CastMeterBlockJump"
-
-local function sinkSpace(_actionName: string, _inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
-	return Enum.ContextActionResult.Sink
-end
+-- Space is Roblox's default jump key. Two earlier attempts at fixing
+-- this didn't work out: SetStateEnabled(Jumping, false) alone still let
+-- the character jump, and adding a *separate* ContextActionService
+-- binding purely to Sink the key (alongside the plain
+-- UserInputService.InputBegan listener that was actually detecting the
+-- lock) stopped that listener from firing at all — apparently a Sunk
+-- ContextAction input doesn't reach UserInputService.InputBegan the same
+-- way a plain keypress does. Fix: one single ContextActionService-bound
+-- handler does both jobs — detect the press to lock the meter, AND
+-- return Sink so Roblox's own jump control (bound at a lower priority)
+-- never sees it — instead of two separate systems racing each other.
+local SPACE_ACTION = "CastMeterLockSpace"
 
 local function setJumpEnabled(enabled: boolean)
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, enabled)
-	end
-
-	if enabled then
-		ContextActionService:UnbindAction(JUMP_BLOCK_ACTION)
-	else
-		ContextActionService:BindActionAtPriority(
-			JUMP_BLOCK_ACTION,
-			sinkSpace,
-			false,
-			Enum.ContextActionPriority.High.Value,
-			Enum.KeyCode.Space
-		)
 	end
 end
 
@@ -136,6 +122,7 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		active = false
 		(screenGui :: ScreenGui).Enabled = false
 		setJumpEnabled(true)
+		ContextActionService:UnbindAction(SPACE_ACTION)
 		if heartbeatConn then
 			heartbeatConn:Disconnect()
 			heartbeatConn = nil
@@ -156,15 +143,33 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		fill.Size = UDim2.fromScale(1, power)
 	end)
 
+	-- Single handler for both jobs: locks the meter on press AND sinks
+	-- the input so Roblox's own jump control never sees it — see the
+	-- comment above SPACE_ACTION for why this used to be two separate,
+	-- conflicting mechanisms.
+	local function handleSpace(_actionName: string, inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
+		if inputState == Enum.UserInputState.Begin then
+			local t = (elapsed * CYCLES_PER_SECOND) % 2
+			local power = t <= 1 and t or (2 - t)
+			finish(power)
+		end
+		return Enum.ContextActionResult.Sink
+	end
+	ContextActionService:BindActionAtPriority(
+		SPACE_ACTION,
+		handleSpace,
+		false,
+		Enum.ContextActionPriority.High.Value,
+		Enum.KeyCode.Space
+	)
+
+	-- Escape isn't bound to any default Roblox control, so a plain
+	-- UserInputService listener is fine for it — no race to avoid here.
 	inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then
 			return
 		end
-		if input.KeyCode == Enum.KeyCode.Space then
-			local t = (elapsed * CYCLES_PER_SECOND) % 2
-			local power = t <= 1 and t or (2 - t)
-			finish(power)
-		elseif input.KeyCode == Enum.KeyCode.Escape then
+		if input.KeyCode == Enum.KeyCode.Escape then
 			finish(nil)
 		end
 	end)
