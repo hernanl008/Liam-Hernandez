@@ -128,8 +128,15 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       shape change needs one.
 - [ ] Playtest and retune the skill trees' XP curve/perk costs (`GDD.md`
       §12 — currently unplaytested guesses)
-- [ ] More perks per tree / branching instead of a flat 2-perk chain
-      (`SkillTreeConfig.lua`)
+- [x] More perks per tree / branching instead of a flat 2-perk chain
+      (`SkillTreeConfig.lua`) — each of the 3 pillars now has a 3rd,
+      level-6 perk: Farming's Market Savvy and Cooking's Signature Dish
+      both bump their category's Kaleb sell rate from 0.8x to 0.95x
+      (`ShopService.lua`/`ShopUI.lua`, read via
+      `PlayerDataService.hasPerk`/`InventoryCache.unlockedPerks`); Fishing's
+      Steady Hands reduces the effective struggle difficulty used to
+      generate the reel-in chart (`FishingService.lua`), making charts
+      easier to land rather than just more forgiving to grade
 - [x] Visual style locked: top-down 2D presentation (`CameraController.lua`
       + `GDD.md` §6) — the earlier open question is resolved
 - [x] Loading screen (`ReplicatedFirst/LoadingScreen.client.lua`)

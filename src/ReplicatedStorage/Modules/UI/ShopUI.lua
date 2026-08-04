@@ -26,9 +26,11 @@ local visible = false
 -- for *display* — the server is the one that actually prices a sale, this
 -- just needs to show a number that matches what the player will get.
 local CONVENIENCE_SELL_RATE = 0.8
+local BOOSTED_SELL_RATE = 0.95 -- Market Savvy / Signature Dish (SkillTreeConfig.lua)
 local DISH_TIER_MULTIPLIER: { [string]: number } = { Basic = 0.3, Bronze = 0.5, Silver = 0.8, Gold = 1.2 }
 
 local function unitPriceFor(category: string, id: string): number?
+	local unlockedPerks = InventoryCache.get().unlockedPerks
 	if category == "junk" then
 		for _, pull in FishingConfig.Pulls do
 			if pull.id == id then
@@ -42,9 +44,11 @@ local function unitPriceFor(category: string, id: string): number?
 			end
 		end
 	elseif category == "crops" then
+		local rate = (unlockedPerks.Farming and unlockedPerks.Farming.MarketSavvy) and BOOSTED_SELL_RATE
+			or CONVENIENCE_SELL_RATE
 		for _, crop in FarmingConfig.Crops do
 			if crop.id == id then
-				return math.floor(crop.sellPrice * CONVENIENCE_SELL_RATE)
+				return math.floor(crop.sellPrice * rate)
 			end
 		end
 	elseif category == "dishes" then
@@ -56,9 +60,11 @@ local function unitPriceFor(category: string, id: string): number?
 		if not multiplier then
 			return nil
 		end
+		local rate = (unlockedPerks.Cooking and unlockedPerks.Cooking.SignatureDish) and BOOSTED_SELL_RATE
+			or CONVENIENCE_SELL_RATE
 		for _, recipe in RhythmGameConfig.Recipes do
 			if recipe.id == recipeId then
-				return math.floor(recipe.basePrice * multiplier * CONVENIENCE_SELL_RATE)
+				return math.floor(recipe.basePrice * multiplier * rate)
 			end
 		end
 	end

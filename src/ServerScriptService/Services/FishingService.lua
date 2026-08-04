@@ -83,9 +83,20 @@ local function hookWindowFor(player: Player): number
 	return BASE_HOOK_WINDOW_SECONDS
 end
 
-local function generateReelChart(struggleDifficulty: number): { RhythmScoring.Note }
-	local noteCount = 4 + math.floor(struggleDifficulty / 2)
-	local tempo = math.max(0.9 - struggleDifficulty * 0.05, 0.35)
+-- SteadyHands (SkillTreeConfig.lua): the chart generates as if the fish
+-- were putting up less of a fight — fewer/slower notes, same as a lower-
+-- struggleDifficulty fish would produce. Applied here rather than as a
+-- flat scoring bonus so it actually makes the minigame itself easier to
+-- play, not just more forgiving to grade.
+local STEADY_HANDS_DIFFICULTY_REDUCTION = 2
+
+local function generateReelChart(struggleDifficulty: number, player: Player): { RhythmScoring.Note }
+	local effectiveDifficulty = struggleDifficulty
+	if PlayerDataService.hasPerk(player, "Fishing", "SteadyHands") then
+		effectiveDifficulty = math.max(1, struggleDifficulty - STEADY_HANDS_DIFFICULTY_REDUCTION)
+	end
+	local noteCount = 4 + math.floor(effectiveDifficulty / 2)
+	local tempo = math.max(0.9 - effectiveDifficulty * 0.05, 0.35)
 	local notes = {}
 	for i = 1, noteCount do
 		table.insert(notes, { time = i * tempo, lane = math.random(1, 3) })
@@ -158,7 +169,7 @@ function FishingService.init()
 			return
 		end
 
-		local chart = generateReelChart(bite.fish.struggleDifficulty)
+		local chart = generateReelChart(bite.fish.struggleDifficulty, player)
 		pendingReels[player] = { fish = bite.fish, chart = chart }
 		Remotes.get("ReelStart"):FireClient(player, { fishId = bite.fish.id, notes = chart })
 	end)

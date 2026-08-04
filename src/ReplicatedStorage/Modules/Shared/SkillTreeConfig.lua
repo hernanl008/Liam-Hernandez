@@ -3,7 +3,7 @@
 -- all three for now (tune SkillTreeConfig.xpPerLevel if pacing feels off
 -- once playtested) — a level grants one skill point, spent here on perks.
 --
--- Each tree is a short linear chain (2 perks) rather than a branching
+-- Each tree is a short linear chain (3 perks) rather than a branching
 -- graph: enough to feel like real progression without needing a graph-
 -- layout UI for a vertical slice. Add more perks/branches once the core
 -- three pillars are proven out (docs/ROADMAP.md Phase 3).
@@ -60,6 +60,14 @@ local Trees: { [SkillId]: SkillTreeDef } = {
 				requires = "GreenThumb",
 				cost = 1,
 			},
+			{
+				id = "MarketSavvy",
+				displayName = "Market Savvy",
+				description = "Crops sell to Kaleb for 15% more.",
+				requiredLevel = 6,
+				requires = "NoTillNeeded",
+				cost = 1,
+			},
 		},
 	},
 	Fishing = {
@@ -81,6 +89,14 @@ local Trees: { [SkillId]: SkillTreeDef } = {
 				requires = "QuickHands",
 				cost = 1,
 			},
+			{
+				id = "SteadyHands",
+				displayName = "Steady Hands",
+				description = "Reel-in charts are noticeably easier to land cleanly.",
+				requiredLevel = 6,
+				requires = "TreasureHunter",
+				cost = 1,
+			},
 		},
 	},
 	Cooking = {
@@ -100,6 +116,14 @@ local Trees: { [SkillId]: SkillTreeDef } = {
 				description = "Dishes are never worse than Bronze tier.",
 				requiredLevel = 4,
 				requires = "EfficientCook",
+				cost = 1,
+			},
+			{
+				id = "SignatureDish",
+				displayName = "Signature Dish",
+				description = "Dishes sell to Kaleb for 15% more.",
+				requiredLevel = 6,
+				requires = "ShowStopper",
 				cost = 1,
 			},
 		},

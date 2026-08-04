@@ -36,9 +36,14 @@ local DISH_TIER_MULTIPLIER: { [string]: number } = {
 
 type SellableCategory = "fish" | "crops" | "dishes" | "junk"
 
+-- Market Savvy/Signature Dish (SkillTreeConfig.lua) bump their own
+-- category's rate from 0.8 to 0.95 — a smaller, skill-gated close to the
+-- gap with the not-yet-built Trade Exchange, not a full match to it.
+local BOOSTED_SELL_RATE = 0.95
+
 -- Per-unit sell price, or nil if `id` isn't a recognized item in that
 -- category (or, for dishes, doesn't parse as "{recipeId}_{tier}").
-local function priceFor(category: SellableCategory, id: string): number?
+local function priceFor(player: Player, category: SellableCategory, id: string): number?
 	if category == "junk" then
 		for _, pull in FishingConfig.Pulls do
 			if pull.id == id then
@@ -52,9 +57,11 @@ local function priceFor(category: SellableCategory, id: string): number?
 			end
 		end
 	elseif category == "crops" then
+		local rate = PlayerDataService.hasPerk(player, "Farming", "MarketSavvy") and BOOSTED_SELL_RATE
+			or CONVENIENCE_SELL_RATE
 		for _, crop in FarmingConfig.Crops do
 			if crop.id == id then
-				return math.floor(crop.sellPrice * CONVENIENCE_SELL_RATE)
+				return math.floor(crop.sellPrice * rate)
 			end
 		end
 	elseif category == "dishes" then
@@ -66,9 +73,11 @@ local function priceFor(category: SellableCategory, id: string): number?
 		if not multiplier then
 			return nil
 		end
+		local rate = PlayerDataService.hasPerk(player, "Cooking", "SignatureDish") and BOOSTED_SELL_RATE
+			or CONVENIENCE_SELL_RATE
 		for _, recipe in RhythmGameConfig.Recipes do
 			if recipe.id == recipeId then
-				return math.floor(recipe.basePrice * multiplier * CONVENIENCE_SELL_RATE)
+				return math.floor(recipe.basePrice * multiplier * rate)
 			end
 		end
 	end
@@ -95,7 +104,7 @@ function ShopService.init()
 			return
 		end
 
-		local unitPrice = priceFor(category :: SellableCategory, id)
+		local unitPrice = priceFor(player, category :: SellableCategory, id)
 		if not unitPrice then
 			return -- unrecognized item, not a legitimate sell request
 		end
