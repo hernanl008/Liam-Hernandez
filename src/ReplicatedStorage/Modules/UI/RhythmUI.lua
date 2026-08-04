@@ -29,6 +29,7 @@ local Players = game:GetService("Players")
 local RhythmScoring = require(script.Parent.Parent:WaitForChild("Shared"):WaitForChild("RhythmScoring"))
 local Theme = require(script.Parent:WaitForChild("Theme"))
 local PlayerFreeze = require(script.Parent.Parent:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
+local SpectacleUI = require(script.Parent:WaitForChild("SpectacleUI"))
 
 local LANE_KEYS = { Enum.KeyCode.D, Enum.KeyCode.F, Enum.KeyCode.J, Enum.KeyCode.K }
 local HIT_TOLERANCE = 0.35 -- seconds around a note's time it can still register as *a* hit; RhythmScoring grades accuracy within this
@@ -87,6 +88,31 @@ local function addRivet(parent: Instance, anchorX: number, anchorY: number, colo
 	stroke.Color = Theme.RetroColors.WoodDark
 	stroke.Thickness = 1
 	stroke.Parent = rivet
+end
+
+-- A quick expanding-ring pop on a lane that just landed a hit — plain UI
+-- (a circular Frame tweened bigger + transparent, then destroyed), same
+-- "no art asset needed" approach SpectacleUI's speed lines use.
+local function spawnHitBurst(laneFrame: Frame, color: Color3)
+	local burst = Instance.new("Frame")
+	burst.AnchorPoint = Vector2.new(0.5, 0.5)
+	burst.Position = UDim2.fromScale(0.5, 0.5)
+	burst.Size = UDim2.fromScale(0.35, 0.35)
+	burst.BackgroundColor3 = color
+	burst.BackgroundTransparency = 0.15
+	burst.BorderSizePixel = 0
+	burst.ZIndex = 5
+	burst.Parent = laneFrame
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = burst
+	TweenService:Create(burst, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.fromScale(1.5, 1.5),
+		BackgroundTransparency = 1,
+	}):Play()
+	task.delay(0.35, function()
+		burst:Destroy()
+	end)
 end
 
 function RhythmUI.play(
@@ -162,7 +188,11 @@ function RhythmUI.play(
 	local laneWhiffColor: Color3
 
 	local meterFill: Frame? = nil
+	local meterFrameScale: UIScale? = nil
+	local meterStroke: UIStroke? = nil
 	local meterValue = METER_START
+	local warningTween: Tween? = nil
+	local laneScales: { [number]: UIScale } = {}
 
 	if retro then
 		container.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -226,10 +256,15 @@ function RhythmUI.play(
 		meterFrame.BorderSizePixel = 0
 		meterFrame.Parent = parent
 		Theme.applyRetroPanel(meterFrame, { strokeThickness = 3 })
+		meterStroke = meterFrame:FindFirstChildOfClass("UIStroke")
 		addRivet(meterFrame, 0, 0, accentColor)
 		addRivet(meterFrame, 1, 0, accentColor)
 		addRivet(meterFrame, 0, 1, accentColor)
 		addRivet(meterFrame, 1, 1, accentColor)
+
+		local meterScale = Instance.new("UIScale")
+		meterScale.Parent = meterFrame
+		meterFrameScale = meterScale
 
 		local meterCaption = Instance.new("TextLabel")
 		meterCaption.Size = UDim2.fromScale(0.92, 0.1)
@@ -302,6 +337,10 @@ function RhythmUI.play(
 			Theme.applyRetroCard(frame, 6)
 			label.FontFace = Theme.RetroFontFace
 			label.TextColor3 = Theme.RetroColors.Parchment
+
+			local scale = Instance.new("UIScale")
+			scale.Parent = frame
+			laneScales[lane] = scale
 		else
 			frame.Size = UDim2.fromScale(0.23, 0.8)
 			frame.Position = UDim2.fromScale((lane - 1) * 0.25 + 0.01, 0.1)
@@ -335,6 +374,10 @@ function RhythmUI.play(
 		if inputConnection then
 			inputConnection:Disconnect()
 		end
+		if warningTween then
+			warningTween:Cancel()
+			warningTween = nil
+		end
 
 		local function finalize()
 			PlayerFreeze.stop()
@@ -356,18 +399,76 @@ function RhythmUI.play(
 	end
 
 	-- Retro mode only (meterFill is nil otherwise, so this is a no-op).
+	-- Below 30% the fill goes warning-red and the frame's stroke starts a
+	-- slow pulse — a losing run should visibly feel like it's slipping
+	-- before it actually empties, not just stop dead with no warning.
 	-- Emptying the meter ends the chart immediately rather than waiting
 	-- for it to run out normally — see this file's header for why that's
 	-- safe: the server scores the same fixed note list either way.
+	local WARNING_THRESHOLD = 0.3
 	local function adjustMeter(delta: number)
 		if not meterFill then
 			return
 		end
 		meterValue = math.clamp(meterValue + delta, 0, 1)
 		meterFill.Size = UDim2.fromScale(1, meterValue)
+
+		local warning = meterValue <= WARNING_THRESHOLD
+		local fillColor = warning and Theme.RetroColors.Rust or accentColor
+		meterFill.BackgroundColor3 = fillColor
+		local gradient = meterFill:FindFirstChildOfClass("UIGradient")
+		if gradient then
+			gradient.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255):Lerp(fillColor, 0.35)),
+				ColorSequenceKeypoint.new(1, fillColor),
+			})
+		end
+
+		if warning and not warningTween and meterStroke then
+			local tween = TweenService:Create(
+				meterStroke,
+				TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Color = Theme.RetroColors.Rust }
+			)
+			tween:Play()
+			warningTween = tween
+		elseif not warning and warningTween then
+			warningTween:Cancel()
+			warningTween = nil
+			if meterStroke then
+				meterStroke.Color = Theme.RetroColors.WoodDark
+			end
+		end
+
+		if delta < 0 and meterFrameScale then
+			meterFrameScale.Scale = 0.92
+			TweenService:Create(meterFrameScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Scale = 1,
+			}):Play()
+		end
+
 		if meterValue <= 0 then
+			-- The dramatic "lost it" beat: a bigger shake than any single
+			-- hit/combo gets, right as the fish gets away.
+			pcall(SpectacleUI.shake, 0.25, 0.3)
 			cleanup()
 		end
+	end
+
+	-- Retro mode only (laneScales only gets populated then). A quick
+	-- squash/pop on the lane card itself — separate from the flash color
+	-- and the ring burst below, all three landing in the same instant is
+	-- what actually sells a hit as *impactful* rather than just a color
+	-- change.
+	local function punchLane(laneIndex: number, targetScale: number)
+		local scale = laneScales[laneIndex]
+		if not scale then
+			return
+		end
+		scale.Scale = targetScale
+		TweenService:Create(scale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Scale = 1,
+		}):Play()
 	end
 
 	local function updateCombo(hitTopWindow: boolean)
@@ -380,6 +481,13 @@ function RhythmUI.play(
 				TweenService:Create(comboLabel, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 					Size = comboBaseSize,
 				}):Play()
+				if retro then
+					-- Tied to the milestone pulse (every 3rd top-tier hit in a
+					-- row), not every single hit — a shake on every note would
+					-- be nauseating; a shake on "you're on a streak" reads as
+					-- a payoff instead.
+					pcall(SpectacleUI.shake, 0.05, 0.15)
+				end
 			end
 		else
 			liveCombo = 0
@@ -417,6 +525,10 @@ function RhythmUI.play(
 			local window = RhythmScoring.classify(offset, scoringWindows)
 			updateCombo(window.name == topWindowName)
 			adjustMeter((window.qualityScore / topWindow.qualityScore) * METER_MAX_GAIN)
+			if retro then
+				punchLane(laneIndex, 1.18)
+				spawnHitBurst(laneFrames[laneIndex], laneHitColor)
+			end
 		else
 			-- No note within HIT_TOLERANCE for this lane right now — still
 			-- flash (red) so the press is visibly acknowledged instead of
@@ -425,6 +537,9 @@ function RhythmUI.play(
 			flashColor[laneIndex] = laneWhiffColor
 			updateCombo(false) -- whiffed input on this lane breaks the streak too
 			adjustMeter(-METER_WHIFF_PENALTY)
+			if retro then
+				punchLane(laneIndex, 0.88)
+			end
 		end
 	end)
 
@@ -448,6 +563,9 @@ function RhythmUI.play(
 				missedNotes[i] = true
 				updateCombo(false)
 				adjustMeter(-METER_MISS_PENALTY)
+				if retro then
+					punchLane(note.lane, 0.85)
+				end
 				if finished then
 					return
 				end

@@ -109,6 +109,14 @@ local function shakeCamera(intensity: number, duration: number)
 	end)
 end
 
+-- Public standalone shake — for callers that want the camera punch
+-- without a full banner+speed-lines callout every time (e.g. RhythmUI's
+-- per-hit/combo-milestone juice, which fires far more often than a
+-- banner-worthy moment would).
+function SpectacleUI.shake(intensity: number, duration: number)
+	shakeCamera(intensity, duration)
+end
+
 export type BannerOptions = {
 	shake: boolean?,
 	holdSeconds: number?,
