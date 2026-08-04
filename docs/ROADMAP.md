@@ -92,8 +92,16 @@ dates. Rough week numbers assume ~1 month total, adjust as reality dictates.
       Added 3 crops (Spring/Fall/Winter) so every season has something to
       grow, and swapped the starter kit's Summer-only seed for the new
       Spring one so Kaya's tutorial still works on Day 1.
+- [x] Kaleb's sell shop (`ShopService.lua`/`ShopUI.lua`/`ShopController.lua`,
+      press N or use his second ProximityPrompt) — this was a real gap, not
+      just missing polish: `PlayerDataService.addGold` was never called
+      anywhere before this, so there was no way to earn gold at all despite
+      every fish/crop/dish/pull already having a price. Sells at 80% of
+      listed value except junk/treasure (Kaleb's actual specialty, full
+      value) — deliberately worse than the not-yet-built Trade Exchange
+      (GDD.md §7) so that remains worth building later, not redundant.
 - [ ] Story beats implemented per the lore bible's arc
-- [ ] UI/UX pass (HUD, inventory, shop, dialogue box)
+- [ ] UI/UX pass (general inventory grid, dialogue box polish)
 - [ ] Cast-power meter that actually affects bite odds, and/or broader
       weather effects on fish spawns (`GDD.md` §3 — currently only the
       Moonlit Serpent has any time-of-day gating)

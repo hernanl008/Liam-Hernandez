@@ -14,6 +14,7 @@ local CompendiumController = require(Controllers:WaitForChild("CompendiumControl
 local SkillTreeController = require(Controllers:WaitForChild("SkillTreeController"))
 local HudController = require(Controllers:WaitForChild("HudController"))
 local AmbienceController = require(Controllers:WaitForChild("AmbienceController"))
+local ShopController = require(Controllers:WaitForChild("ShopController"))
 
 CameraController.init()
 FarmingController.init()
@@ -24,5 +25,9 @@ CompendiumController.init()
 SkillTreeController.init()
 HudController.init()
 AmbienceController.init()
+-- Must init after DialogueController: it adds its own ProximityPrompt to
+-- Kaleb's part and depends on DialogueController having already claimed/
+-- created the "Talk" one first (see ShopController.lua's header comment).
+ShopController.init()
 
 print("[AnimeFarmLife] Client ready.")

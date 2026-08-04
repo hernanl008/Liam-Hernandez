@@ -33,6 +33,8 @@ local EVENT_NAMES = {
 	"InventoryUpdate",
 	"UnlockPerk",
 	"UnlockPerkResult",
+	"SellItem",
+	"SellItemRejected",
 }
 
 local Remotes = {}
