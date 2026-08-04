@@ -15,6 +15,7 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local ShopUI = require(Modules:WaitForChild("UI"):WaitForChild("ShopUI"))
 local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
+local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
 
 local ShopController = {}
 
@@ -45,6 +46,9 @@ function ShopController.init()
 
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then
+			return
+		end
+		if CastMeterUI.isActive() then
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then

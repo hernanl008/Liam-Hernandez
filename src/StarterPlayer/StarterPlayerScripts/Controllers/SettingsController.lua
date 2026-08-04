@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local SettingsUI = require(Modules:WaitForChild("UI"):WaitForChild("SettingsUI"))
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
+local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
 
 local SettingsController = {}
 
@@ -16,6 +17,9 @@ local TOGGLE_KEY = Enum.KeyCode.O
 function SettingsController.init()
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then
+			return
+		end
+		if CastMeterUI.isActive() then
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then

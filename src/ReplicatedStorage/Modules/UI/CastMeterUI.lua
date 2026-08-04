@@ -6,22 +6,20 @@
 -- in whatever power it's at, same skill-based "stop the moving bar" beat
 -- as the reel-in minigame but simpler (one axis, no scoring window).
 --
--- While the meter is up, the player is meant to be planted in place —
--- three earlier attempts at blocking movement/jump piecemeal
--- (SetStateEnabled(Jumping, false), WalkSpeed = 0, sinking individual
--- keys through ContextActionService) each fixed one symptom without
--- fully working, most likely because Roblox's default WASD movement
--- polls key state directly each frame rather than reacting to bound
--- actions the way jump does — sinking specific keys never touched it,
--- and the sinking itself turned out to suppress the plain
--- UserInputService listener this module used to detect the Space lock,
--- breaking that instead. The actual fix is PlayerModule's Controls
--- object (GetControls():Disable()/:Enable()) — Roblox's own documented
--- "turn off all default character input at once" API — which sidesteps
--- both problems: it's the real mechanism games use for this, and it
--- doesn't interfere with this module's own plain UserInputService
--- listener for Space/Escape (a separate, independent system).
-
+-- While the meter is up, the player is meant to be planted in place.
+-- Four earlier attempts at this (SetStateEnabled(Jumping, false),
+-- WalkSpeed = 0, sinking individual keys through ContextActionService,
+-- PlayerModule.Controls:Disable()) each failed for a different reason —
+-- confirmed via debug logging that this project's StarterPlayerScripts
+-- doesn't actually have a PlayerModule after Rojo syncs it (so Controls
+-- was never reachable), and separately that WalkSpeed = 0 visibly wasn't
+-- stopping movement either, meaning whatever drives it here isn't the
+-- normal Humanoid pipeline those techniques assume. Instead of chasing
+-- the exact mechanism further, this brute-forces it: every single frame
+-- the meter is active, the HumanoidRootPart gets snapped back to exactly
+-- where it was when the meter opened and its velocity zeroed — it
+-- doesn't matter what tried to move it, the position is just overwritten
+-- after everything else already had its chance to.
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -43,78 +41,34 @@ local inputConn: RBXScriptConnection? = nil
 local elapsed = 0
 local finishActive: ((number?) -> ())? = nil
 
--- Resolved once, lazily, the first time it's needed rather than at
--- module load — PlayerScripts/PlayerModule should already exist by then
--- (this module is only ever required from a Controller that's already
--- running under StarterPlayerScripts), but there's no reason to risk a
--- module-load-time failure over it given this session's history with
--- exactly that failure mode. nil if PlayerModule can't be found/required
--- (e.g. this project's source tree doesn't track it under
--- StarterPlayerScripts, so it depends on whatever Rojo's sync leaves in
--- place) — setPlayerFrozen falls back to the Humanoid-level attempts
--- below in that case, better than nothing even if not fully reliable.
-local controlsResolved = false
-local controls: any = nil
+-- Set only while frozen; the Heartbeat loop re-pins the root part to
+-- this every frame. nil means "not currently freezing position."
+local frozenCFrame: CFrame? = nil
 
--- TEMPORARY diagnostic logging (prefixed "[CastMeterDebug]") — four
--- attempts at blocking movement/jump have each failed for a different,
--- non-obvious reason, so this prints exactly what's actually happening
--- instead of guessing at a fifth fix blind. Remove once the real cause
--- is confirmed from Studio's Output window.
-local function getControls(): any
-	if controlsResolved then
-		return controls
+local function getRootPart(): BasePart?
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		return root
 	end
-	controlsResolved = true
-	local ok, result = pcall(function()
-		local playerScripts = Players.LocalPlayer:WaitForChild("PlayerScripts", 5)
-		print(`[CastMeterDebug] PlayerScripts found: {playerScripts ~= nil}`)
-		local playerModuleScript = playerScripts and playerScripts:FindFirstChild("PlayerModule")
-		print(`[CastMeterDebug] PlayerModule found: {playerModuleScript ~= nil}`)
-		if not playerModuleScript then
-			return nil
-		end
-		local playerModule = require(playerModuleScript :: ModuleScript) :: any
-		print(`[CastMeterDebug] PlayerModule required OK, has GetControls: {typeof(playerModule.GetControls) == "function"}`)
-		return playerModule:GetControls()
-	end)
-	print(`[CastMeterDebug] getControls pcall ok={ok} result={tostring(result)}`)
-	if ok then
-		controls = result
-	end
-	return controls
+	return nil
 end
 
-local savedWalkSpeed: number? = nil
-
 local function setPlayerFrozen(frozen: boolean)
-	local resolvedControls = getControls()
-	print(`[CastMeterDebug] setPlayerFrozen({frozen}) — resolvedControls={tostring(resolvedControls)}`)
-	if resolvedControls then
-		if frozen then
-			resolvedControls:Disable()
-		else
-			resolvedControls:Enable()
-		end
+	if frozen then
+		local root = getRootPart()
+		frozenCFrame = root and root.CFrame
+	else
+		frozenCFrame = nil
 	end
 
-	-- Backup layer in case Controls couldn't be resolved — not fully
-	-- reliable on its own (see the header comment) but better than
-	-- nothing.
+	-- Kept as an extra layer alongside the position-pin above — doesn't
+	-- hurt, and stops jump's animation/sound from playing even though
+	-- the pin would undo the actual displacement regardless.
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	print(`[CastMeterDebug] character={tostring(character)} humanoid={tostring(humanoid)}`)
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, not frozen)
-		if frozen then
-			savedWalkSpeed = humanoid.WalkSpeed
-			humanoid.WalkSpeed = 0
-			print(`[CastMeterDebug] froze — WalkSpeed now {humanoid.WalkSpeed}, saved was {savedWalkSpeed}`)
-		elseif savedWalkSpeed then
-			humanoid.WalkSpeed = savedWalkSpeed
-			savedWalkSpeed = nil
-			print(`[CastMeterDebug] unfroze — WalkSpeed restored to {humanoid.WalkSpeed}`)
-		end
 	end
 end
 
@@ -175,7 +129,6 @@ end
 -- Fires `onLocked(power)` (0-1) once the player presses Space, or
 -- `onLocked(nil)` if `cancel()` is called first (e.g. player walks away).
 function CastMeterUI.start(onLocked: (power: number?) -> ())
-	print("[CastMeterDebug] CastMeterUI.start called")
 	ensureBuilt()
 	if active then
 		return
@@ -210,20 +163,24 @@ function CastMeterUI.start(onLocked: (power: number?) -> ())
 		local t = (elapsed * CYCLES_PER_SECOND) % 2
 		local power = t <= 1 and t or (2 - t)
 		fill.Size = UDim2.fromScale(1, power)
+
+		if frozenCFrame then
+			local root = getRootPart()
+			if root then
+				root.CFrame = frozenCFrame
+				root.AssemblyLinearVelocity = Vector3.zero
+				root.AssemblyAngularVelocity = Vector3.zero
+			end
+		end
 	end)
 
-	-- Plain input listener — Controls:Disable() above handles keeping
-	-- Roblox's own jump/movement from firing, so there's nothing this
-	-- needs to Sink or race against anymore.
 	inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		print(`[CastMeterDebug] InputBegan keyCode={input.KeyCode} gameProcessed={gameProcessed}`)
 		if gameProcessed then
 			return
 		end
 		if input.KeyCode == Enum.KeyCode.Space then
 			local t = (elapsed * CYCLES_PER_SECOND) % 2
 			local power = t <= 1 and t or (2 - t)
-			print(`[CastMeterDebug] Space locked at power={power}`)
 			finish(power)
 		elseif input.KeyCode == Enum.KeyCode.Escape then
 			finish(nil)

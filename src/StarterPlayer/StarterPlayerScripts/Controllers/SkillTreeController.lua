@@ -9,6 +9,7 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local SkillTreeUI = require(Modules:WaitForChild("UI"):WaitForChild("SkillTreeUI"))
 local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
+local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
 
 local SkillTreeController = {}
 
@@ -17,6 +18,9 @@ local TOGGLE_KEY = Enum.KeyCode.P
 function SkillTreeController.init()
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then
+			return
+		end
+		if CastMeterUI.isActive() then
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then
