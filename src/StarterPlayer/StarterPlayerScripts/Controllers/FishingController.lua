@@ -23,6 +23,7 @@ local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("R
 local FishingRig = require(Modules:WaitForChild("Client"):WaitForChild("FishingRig"))
 local SoundIds = require(Modules:WaitForChild("Shared"):WaitForChild("SoundIds"))
 local SoundPlayer = require(Modules:WaitForChild("Client"):WaitForChild("SoundPlayer"))
+local CatchShowcaseUI = require(Modules:WaitForChild("UI"):WaitForChild("CatchShowcaseUI"))
 
 local FishingController = {}
 
@@ -120,6 +121,7 @@ function FishingController.init()
 
 	Remotes.get("CatchResult").OnClientEvent:Connect(function(payload: {
 		outcome: string,
+		fishId: string?,
 		displayName: string?,
 		rarity: string?,
 		pullId: string?,
@@ -145,6 +147,12 @@ function FishingController.init()
 			-- was celebrating an empty patch of air.
 			FishingRig.endReel(true, {
 				onHeld = function()
+					-- The requested "zoom of the species" — the caught fish's
+					-- sprite blown up center-screen for the length of the
+					-- hold, popping in with everything else.
+					if payload.fishId then
+						CatchShowcaseUI.show(payload.fishId, accentColor, 1.25)
+					end
 					if payload.spectacle then
 						-- Priority: a Legendary catch always reads as
 						-- Legendary first; otherwise a near-flawless reel-in

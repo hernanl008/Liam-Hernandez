@@ -47,6 +47,7 @@ local RunService = game:GetService("RunService")
 -- — parts nothing else re-drives per frame. The rod/fish stay on manual
 -- Heartbeat CFrame math for the reason the header explains.
 local TweenService = game:GetService("TweenService")
+local ContentProvider = game:GetService("ContentProvider")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AssetIds = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Shared"):WaitForChild("AssetIds"))
@@ -319,11 +320,31 @@ local function applySheetSprite(part: BasePart, spriteId: string): boolean
 	image.ImageRectOffset = FishSpriteSheet.rectOffsetFor(spriteId)
 	image.Parent = surface
 
-	-- With the sprite carrying the visuals, the part itself goes
-	-- near-invisible (0.999, not 1 — the same "fully transparent from
-	-- birth suppresses attached visuals" engine quirk placeProps works
-	-- around).
-	part.Transparency = 0.999
+	-- Verified-load before hiding the block, the same rule the sprite
+	-- character learned the hard way: the colored fallback stays visible
+	-- until the sheet image actually renders, so a bad upload (Decal id,
+	-- moderation, the wrong file) shows the old block + a warning naming
+	-- the problem — never an invisible fish.
+	task.spawn(function()
+		pcall(function()
+			ContentProvider:PreloadAsync({ image })
+		end)
+		if image.IsLoaded then
+			if part.Parent then
+				-- 0.999, not 1 — the "fully transparent from birth
+				-- suppresses attached visuals" engine quirk placeProps
+				-- works around.
+				part.Transparency = 0.999
+			end
+		else
+			surface:Destroy()
+			warn(
+				`[FishingRig] fish sheet {sheetId} never loaded — falling back to the colored block. `
+					.. `Most likely the uploaded asset is a Decal id, still in moderation, or the wrong file `
+					.. `(a chat preview instead of assets/sprites/fish_sheet.png).`
+			)
+		end
+	end)
 	return true
 end
 

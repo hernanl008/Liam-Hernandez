@@ -60,10 +60,14 @@ for row_y, phase, waves in ((6, 0.0, 1), (18, 1.9, 2), (30, 0.7, 1), (42, 2.4, 2
         y = row_y + dy * BLOCK
 
         # Long dashes with clear gaps, offset per row so rows don't align.
-        gap = (x // BLOCK + int(phase * 4)) % 13
-        if gap < 7:
+        # Dash period MUST divide the 32 blocks per row evenly (32 % 8 == 0)
+        # or the dash phase breaks at every tile boundary — the original
+        # period of 13 didn't, which made every tile edge a visible seam
+        # even though the sine components all wrapped cleanly.
+        gap = (x // BLOCK + int(phase * 4)) % 8
+        if gap < 5:
             put_block(x, y, LIGHT)
-            if gap in (2, 3):
+            if gap in (1, 2):
                 put_block(x, y - BLOCK, FOAM)
 
 img.save("assets/tiles/water.png")
