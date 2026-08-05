@@ -223,11 +223,28 @@ function FishingRig.startReel(durationSeconds: number)
 	end)
 end
 
--- `success`: true if the fish was actually landed (it arrives at the rod
--- tip and pops); false for a miss/escape (it darts away and vanishes).
+-- Above and just in front of the character's head — "holding the catch
+-- up," the beat between "reeled it in" and the celebration effects. Live
+-- root-relative rather than a position captured once, so it keeps
+-- tracking correctly even if the player moves during the hold (they're
+-- not frozen for this — PlayerFreeze already released them the moment
+-- the 2D minigame ended, well before this 3D beat even starts).
+local HELD_OFFSET = CFrame.new(0, 2.1, -0.6)
+local HELD_RISE_SECONDS = 0.35
+local HELD_HOLD_SECONDS = 1.0
+
+-- `success`: true if the fish was actually landed — it rises to a held-
+-- up pose in front of the character, pauses there, then pops; false for
+-- a miss/escape — it darts away and vanishes instead. `onComplete` (if
+-- given) fires once that beat is fully finished, so a caller can time
+-- celebration effects to land *after* the physical catch instead of
+-- racing it — including the "no fish existed at all" cases (a Pull or a
+-- ZoneLocked rejection never called startReel), where it just fires
+-- immediately since there's nothing to animate.
 -- Safe to call even if startReel was never called (e.g. unequipRod's own
--- cleanup calling this defensively) — no-ops when there's no fish.
-function FishingRig.endReel(success: boolean)
+-- cleanup calling this defensively) — no-ops (past firing onComplete)
+-- when there's no fish.
+function FishingRig.endReel(success: boolean, onComplete: (() -> ())?)
 	reeling = false
 	if fishConn then
 		fishConn:Disconnect()
@@ -235,19 +252,46 @@ function FishingRig.endReel(success: boolean)
 	end
 	local fish = fishPart
 	if not fish then
+		if onComplete then
+			onComplete()
+		end
 		return
 	end
 	fishPart = nil
 
 	if success then
-		task.delay(0.15, function()
-			fish:Destroy()
+		local startTime = os.clock()
+		local risePosition = fish.Position
+		local holdConn: RBXScriptConnection
+		holdConn = RunService.Heartbeat:Connect(function()
+			local rootCFrame = getRootCFrame()
+			if not rootCFrame then
+				return
+			end
+			local heldTarget = (rootCFrame * HELD_OFFSET).Position
+			local elapsed = os.clock() - startTime
+			if elapsed < HELD_RISE_SECONDS then
+				local alpha = elapsed / HELD_RISE_SECONDS
+				fish.CFrame = CFrame.new(risePosition:Lerp(heldTarget, alpha)) * CFrame.Angles(0, math.rad(90), 0)
+			elseif elapsed < HELD_RISE_SECONDS + HELD_HOLD_SECONDS then
+				-- A small triumphant bob while held up, instead of sitting
+				-- dead still.
+				local bob = math.sin((elapsed - HELD_RISE_SECONDS) * 4) * 0.1
+				fish.CFrame = CFrame.new(heldTarget + Vector3.new(0, bob, 0)) * CFrame.Angles(0, math.rad(90), 0)
+			else
+				holdConn:Disconnect()
+				fish:Destroy()
+				if onComplete then
+					onComplete()
+				end
+			end
 		end)
 	else
 		local escapeConn: RBXScriptConnection
 		local startTime = os.clock()
 		local startPosition = fish.Position
-		local awayDirection = (fish.Position - (getRootCFrame() and (getRootCFrame() :: CFrame).Position or fish.Position))
+		local rootCFrame = getRootCFrame()
+		local awayDirection = fish.Position - (rootCFrame and rootCFrame.Position or fish.Position)
 		if awayDirection.Magnitude < 0.01 then
 			awayDirection = Vector3.new(0, 0, -1)
 		else
@@ -258,6 +302,9 @@ function FishingRig.endReel(success: boolean)
 			if elapsed >= 0.4 then
 				escapeConn:Disconnect()
 				fish:Destroy()
+				if onComplete then
+					onComplete()
+				end
 				return
 			end
 			fish.CFrame = CFrame.new(startPosition + awayDirection * (elapsed / 0.4) * 12)
