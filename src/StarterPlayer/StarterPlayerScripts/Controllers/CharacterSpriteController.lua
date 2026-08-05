@@ -12,8 +12,8 @@
 -- Sheets (assets/sprites/player_idle.png, player_walk.png — visually
 -- inspected, not just inferred from frame geometry): both are 32x32-px
 -- cells, 3 rows, in the standard convention for this style of asset
--- pack — row 1 faces the camera (down), row 2 is a side profile, row 3
--- faces away (up). Idle has 4 columns (walk 6).
+-- pack — see the ROW_* constants below for the verified row order. Idle
+-- has 4 columns (walk 6).
 --
 -- Known limitation: the side row is used as-is for BOTH left and right,
 -- so walking one of those two directions shows the character facing the
@@ -51,9 +51,14 @@ local CharacterSpriteController = {}
 local FRAME_SIZE = 32
 local IDLE_COLUMNS = 4
 local WALK_COLUMNS = 6
+-- Row order verified by cropping the sheet and looking at it, after the
+-- first guess (down / side / up, the more common convention) turned out
+-- wrong and made walking sideways show the back pose: row 0 faces the
+-- camera (face visible), row 1 faces away (back of head), row 2 is the
+-- side profile.
 local ROW_DOWN = 0
-local ROW_SIDE = 1
-local ROW_UP = 2
+local ROW_UP = 1
+local ROW_SIDE = 2
 local IDLE_FPS = 4
 local WALK_FPS = 10
 local MOVE_THRESHOLD = 0.05 -- Humanoid.MoveDirection magnitude below this counts as "standing still"

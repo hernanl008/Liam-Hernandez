@@ -7,11 +7,9 @@
 -- normally. Still missing: tiles/grass.png, tiles/path.png,
 -- tiles/sakura_grass.png, tiles/tilled_soil.png, tiles/water.png — add
 -- those once uploaded (falls back to a blank placeholder until then).
--- Also still missing, both used by FishingRig.lua and both falling back
--- to plain colored blocks until uploaded: sprites/fish_generic.png (any
--- fish image works) for the reel-in's fish standee, and
--- sprites/fishing_rod.png (already drawn, sitting in assets/sprites/)
--- for the rod itself.
+-- Also still missing: sprites/fish_generic.png (any fish image works)
+-- for the reel-in's fish standee, which falls back to a plain colored
+-- block until uploaded.
 return {
 	-- The pack's character walk/idle sheets, driving the 2D sprite-character
 	-- conversion (CharacterSpriteController.lua). These two are *Image*
@@ -23,6 +21,9 @@ return {
 	-- loaded. If you ever re-upload them, use Asset Manager > Images.
 	["sprites/player_idle.png"] = "rbxassetid://121634740972126",
 	["sprites/player_walk.png"] = "rbxassetid://105981369730127",
+	-- Drawn by tools/make_fishing_rod_sprite.py (the pack has no rod art).
+	-- Used as a Decal on FishingRig's rod standee.
+	["sprites/fishing_rod.png"] = "rbxassetid://122948917384062",
 	["sprites/player_placeholder.png"] = "rbxassetid://113485555309209",
 	["sprites/petal.png"] = "rbxassetid://135838448433089",
 	["sprites/kaya_placeholder.png"] = "rbxassetid://99746438596164",

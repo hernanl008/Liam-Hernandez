@@ -22,6 +22,11 @@ local MapBuilder = {}
 
 local FOLDER_NAME = "GeneratedMap"
 
+-- Shared with WaterController.lua (client), which finds every tagged
+-- tile and scrolls the named Texture to animate the waves.
+local WATER_TAG = "WaterTile"
+local WATER_TEXTURE_NAME = "WaterTexture"
+
 -- Y = 0.5 is ground level: tiles are 1 stud tall centered at y=0, so
 -- their top surface sits at 0.5. Callers add half their own height on
 -- top of this so everything rests flush on the ground instead of
@@ -54,19 +59,30 @@ local function buildGround(folder: Folder)
 				part.Parent = folder
 
 				if tileDef.textureName == "water" then
-					-- Water gets Roblox's built-in animated Water material
-					-- instead of the usual painted-texture-on-a-flat-part
-					-- treatment every other tile uses. tiles/water.png has
-					-- never actually been uploaded (tarmac sync needs
-					-- Liam's own Roblox login, not something this session
-					-- can run), and even once it is, a painted-still-image
-					-- texture is a worse fit for water than Roblox's native
-					-- material, which is genuinely animated (waves/ripple)
-					-- and needs zero uploaded assets. No Texture instance
-					-- for this tile type — Material.Water supplies its own
-					-- surface, a Texture overlay would just fight it.
-					part.Material = Enum.Material.Water
-					part.Transparency = 0.15
+					local waterId = AssetIds.tile("water")
+					if waterId ~= "rbxassetid://0" then
+						-- Pixel-art water tile (tools/make_water_tile.py),
+						-- tagged so WaterController can scroll each tile's
+						-- texture offset independently — that scrolling is
+						-- what makes it move; the texture itself is a still
+						-- image.
+						part.Material = Enum.Material.SmoothPlastic
+						local texture = Instance.new("Texture")
+						texture.Name = WATER_TEXTURE_NAME
+						texture.Face = Enum.NormalId.Top
+						texture.Texture = waterId
+						texture.StudsPerTileU = tileSize
+						texture.StudsPerTileV = tileSize
+						texture.Parent = part
+						CollectionService:AddTag(part, WATER_TAG)
+					else
+						-- Not uploaded yet: fall back to Roblox's built-in
+						-- Water material, which is at least natively animated
+						-- and needs no asset at all. Strictly better than a
+						-- flat blue block while waiting on the upload.
+						part.Material = Enum.Material.Water
+						part.Transparency = 0.15
+					end
 				else
 					part.Material = Enum.Material.SmoothPlastic
 
