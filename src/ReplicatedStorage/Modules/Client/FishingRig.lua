@@ -45,6 +45,10 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+-- TweenService is ONLY used for one-shot sparkle glints (spawnCatchSparkles)
+-- — parts nothing else re-drives per frame. The rod/fish stay on manual
+-- Heartbeat CFrame math for the reason the header explains.
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AssetIds = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Shared"):WaitForChild("AssetIds"))
@@ -368,20 +372,68 @@ end
 -- the 2D minigame ended, well before this 3D beat even starts).
 local HELD_OFFSET = CFrame.new(0, 3.4, -0.6)
 local HELD_RISE_SECONDS = 0.35
-local HELD_HOLD_SECONDS = 1.0
+-- Long enough to actually read the toast/banner that now fires AT the
+-- hold (see onHeld below) while the fish is still up — 1.0 was tuned
+-- for when the celebration came after the pop instead.
+local HELD_HOLD_SECONDS = 1.4
+
+-- Small gold diamond glints that pop around the held-up catch and drift
+-- upward as they fade — the "sparkling catch" beat, in the world, at the
+-- fish, rather than a UI ring somewhere else on screen. One-shot tweens
+-- are safe here (unlike the rod/fish, nothing re-drives these parts per
+-- frame, which is the conflict the header warns about).
+local function spawnCatchSparkles(center: Vector3)
+	for i = 1, 6 do
+		task.delay((i - 1) * 0.07, function()
+			local sparkle = Instance.new("Part")
+			sparkle.Name = "CatchSparkle"
+			sparkle.Size = Vector3.new(0.35, 0.35, 0.06)
+			sparkle.Color = Color3.fromRGB(255, 226, 120)
+			sparkle.Material = Enum.Material.SmoothPlastic
+			sparkle.CanCollide = false
+			sparkle.CanQuery = false
+			sparkle.Anchored = true
+			local offset = Vector3.new(
+				(math.random() - 0.5) * 3.2,
+				(math.random() - 0.5) * 2.2,
+				(math.random() - 0.5) * 0.8
+			)
+			-- Rotated 45 degrees in-plane: reads as a diamond glint, and
+			-- stays camera-facing for the same fixed-camera reason the fish
+			-- sprite does.
+			sparkle.CFrame = CFrame.new(center + offset) * CFrame.Angles(0, 0, math.rad(45))
+			sparkle.Parent = Workspace
+			TweenService:Create(sparkle, TweenInfo.new(0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = sparkle.Position + Vector3.new(0, 1.4, 0),
+				Transparency = 1,
+			}):Play()
+			task.delay(0.75, function()
+				sparkle:Destroy()
+			end)
+		end)
+	end
+end
+
+export type EndReelCallbacks = {
+	-- Fires the moment the fish reaches the held-up pose (success only) —
+	-- the peak of the catch. The celebration (banner/toast/sound) hooks
+	-- in here so it plays WHILE the catch is held overhead, Stardew-style,
+	-- instead of after the fish has already vanished.
+	onHeld: (() -> ())?,
+	-- Fires once the whole beat is finished (fish popped/darted away, or
+	-- immediately when there was never a fish to animate).
+	onComplete: (() -> ())?,
+}
 
 -- `success`: true if the fish was actually landed — it rises to a held-
--- up pose in front of the character, pauses there, then pops; false for
--- a miss/escape — it darts away and vanishes instead. `onComplete` (if
--- given) fires once that beat is fully finished, so a caller can time
--- celebration effects to land *after* the physical catch instead of
--- racing it — including the "no fish existed at all" cases (a Pull or a
--- ZoneLocked rejection never called startReel), where it just fires
--- immediately since there's nothing to animate.
+-- up pose in front of the character, pauses there with a sparkle burst,
+-- then pops; false for a miss/escape — it darts away and vanishes.
 -- Safe to call even if startReel was never called (e.g. unequipRod's own
 -- cleanup calling this defensively) — no-ops (past firing onComplete)
 -- when there's no fish.
-function FishingRig.endReel(success: boolean, onComplete: (() -> ())?)
+function FishingRig.endReel(success: boolean, callbacks: EndReelCallbacks?)
+	local onComplete = callbacks and callbacks.onComplete
+	local onHeld = callbacks and callbacks.onHeld
 	reeling = false
 	if fishConn then
 		fishConn:Disconnect()
@@ -399,6 +451,7 @@ function FishingRig.endReel(success: boolean, onComplete: (() -> ())?)
 	if success then
 		local startTime = os.clock()
 		local risePosition = fish.Position
+		local heldFired = false
 		local holdConn: RBXScriptConnection
 		holdConn = RunService.Heartbeat:Connect(function()
 			local rootCFrame = getRootCFrame()
@@ -411,6 +464,16 @@ function FishingRig.endReel(success: boolean, onComplete: (() -> ())?)
 				local alpha = elapsed / HELD_RISE_SECONDS
 				fish.CFrame = CFrame.new(risePosition:Lerp(heldTarget, alpha))
 			elseif elapsed < HELD_RISE_SECONDS + HELD_HOLD_SECONDS then
+				if not heldFired then
+					-- The peak of the catch: sparkles + the caller's
+					-- celebration land together, right as the fish reaches
+					-- the held pose — not after it's gone.
+					heldFired = true
+					spawnCatchSparkles(heldTarget)
+					if onHeld then
+						task.spawn(onHeld)
+					end
+				end
 				-- A small triumphant bob while held up, instead of sitting
 				-- dead still.
 				local bob = math.sin((elapsed - HELD_RISE_SECONDS) * 4) * 0.1

@@ -60,7 +60,16 @@ end
 
 local function applyStyle(retro: boolean)
 	for _, child in panel:GetChildren() do
-		if child:IsA("UICorner") or child:IsA("UIStroke") or child:IsA("UIGradient") or child.Name == "Rivet" then
+		-- InnerHighlight is applyRetroPanel's nested depth-edge frame — it
+		-- has to be cleared here too or retro->anime->retro restyles stack
+		-- duplicate highlight frames.
+		if
+			child:IsA("UICorner")
+			or child:IsA("UIStroke")
+			or child:IsA("UIGradient")
+			or child.Name == "Rivet"
+			or child.Name == "InnerHighlight"
+		then
 			child:Destroy()
 		end
 	end

@@ -99,6 +99,28 @@ function Theme.applyRetroPanel(frame: Frame | ImageLabel, options: { strokeThick
 	gradient.Color = ColorSequence.new(Theme.RetroColors.Parchment, Theme.RetroColors.ParchmentShadow)
 	gradient.Rotation = 90
 	gradient.Parent = frame
+
+	-- Cream highlight line just inside the wood rim — the Stardew-panel
+	-- signature (dark outer border, light inner edge) that makes the frame
+	-- read as a carved surface with actual depth instead of a flat
+	-- rectangle wearing an outline. A nested transparent frame carrying
+	-- its own UIStroke, since UIStroke itself can only trace the outer
+	-- boundary. Named so restyle-on-the-fly code (StatusToast.applyStyle)
+	-- can find and clear it along with the other style instances.
+	local inner = Instance.new("Frame")
+	inner.Name = "InnerHighlight"
+	inner.BackgroundTransparency = 1
+	inner.Position = UDim2.fromOffset(2, 2)
+	inner.Size = UDim2.new(1, -4, 1, -4)
+	local innerCorner = Instance.new("UICorner")
+	innerCorner.CornerRadius = UDim.new(0, 4)
+	innerCorner.Parent = inner
+	local innerStroke = Instance.new("UIStroke")
+	innerStroke.Color = Color3.fromRGB(250, 232, 190)
+	innerStroke.Thickness = 2
+	innerStroke.Transparency = 0.45
+	innerStroke.Parent = inner
+	inner.Parent = frame
 end
 
 -- Smaller wood-trimmed card (interior rows/slots) — the retro-medieval

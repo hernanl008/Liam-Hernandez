@@ -129,82 +129,74 @@ function FishingController.init()
 		stopAwaitingHook()
 		endFishing()
 
-		-- Everything below used to fire the instant CatchResult arrived —
-		-- now it waits for FishingRig's 3D beat to actually finish first:
-		-- on a real catch, the fish rises into a held-up pose and pauses
-		-- there before this callback fires, so the celebration lands
-		-- *after* "reel it in, hold it up," not on top of it. Outcomes
-		-- with no fish to animate (ZoneLocked rejects before any reel-in
-		-- starts) get an immediate callback, same as before. Pull gets its
-		-- own animation (snagPull) instead of endReel, since it never had
-		-- a fish/reel to begin with — a junk/treasure find resolves the
-		-- instant the hook lands, no chart.
-		local function afterAnimation()
-			FishingRig.unequipRod()
+		if payload.outcome == "Caught" then
+			local accentColor = (payload.rarity and RARITY_ACCENT_COLOR[payload.rarity]) or RARITY_ACCENT_COLOR.Common
 
-			if payload.outcome == "Caught" then
-				local accentColor = (payload.rarity and RARITY_ACCENT_COLOR[payload.rarity]) or RARITY_ACCENT_COLOR.Common
-
-				-- The banner and the "Landed!" toast used to both fire in the
-				-- same instant — technically simultaneous but read as two
-				-- unrelated pops rather than one connected beat. Staggering
-				-- the toast a beat behind the banner's initial pop-in (only
-				-- when there's a banner to follow) makes it read as BANG-
-				-- then-confirmation instead.
-				local celebrationDelaySeconds = 0
-				if payload.spectacle then
-					-- Priority: a Legendary catch always reads as Legendary
-					-- first; otherwise a near-flawless reel-in (FishingService
-					-- .lua's PERFECT_CATCH_QUALITY_THRESHOLD) gets its own
-					-- distinct banner rather than folding into the generic
-					-- combo-triggered "AMAZING CATCH!" — matches fishing
-					-- games' "Perfect!" catch being its own celebrated tier,
-					-- not just "good enough."
-					local label: string
-					if payload.rarity == "Legendary" then
-						label = "LEGENDARY CATCH!"
-					elseif payload.perfect then
-						label = "PERFECT CATCH!"
+			-- The whole celebration fires from FishingRig's onHeld — the
+			-- exact frame the fish reaches its held-up pose — so banner,
+			-- toast, sound, sparkles and the fish itself are all on screen
+			-- in the same moment, Stardew's "catch held overhead while the
+			-- text shows" beat. It used to run after the fish had already
+			-- popped, which is why it read as out of sync: the celebration
+			-- was celebrating an empty patch of air.
+			FishingRig.endReel(true, {
+				onHeld = function()
+					if payload.spectacle then
+						-- Priority: a Legendary catch always reads as
+						-- Legendary first; otherwise a near-flawless reel-in
+						-- (PERFECT_CATCH_QUALITY_THRESHOLD) gets its own
+						-- distinct banner rather than folding into the
+						-- generic combo-triggered "AMAZING CATCH!".
+						local label: string
+						if payload.rarity == "Legendary" then
+							label = "LEGENDARY CATCH!"
+						elseif payload.perfect then
+							label = "PERFECT CATCH!"
+						else
+							label = "AMAZING CATCH!"
+						end
+						SpectacleUI.banner(label, accentColor, { shake = true, retro = true })
 					else
-						label = "AMAZING CATCH!"
-					end
-					SpectacleUI.banner(label, accentColor, { shake = true, retro = true })
-					celebrationDelaySeconds = 0.15
-				else
-					ProgressFeedback.announce("FISHING", payload)
-				end
-
-				-- An ordinary catch (no banner) still gets a small rarity-
-				-- colored ring pop right where the toast is about to appear,
-				-- so it doesn't feel completely flat next to a spectacle one.
-				-- Spectacle catches skip this entirely now — the ribbon
-				-- banner + tinted speed lines + shake is already a lot of
-				-- motion happening at once, and a second sparkle effect on
-				-- top of it read as visual clutter rather than an addition.
-				task.delay(celebrationDelaySeconds, function()
-					if not payload.spectacle then
-						SpectacleUI.burst(UDim2.fromScale(0.5, 0.88), accentColor)
+						ProgressFeedback.announce("FISHING", payload)
+						-- Ordinary catches: a small rarity ring near the held
+						-- fish (screen center-ish under the locked camera —
+						-- NOT the old 0.88 bottom-of-screen spot, which was
+						-- nowhere near the fish) + a tiny shake. Spectacle
+						-- catches skip it; the ribbon banner is already a lot.
+						SpectacleUI.burst(UDim2.fromScale(0.5, 0.42), accentColor)
 						pcall(SpectacleUI.shake, 0.05, 0.12)
 					end
 					SoundPlayer.play(SoundIds.CatchSuccess)
-					StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
-				end)
-			elseif payload.outcome == "Pull" then
+					-- Toast trails the banner pop by one beat so it reads as
+					-- BANG-then-confirmation, still while the fish is up
+					-- (the hold lasts 1.4s).
+					task.delay(0.15, function()
+						StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
+					end)
+				end,
+				onComplete = FishingRig.unequipRod,
+			})
+		elseif payload.outcome == "Pull" then
+			SoundPlayer.play(SoundIds.PullSnag)
+			FishingRig.snagPull(function()
+				FishingRig.unequipRod()
 				ProgressFeedback.announce("FISHING", payload)
 				StatusToast.setTemporary(`Hauled from the depths: {payload.displayName}.`, 2, true)
-			elseif payload.outcome == "ZoneLocked" then
-				StatusToast.setTemporary("These waters run too deep for you yet — hone your Fishing skill.", 2, true)
-			else
-				SoundPlayer.play(SoundIds.CatchEscape)
-				StatusToast.setTemporary("The line goes slack... it slipped away.", 2, true)
-			end
-		end
-
-		if payload.outcome == "Pull" then
-			SoundPlayer.play(SoundIds.PullSnag)
-			FishingRig.snagPull(afterAnimation, payload.pullType == "Treasure")
+			end, payload.pullType == "Treasure")
 		else
-			FishingRig.endReel(payload.outcome == "Caught", afterAnimation)
+			-- GotAway / ZoneLocked: dart-away animation (or nothing, for
+			-- ZoneLocked which never had a fish), then the letdown.
+			FishingRig.endReel(false, {
+				onComplete = function()
+					FishingRig.unequipRod()
+					if payload.outcome == "ZoneLocked" then
+						StatusToast.setTemporary("These waters run too deep for you yet — hone your Fishing skill.", 2, true)
+					else
+						SoundPlayer.play(SoundIds.CatchEscape)
+						StatusToast.setTemporary("The line goes slack... it slipped away.", 2, true)
+					end
+				end,
+			})
 		end
 	end)
 

@@ -23,9 +23,10 @@ local MapBuilder = {}
 local FOLDER_NAME = "GeneratedMap"
 
 -- Shared with WaterController.lua (client), which finds every tagged
--- tile and scrolls the named Texture to animate the waves.
+-- tile and scrolls the named Textures to animate the waves.
 local WATER_TAG = "WaterTile"
 local WATER_TEXTURE_NAME = "WaterTexture"
+local WATER_OVERLAY_NAME = "WaterOverlay"
 
 -- Y = 0.5 is ground level: tiles are 1 stud tall centered at y=0, so
 -- their top surface sits at 0.5. Callers add half their own height on
@@ -74,6 +75,21 @@ local function buildGround(folder: Folder)
 						texture.StudsPerTileU = tileSize
 						texture.StudsPerTileV = tileSize
 						texture.Parent = part
+
+						-- Second copy of the same texture, smaller scale and
+						-- semi-transparent, scrolled the OPPOSITE way by
+						-- WaterController — the classic two-layer water trick:
+						-- the layers' interference shimmers in a way a single
+						-- sliding image can't, and it costs one Texture
+						-- instance instead of a second uploaded asset.
+						local overlay = Instance.new("Texture")
+						overlay.Name = WATER_OVERLAY_NAME
+						overlay.Face = Enum.NormalId.Top
+						overlay.Texture = waterId
+						overlay.StudsPerTileU = tileSize * 0.6
+						overlay.StudsPerTileV = tileSize * 0.6
+						overlay.Transparency = 0.55
+						overlay.Parent = part
 						CollectionService:AddTag(part, WATER_TAG)
 					else
 						-- Not uploaded yet: fall back to Roblox's built-in
