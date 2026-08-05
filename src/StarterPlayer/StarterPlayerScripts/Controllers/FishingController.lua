@@ -153,7 +153,7 @@ function FishingController.init()
 					-- it's settled, and the toast comes last. Roughly a beat
 					-- between each, all inside the 2.2s hold.
 					if payload.fishId then
-						CatchShowcaseUI.show(payload.fishId, accentColor, 1.7)
+						CatchShowcaseUI.show(payload.fishId, accentColor, 1.7, payload.displayName)
 					end
 					SoundPlayer.play(SoundIds.CatchSuccess)
 

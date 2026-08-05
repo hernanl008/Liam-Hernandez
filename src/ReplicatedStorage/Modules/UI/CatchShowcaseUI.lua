@@ -8,6 +8,15 @@
 -- standee alone is too small to star in that moment, so the UI close-up
 -- carries it.
 --
+-- Everything here is built around ONE rule: keep it crisp. Pixel art
+-- blown up goes mushy the moment any dimension stops being an integer
+-- multiple of the source, so the image size is derived from PIXEL_SCALE
+-- and every other measurement is derived from the image. The first pass
+-- solved for the largest image that fit the diamond and landed on
+-- 5.56x, which drew some source pixels 5 screen-px wide and their
+-- neighbours 6 — visible as uneven, soft-looking edges even with
+-- Pixelated resampling.
+--
 -- Skips silently (returns false) when the fish sheet isn't uploaded —
 -- the banner/toast still carry the celebration.
 
@@ -20,14 +29,32 @@ local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI
 
 local CatchShowcaseUI = {}
 
-local DIAMOND_SIZE = 190
+-- Integer, and the only tuning knob that matters: every size below is a
+-- multiple of it, so the art can never land on a fractional pixel.
+local PIXEL_SCALE = 6
+local IMAGE_WIDTH = FishSpriteSheet.CELL_WIDTH * PIXEL_SCALE -- 192
+local IMAGE_HEIGHT = FishSpriteSheet.CELL_HEIGHT * PIXEL_SCALE -- 96
+
+-- A w x h box fits inside a square rotated 45 degrees when
+-- (w + h) / 2 <= halfDiagonal, and halfDiagonal = side * sqrt(2) / 2.
+-- Solved for side, then rounded up to clear the image with a margin.
+local DIAMOND_SIZE = math.ceil((IMAGE_WIDTH + IMAGE_HEIGHT) / math.sqrt(2)) + 12
+local DIAMOND_SPAN = math.ceil(DIAMOND_SIZE * math.sqrt(2)) -- corner-to-corner
+local FRAME_SIZE = DIAMOND_SPAN + 160 -- headroom for the sunburst
+
+local RAY_COUNT = 12
 
 local screenGui: ScreenGui? = nil
 local frame: Frame
-local diamond: Frame
+local rays: Frame
+local diamondOuter: Frame
+local diamondInner: Frame
 local image: ImageLabel
+local plaque: Frame
+local plaqueLabel: TextLabel
 local scale: UIScale
 local pulseTween: Tween? = nil
+local raysTween: Tween? = nil
 
 -- Bumped per show(); delayed hide steps check they still own the
 -- showcase so back-to-back catches can't have an old hide clobber a new
@@ -48,16 +75,13 @@ local function ensureBuilt()
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	screenGui = gui
 
-	-- Square and big enough that the rotated diamond never reaches the
-	-- edges. The frame is just a positioning anchor — both children are
-	-- centered in it, which is what keeps them aligned.
+	-- Square positioning anchor, dead centre. Every child centres in it,
+	-- which is what keeps the sprite, the diamond and the rays concentric
+	-- no matter how the sizes are tuned.
 	frame = Instance.new("Frame")
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
-	-- Dead centre. It sat at 0.4 to stay clear of other celebration
-	-- elements, but the banner rides the top of the screen and the retro
-	-- toast sits at 0.88, so nothing competes for the middle.
 	frame.Position = UDim2.fromScale(0.5, 0.5)
-	frame.Size = UDim2.fromOffset(DIAMOND_SIZE * 2, DIAMOND_SIZE * 2)
+	frame.Size = UDim2.fromOffset(FRAME_SIZE, FRAME_SIZE)
 	frame.BackgroundTransparency = 1
 	frame.Visible = false
 	frame.Parent = gui
@@ -66,45 +90,112 @@ local function ensureBuilt()
 	scale.Scale = 0
 	scale.Parent = frame
 
-	-- Rotated accent diamond behind the fish — ties the close-up to the
-	-- gem-sparkle motif the rest of the retro celebration uses, and gives
-	-- the sprite a backdrop so it reads against any world color.
-	diamond = Instance.new("Frame")
-	diamond.AnchorPoint = Vector2.new(0.5, 0.5)
-	diamond.Position = UDim2.fromScale(0.5, 0.5)
-	diamond.Size = UDim2.fromOffset(DIAMOND_SIZE, DIAMOND_SIZE)
-	diamond.Rotation = 45
-	diamond.BackgroundColor3 = Theme.RetroColors.Bronze
-	diamond.BackgroundTransparency = 0.3
-	diamond.Parent = frame
-	local diamondStroke = Instance.new("UIStroke")
-	diamondStroke.Color = Theme.RetroColors.WoodDark
-	diamondStroke.Thickness = 3
-	diamondStroke.Parent = diamond
+	-- Sunburst behind everything. Spokes rather than a soft glow: a
+	-- radial gradient would fight the pixel art, hard-edged rays read as
+	-- the same era as the sprite.
+	rays = Instance.new("Frame")
+	rays.Name = "Rays"
+	rays.AnchorPoint = Vector2.new(0.5, 0.5)
+	rays.Position = UDim2.fromScale(0.5, 0.5)
+	rays.Size = UDim2.fromScale(1, 1)
+	rays.BackgroundTransparency = 1
+	rays.ZIndex = 1
+	rays.Parent = frame
+	for i = 1, RAY_COUNT do
+		local ray = Instance.new("Frame")
+		ray.AnchorPoint = Vector2.new(0.5, 0.5)
+		ray.Position = UDim2.fromScale(0.5, 0.5)
+		ray.Size = UDim2.fromOffset(18, FRAME_SIZE)
+		-- Half a turn spread over all the rays: each is double-ended, so
+		-- 180 degrees of spokes covers the full circle.
+		ray.Rotation = (i - 1) * (180 / RAY_COUNT)
+		ray.BackgroundColor3 = Theme.RetroColors.Bronze
+		ray.BackgroundTransparency = 0.86
+		ray.BorderSizePixel = 0
+		ray.ZIndex = 1
+		ray.Parent = rays
+	end
 
-	-- Sized to actually FIT INSIDE the rotated diamond, centered on the
-	-- same point. The first pass let the image fill the whole frame while
-	-- the diamond was much smaller, so the fish overhung it badly on both
-	-- sides. For a diamond of side S the inscribed half-diagonal is
-	-- S*sqrt(2)/2, and a w x h box fits when w/2 + h/2 <= that; with the
-	-- sheet's 2:1 cells that solves to the constants below.
-	local halfDiagonal = DIAMOND_SIZE * math.sqrt(2) / 2
-	local imageHeight = math.floor(halfDiagonal * 2 / 3)
+	-- Two nested diamonds instead of one translucent one. The old single
+	-- diamond sat at 0.3 transparency, so the world showed through and
+	-- muddied the sprite's edges; a solid fill inside a dark keyline is
+	-- both crisper and more in keeping with the retro panels elsewhere.
+	diamondOuter = Instance.new("Frame")
+	diamondOuter.AnchorPoint = Vector2.new(0.5, 0.5)
+	diamondOuter.Position = UDim2.fromScale(0.5, 0.5)
+	diamondOuter.Size = UDim2.fromOffset(DIAMOND_SIZE, DIAMOND_SIZE)
+	diamondOuter.Rotation = 45
+	diamondOuter.BackgroundColor3 = Theme.RetroColors.WoodDark
+	diamondOuter.BorderSizePixel = 0
+	diamondOuter.ZIndex = 2
+	diamondOuter.Parent = frame
+
+	diamondInner = Instance.new("Frame")
+	diamondInner.AnchorPoint = Vector2.new(0.5, 0.5)
+	diamondInner.Position = UDim2.fromScale(0.5, 0.5)
+	diamondInner.Size = UDim2.new(1, -10, 1, -10)
+	diamondInner.BackgroundColor3 = Theme.RetroColors.Bronze
+	diamondInner.BorderSizePixel = 0
+	diamondInner.ZIndex = 3
+	diamondInner.Parent = diamondOuter
+	local innerStroke = Instance.new("UIStroke")
+	innerStroke.Color = Theme.RetroColors.Parchment
+	innerStroke.Thickness = 2
+	innerStroke.Transparency = 0.5
+	innerStroke.Parent = diamondInner
+
+	-- Exact integer multiple of the sheet cell. Parented to the frame,
+	-- not to the diamond: a child of a rotated frame inherits the
+	-- rotation, and a 45-degree fish is not the goal.
 	image = Instance.new("ImageLabel")
 	image.AnchorPoint = Vector2.new(0.5, 0.5)
 	image.Position = UDim2.fromScale(0.5, 0.5)
-	image.Size = UDim2.fromOffset(imageHeight * 2, imageHeight)
+	image.Size = UDim2.fromOffset(IMAGE_WIDTH, IMAGE_HEIGHT)
 	image.BackgroundTransparency = 1
 	image.ScaleType = Enum.ScaleType.Stretch
 	image.ResampleMode = Enum.ResamplerMode.Pixelated
 	image.ImageRectSize = Vector2.new(FishSpriteSheet.CELL_WIDTH, FishSpriteSheet.CELL_HEIGHT)
-	image.ZIndex = 2
+	image.ZIndex = 5
 	image.Parent = frame
+
+	-- Name plaque under the diamond, so the close-up is a labelled card
+	-- rather than a floating sprite the player has to read the toast to
+	-- identify.
+	plaque = Instance.new("Frame")
+	plaque.AnchorPoint = Vector2.new(0.5, 0)
+	plaque.Position = UDim2.new(0.5, 0, 0.5, DIAMOND_SPAN // 2 - 6)
+	plaque.Size = UDim2.fromOffset(DIAMOND_SPAN, 34)
+	plaque.BackgroundColor3 = Theme.RetroColors.WoodDark
+	plaque.BorderSizePixel = 0
+	plaque.ZIndex = 6
+	plaque.Parent = frame
+	local plaqueCorner = Instance.new("UICorner")
+	plaqueCorner.CornerRadius = UDim.new(0, 4)
+	plaqueCorner.Parent = plaque
+	local plaqueStroke = Instance.new("UIStroke")
+	plaqueStroke.Color = Theme.RetroColors.WoodLight
+	plaqueStroke.Thickness = 2
+	plaqueStroke.Parent = plaque
+
+	plaqueLabel = Instance.new("TextLabel")
+	plaqueLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	plaqueLabel.Position = UDim2.fromScale(0.5, 0.5)
+	plaqueLabel.Size = UDim2.new(1, -12, 1, -8)
+	plaqueLabel.BackgroundTransparency = 1
+	plaqueLabel.FontFace = Theme.RetroFontFace
+	plaqueLabel.TextColor3 = Theme.RetroColors.Parchment
+	plaqueLabel.TextScaled = true
+	plaqueLabel.ZIndex = 7
+	plaqueLabel.Parent = plaque
+	local sizeConstraint = Instance.new("UITextSizeConstraint")
+	sizeConstraint.MaxTextSize = 16
+	sizeConstraint.Parent = plaqueLabel
 end
 
 -- Zooms `spriteId`'s sheet cell up center-screen for `seconds`, tinting
 -- the backdrop diamond with `accentColor` (the fish's rarity color).
-function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: number): boolean
+-- `displayName` labels the plaque; omitted, the plaque hides.
+function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: number, displayName: string?): boolean
 	local sheetId = AssetIds.sprite("fish_sheet")
 	if sheetId == "rbxassetid://0" then
 		return false
@@ -117,10 +208,21 @@ function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: nu
 		pulseTween:Cancel()
 		pulseTween = nil
 	end
+	if raysTween then
+		raysTween:Cancel()
+		raysTween = nil
+	end
 
 	image.Image = sheetId
 	image.ImageRectOffset = FishSpriteSheet.rectOffsetFor(spriteId)
-	diamond.BackgroundColor3 = accentColor
+	diamondInner.BackgroundColor3 = accentColor
+	for _, ray in rays:GetChildren() do
+		if ray:IsA("Frame") then
+			ray.BackgroundColor3 = accentColor
+		end
+	end
+	plaque.Visible = displayName ~= nil
+	plaqueLabel.Text = string.upper(displayName or "")
 	frame.Visible = true
 
 	-- Pop in with overshoot, then breathe gently while held. Both are
@@ -131,6 +233,14 @@ function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: nu
 	TweenService:Create(scale, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Scale = 1,
 	}):Play()
+
+	-- Slow counter-rotating sunburst. Slow on purpose: fast spokes strobe
+	-- against the pixel grid, which is the opposite of crisp.
+	rays.Rotation = 0
+	local spin = TweenService:Create(rays, TweenInfo.new(seconds + 1, Enum.EasingStyle.Linear), { Rotation = 22 })
+	spin:Play()
+	raysTween = spin
+
 	task.delay(0.42, function()
 		if showToken == token then
 			local pulse = TweenService:Create(

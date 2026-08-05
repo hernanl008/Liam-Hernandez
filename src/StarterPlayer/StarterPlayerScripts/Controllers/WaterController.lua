@@ -27,6 +27,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local ContentProvider = game:GetService("ContentProvider")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local WaterController = {}
@@ -93,19 +94,50 @@ end
 -- asset. Same "keep the fallback until the replacement is proven"
 -- rule as the sprite character and the fish standees.
 local function verifyOrFallback()
+	-- The map is built on the server, so its parts and their tags arrive
+	-- by replication some time after this controller starts. Wait for a
+	-- tile rather than reading tiles[1] immediately and giving up.
+	local deadline = os.clock() + 15
+	while #tiles == 0 and os.clock() < deadline do
+		task.wait(0.5)
+	end
 	local first = tiles[1]
 	if not first then
+		warn(
+			"[WaterController] no water tiles tagged after 15s. Either the map has no water, "
+				.. "or MapBuilder took its Material.Water fallback because tiles/water.png wasn't uploaded when the server started."
+		)
 		return
 	end
+	print(`[WaterController] animating {#tiles} water tiles with {first.texture.Texture}`)
 	-- Texture instances expose no IsLoaded, so probe the same image id
 	-- through a throwaway ImageLabel, which does.
+	--
+	-- The probe MUST be parented into the DataModel and actually
+	-- rendering. An ImageLabel that was never in a rendered tree can
+	-- report IsLoaded = false indefinitely no matter what PreloadAsync
+	-- did, so the first version of this check -- which probed an
+	-- unparented label -- was capable of reporting failure for perfectly
+	-- good art and then destroying every water texture on the strength
+	-- of it. Hence one pixel, effectively invisible but not fully
+	-- transparent (a fully transparent image can be skipped entirely).
+	local holder = Instance.new("ScreenGui")
+	holder.Name = "WaterTextureProbe"
+	holder.ResetOnSpawn = false
+	holder.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+
 	local probe = Instance.new("ImageLabel")
+	probe.Size = UDim2.fromOffset(1, 1)
+	probe.BackgroundTransparency = 1
+	probe.ImageTransparency = 0.99
 	probe.Image = first.texture.Texture
+	probe.Parent = holder
+
 	pcall(function()
 		ContentProvider:PreloadAsync({ probe })
 	end)
 	local loaded = probe.IsLoaded
-	probe:Destroy()
+	holder:Destroy()
 	if loaded then
 		return
 	end
@@ -136,18 +168,38 @@ function WaterController.init()
 	CollectionService:GetInstanceAddedSignal(WATER_TAG):Connect(track)
 	task.spawn(verifyOrFallback)
 
-	RunService.Heartbeat:Connect(function()
+	local elapsed = 0
+
+	RunService.Heartbeat:Connect(function(dt: number)
 		if #tiles == 0 then
 			return
 		end
-		local t = os.clock()
+		-- Accumulated frame time, NOT os.clock(). os.clock() reports
+		-- processor time since the process started, so in a Studio session
+		-- that has been open a while it begins in the thousands and climbs
+		-- at a rate tied to CPU load rather than wall time — the drift
+		-- speed varied with framerate, and the offsets it produced grew
+		-- without bound.
+		elapsed += dt
+
+		local first = tiles[1]
+		local basePeriod = first.texture.StudsPerTileU
+		local overlayPeriod = if first.overlay then first.overlay.StudsPerTileU else basePeriod
+
 		-- Computed ONCE, applied to every tile identically — equal offsets
 		-- are what keep the tiled pattern continuous across part edges.
-		local sway = math.sin(t * SWAY_SPEED) * SWAY_AMPLITUDE_STUDS
-		local baseU = t * DRIFT_X + sway
-		local baseV = t * DRIFT_Y
-		local overlayU = t * DRIFT_X * OVERLAY_SPEED_MULTIPLIER - sway * 0.5
-		local overlayV = t * DRIFT_Y * OVERLAY_SPEED_MULTIPLIER
+		--
+		-- Wrapped to one repeat of the pattern. An offset of N studs and
+		-- one of N + StudsPerTile are visually identical, so wrapping
+		-- changes nothing on screen while keeping the numbers small: left
+		-- unbounded they eventually get large enough that float precision
+		-- in the texture coordinates shows up as shimmer, which on pixel
+		-- art reads as the whole surface going soft.
+		local sway = math.sin(elapsed * SWAY_SPEED) * SWAY_AMPLITUDE_STUDS
+		local baseU = (elapsed * DRIFT_X + sway) % basePeriod
+		local baseV = (elapsed * DRIFT_Y) % basePeriod
+		local overlayU = (elapsed * DRIFT_X * OVERLAY_SPEED_MULTIPLIER - sway * 0.5) % overlayPeriod
+		local overlayV = (elapsed * DRIFT_Y * OVERLAY_SPEED_MULTIPLIER) % overlayPeriod
 		for _, tile in tiles do
 			tile.texture.OffsetStudsU = baseU
 			tile.texture.OffsetStudsV = baseV
