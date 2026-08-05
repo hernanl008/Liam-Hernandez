@@ -145,12 +145,40 @@ SPECIES = [
     ("SunkenCoinPouch", draw_coin_pouch),
 ]
 
+def center(cell):
+    """Shift a cell's artwork to the middle of its cell.
+
+    The draw_* helpers all start from a fixed left origin and run for the
+    species' natural length, so short subjects ended up hugging the left
+    edge -- SilverMinnow's centre sat 6.5px left of the cell's, a fifth of
+    the cell's width. Nothing shows a whole cell, so that offset is
+    invisible on the sheet but very visible anywhere a single cell is
+    displayed on its own: CatchShowcaseUI blows one cell up to ~180px
+    wide, where 6.5px of 32 becomes a ~36px lurch off centre, and the
+    fish reads as badly misaligned with the diamond behind it.
+
+    Centring here rather than in the UI keeps it fixed for every consumer
+    at once (the showcase, the 3D standee in FishingRig) and means new
+    species get it for free without anyone remembering to."""
+    bbox = cell.getbbox()
+    if bbox is None:
+        return cell
+    x0, y0, x1, y1 = bbox
+    dx = round((CELL_W - (x1 - x0)) / 2) - x0
+    dy = round((CELL_H - (y1 - y0)) / 2) - y0
+    if dx == 0 and dy == 0:
+        return cell
+    shifted = Image.new("RGBA", (CELL_W, CELL_H), (0, 0, 0, 0))
+    shifted.paste(cell.crop(bbox), (x0 + dx, y0 + dy))
+    return shifted
+
+
 rows = (len(SPECIES) + COLS - 1) // COLS
 sheet = Image.new("RGBA", (COLS * CELL_W, rows * CELL_H), (0, 0, 0, 0))
 for i, (name, draw) in enumerate(SPECIES):
     cell = Image.new("RGBA", (CELL_W, CELL_H), (0, 0, 0, 0))
     draw(cell)
-    sheet.paste(cell, ((i % COLS) * CELL_W, (i // COLS) * CELL_H))
+    sheet.paste(center(cell), ((i % COLS) * CELL_W, (i // COLS) * CELL_H))
 
 sheet.save("assets/sprites/fish_sheet.png")
 print(f"wrote assets/sprites/fish_sheet.png {sheet.size} — {len(SPECIES)} cells, order: {[n for n, _ in SPECIES]}")

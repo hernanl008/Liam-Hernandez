@@ -53,7 +53,10 @@ local function ensureBuilt()
 	-- centered in it, which is what keeps them aligned.
 	frame = Instance.new("Frame")
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
-	frame.Position = UDim2.fromScale(0.5, 0.4)
+	-- Dead centre. It sat at 0.4 to stay clear of other celebration
+	-- elements, but the banner rides the top of the screen and the retro
+	-- toast sits at 0.88, so nothing competes for the middle.
+	frame.Position = UDim2.fromScale(0.5, 0.5)
 	frame.Size = UDim2.fromOffset(DIAMOND_SIZE * 2, DIAMOND_SIZE * 2)
 	frame.BackgroundTransparency = 1
 	frame.Visible = false
