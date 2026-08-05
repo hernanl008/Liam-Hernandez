@@ -240,6 +240,7 @@ function FishingService.init()
 				outcome = "Pull",
 				pullId = bite.pull.id,
 				displayName = bite.pull.displayName,
+				pullType = bite.pull.pullType,
 				newDiscovery = isNewDiscovery,
 			})
 			return

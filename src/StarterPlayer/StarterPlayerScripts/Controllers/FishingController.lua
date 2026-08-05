@@ -21,6 +21,8 @@ local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast
 local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 local FishingRig = require(Modules:WaitForChild("Client"):WaitForChild("FishingRig"))
+local SoundIds = require(Modules:WaitForChild("Shared"):WaitForChild("SoundIds"))
+local SoundPlayer = require(Modules:WaitForChild("Client"):WaitForChild("SoundPlayer"))
 
 local FishingController = {}
 
@@ -85,6 +87,7 @@ function FishingController.init()
 	Remotes.get("FishBite").OnClientEvent:Connect(function()
 		awaitingHook = true
 		FishingRig.bite()
+		SoundPlayer.play(SoundIds.FishingBite)
 		StatusToast.set("Something bites! Strike now — press E!", true)
 		hookConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if gameProcessed or not awaitingHook then
@@ -116,6 +119,7 @@ function FishingController.init()
 		outcome: string,
 		displayName: string?,
 		rarity: string?,
+		pullType: string?,
 		spectacle: boolean?,
 		perfect: boolean?,
 		newDiscovery: boolean?,
@@ -130,9 +134,12 @@ function FishingController.init()
 		-- on a real catch, the fish rises into a held-up pose and pauses
 		-- there before this callback fires, so the celebration lands
 		-- *after* "reel it in, hold it up," not on top of it. Outcomes
-		-- with no fish to animate (Pull, ZoneLocked — both reject before
-		-- any reel-in starts) get an immediate callback, same as before.
-		FishingRig.endReel(payload.outcome == "Caught", function()
+		-- with no fish to animate (ZoneLocked rejects before any reel-in
+		-- starts) get an immediate callback, same as before. Pull gets its
+		-- own animation (snagPull) instead of endReel, since it never had
+		-- a fish/reel to begin with — a junk/treasure find resolves the
+		-- instant the hook lands, no chart.
+		local function afterAnimation()
 			FishingRig.unequipRod()
 
 			if payload.outcome == "Caught" then
@@ -179,6 +186,7 @@ function FishingController.init()
 						SpectacleUI.burst(UDim2.fromScale(0.5, 0.88), accentColor)
 						pcall(SpectacleUI.shake, 0.05, 0.12)
 					end
+					SoundPlayer.play(SoundIds.CatchSuccess)
 					StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
 				end)
 			elseif payload.outcome == "Pull" then
@@ -187,9 +195,17 @@ function FishingController.init()
 			elseif payload.outcome == "ZoneLocked" then
 				StatusToast.setTemporary("These waters run too deep for you yet — hone your Fishing skill.", 2, true)
 			else
+				SoundPlayer.play(SoundIds.CatchEscape)
 				StatusToast.setTemporary("The line goes slack... it slipped away.", 2, true)
 			end
-		end)
+		end
+
+		if payload.outcome == "Pull" then
+			SoundPlayer.play(SoundIds.PullSnag)
+			FishingRig.snagPull(afterAnimation, payload.pullType == "Treasure")
+		else
+			FishingRig.endReel(payload.outcome == "Caught", afterAnimation)
+		end
 	end)
 
 	local function setupSpot(instance: Instance)
@@ -227,6 +243,7 @@ function FishingController.init()
 						FishingRig.unequipRod()
 						return
 					end
+					SoundPlayer.play(SoundIds.FishingCast)
 					StatusToast.set("Casting your line into the deep...", true)
 					Remotes.get("RequestCast"):FireServer(zoneId, power)
 				end)
@@ -240,6 +257,26 @@ function FishingController.init()
 		setupSpot(instance)
 	end
 	CollectionService:GetInstanceAddedSignal(SPOT_TAG):Connect(setupSpot)
+
+	-- A visual tell that night-only content (the Moonlit Serpent —
+	-- LORE_BIBLE.md §5, Shallows only) is in play, since otherwise
+	-- there's no way to know without already knowing the config. Fires
+	-- once on the day->night transition (not every DayCycleUpdate tick,
+	-- which broadcasts several times a second) — matches
+	-- NIGHT_START_CLOCK_TIME (8pm) in DayCycleService.lua; duplicated as
+	-- a single number here rather than plumbing a proper isNight() flag
+	-- through DayCycleUpdate's payload, which felt like overkill for one
+	-- flavor toast.
+	local NIGHT_START_CLOCK_TIME = 20
+	local wasNight = false
+	Remotes.get("DayCycleUpdate").OnClientEvent:Connect(function(payload: { day: number, dayProgress: number, season: string, weather: string })
+		local clockTime = 6 + payload.dayProgress * 18
+		local isNight = clockTime >= NIGHT_START_CLOCK_TIME
+		if isNight and not wasNight then
+			StatusToast.setTemporary("The water looks different under the moonlight tonight...", 3, true)
+		end
+		wasNight = isNight
+	end)
 end
 
 return FishingController

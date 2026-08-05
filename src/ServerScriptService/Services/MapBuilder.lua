@@ -51,15 +51,32 @@ local function buildGround(folder: Folder)
 				part.Size = Vector3.new(tileSize, 1, tileSize)
 				part.Position = Vector3.new((col - 1) * tileSize, 0, (rowIndex - 1) * tileSize)
 				part.Color = tileDef.fallbackColor
-				part.Material = Enum.Material.SmoothPlastic
 				part.Parent = folder
 
-				local texture = Instance.new("Texture")
-				texture.Face = Enum.NormalId.Top
-				texture.Texture = AssetIds.tile(tileDef.textureName)
-				texture.StudsPerTileU = tileSize
-				texture.StudsPerTileV = tileSize
-				texture.Parent = part
+				if tileDef.textureName == "water" then
+					-- Water gets Roblox's built-in animated Water material
+					-- instead of the usual painted-texture-on-a-flat-part
+					-- treatment every other tile uses. tiles/water.png has
+					-- never actually been uploaded (tarmac sync needs
+					-- Liam's own Roblox login, not something this session
+					-- can run), and even once it is, a painted-still-image
+					-- texture is a worse fit for water than Roblox's native
+					-- material, which is genuinely animated (waves/ripple)
+					-- and needs zero uploaded assets. No Texture instance
+					-- for this tile type — Material.Water supplies its own
+					-- surface, a Texture overlay would just fight it.
+					part.Material = Enum.Material.Water
+					part.Transparency = 0.15
+				else
+					part.Material = Enum.Material.SmoothPlastic
+
+					local texture = Instance.new("Texture")
+					texture.Face = Enum.NormalId.Top
+					texture.Texture = AssetIds.tile(tileDef.textureName)
+					texture.StudsPerTileU = tileSize
+					texture.StudsPerTileV = tileSize
+					texture.Parent = part
+				end
 			end
 		end
 	end

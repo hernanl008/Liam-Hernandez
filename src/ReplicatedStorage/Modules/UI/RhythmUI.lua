@@ -30,6 +30,8 @@ local RhythmScoring = require(script.Parent.Parent:WaitForChild("Shared"):WaitFo
 local Theme = require(script.Parent:WaitForChild("Theme"))
 local PlayerFreeze = require(script.Parent.Parent:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
 local SpectacleUI = require(script.Parent:WaitForChild("SpectacleUI"))
+local SoundIds = require(script.Parent.Parent:WaitForChild("Shared"):WaitForChild("SoundIds"))
+local SoundPlayer = require(script.Parent.Parent:WaitForChild("Client"):WaitForChild("SoundPlayer"))
 
 local LANE_KEYS = { Enum.KeyCode.D, Enum.KeyCode.F, Enum.KeyCode.J, Enum.KeyCode.K }
 local HIT_TOLERANCE = 0.35 -- seconds around a note's time it can still register as *a* hit; RhythmScoring grades accuracy within this
@@ -451,6 +453,9 @@ function RhythmUI.play(
 			-- The dramatic "lost it" beat: a bigger shake than any single
 			-- hit/combo gets, right as the fish gets away.
 			pcall(SpectacleUI.shake, 0.25, 0.3)
+			if retro then
+				SoundPlayer.play(SoundIds.ReelMeterEmpty)
+			end
 			cleanup()
 		end
 	end
@@ -528,6 +533,7 @@ function RhythmUI.play(
 			if retro then
 				punchLane(laneIndex, 1.18)
 				spawnHitBurst(laneFrames[laneIndex], laneHitColor)
+				SoundPlayer.play(SoundIds.ReelHit)
 			end
 		else
 			-- No note within HIT_TOLERANCE for this lane right now — still
@@ -539,6 +545,7 @@ function RhythmUI.play(
 			adjustMeter(-METER_WHIFF_PENALTY)
 			if retro then
 				punchLane(laneIndex, 0.88)
+				SoundPlayer.play(SoundIds.ReelMiss)
 			end
 		end
 	end)
@@ -565,6 +572,7 @@ function RhythmUI.play(
 				adjustMeter(-METER_MISS_PENALTY)
 				if retro then
 					punchLane(note.lane, 0.85)
+					SoundPlayer.play(SoundIds.ReelMiss)
 				end
 				if finished then
 					return
