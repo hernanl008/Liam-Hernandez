@@ -4,13 +4,9 @@
 -- hand-transcribed here (Liam's machine hit a Tarmac/Roblox CSRF-handshake
 -- issue that manual upload sidesteps) — same `{ [path] = "rbxassetid://..." }`
 -- shape either way, so nothing else needs to change once uploads succeed
--- normally. Still missing: tiles/grass.png, tiles/path.png,
--- tiles/sakura_grass.png, tiles/tilled_soil.png — add those once
--- uploaded (falls back to a blank placeholder until then).
--- Still needed for D-facing walk: sprites/player_idle_mirror.png +
--- sprites/player_walk_mirror.png (both files in assets/sprites/).
+-- normally. Every image the game needs is now uploaded.
 return {
-	-- The pack's character walk/idle sheets, driving the 2D sprite-character
+	-- The character walk/idle sheets, driving the 2D sprite-character
 	-- conversion (CharacterSpriteController.lua). These two are *Image*
 	-- assets (uploaded via Studio's Asset Manager), NOT Decal assets like
 	-- every other entry here — every other sprite below is only ever used
@@ -18,13 +14,18 @@ return {
 	-- Decal id, but these are used as ImageLabel.Image, which does not. The
 	-- first upload of these two came back as Decal ids and silently never
 	-- loaded. If you ever re-upload them, use Asset Manager > Images.
-	["sprites/player_idle.png"] = "rbxassetid://121634740972126",
-	["sprites/player_walk.png"] = "rbxassetid://105981369730127",
+	--
+	-- Re-uploaded after tools/make_player_side_rows.py replaced row 2 (the
+	-- pack's row 2 was a second front-facing pose, not a side profile —
+	-- the actual cause of the moonwalk). The previous ids permanently
+	-- serve the profile-less art, since Roblox assets are immutable.
+	["sprites/player_idle.png"] = "rbxassetid://128174097168297",
+	["sprites/player_walk.png"] = "rbxassetid://125467894282641",
 	-- Per-cell horizontal flips of the two sheets above
-	-- (tools/make_mirrored_player_sheets.py), for whichever side
-	-- direction the base sheet doesn't already face.
-	["sprites/player_idle_mirror.png"] = "rbxassetid://76986687020932",
-	["sprites/player_walk_mirror.png"] = "rbxassetid://127202540573742",
+	-- (tools/make_mirrored_player_sheets.py). The generated side profile
+	-- faces RIGHT, so these serve walking LEFT.
+	["sprites/player_idle_mirror.png"] = "rbxassetid://106497174912869",
+	["sprites/player_walk_mirror.png"] = "rbxassetid://99081639846142",
 	-- Drawn by tools/make_fishing_rod_sprite.py (the pack has no rod art).
 	-- Used as a Decal on FishingRig's rod standee.
 	["sprites/fishing_rod.png"] = "rbxassetid://122948917384062",
@@ -39,7 +40,18 @@ return {
 	-- render as a dark-blue fragment instead of a clean pixel fish, the
 	-- uploaded file was a chat preview, not assets/sprites/fish_sheet.png —
 	-- re-upload the real file and replace this id.
-	["sprites/fish_sheet.png"] = "rbxassetid://85432915523617",
+	-- Re-uploaded after the sheet builder started centring each cell's
+	-- artwork; the previous id (85432915523617) serves the left-aligned
+	-- version, which sat visibly off-centre in CatchShowcaseUI.
+	["sprites/fish_sheet.png"] = "rbxassetid://78584010276934",
+	-- The four ground tiles (tools/make_ground_tiles.py). Never uploaded
+	-- before this batch — the old placeholder grass.png was a 16x16 single
+	-- flat colour, so the ground had no way to look like anything but
+	-- MapConfig's fallbackColor.
+	["tiles/grass.png"] = "rbxassetid://92954737584427",
+	["tiles/sakura_grass.png"] = "rbxassetid://100479103017033",
+	["tiles/path.png"] = "rbxassetid://98093140302876",
+	["tiles/tilled_soil.png"] = "rbxassetid://100134395813240",
 	["sprites/player_placeholder.png"] = "rbxassetid://113485555309209",
 	["sprites/petal.png"] = "rbxassetid://135838448433089",
 	["sprites/kaya_placeholder.png"] = "rbxassetid://99746438596164",
