@@ -108,6 +108,8 @@ function FishingController.init()
 		stopAwaitingHook()
 		endFishing()
 		if payload.outcome == "Caught" then
+			local accentColor = (payload.rarity and RARITY_ACCENT_COLOR[payload.rarity]) or RARITY_ACCENT_COLOR.Common
+
 			-- The banner and the "Landed!" toast used to both fire in the
 			-- same instant — technically simultaneous but read as two
 			-- unrelated pops rather than one connected beat. Staggering the
@@ -130,13 +132,24 @@ function FishingController.init()
 				else
 					label = "AMAZING CATCH!"
 				end
-				local accentColor = (payload.rarity and RARITY_ACCENT_COLOR[payload.rarity]) or RARITY_ACCENT_COLOR.Common
 				SpectacleUI.banner(label, accentColor, { shake = true, retro = true })
 				celebrationDelaySeconds = 0.15
 			else
 				ProgressFeedback.announce("FISHING", payload)
 			end
+
+			-- Every catch — not just spectacle ones — gets a rarity-colored
+			-- ring pop right where the toast is about to appear, so even a
+			-- routine Silver Minnow feels like *something* happened instead
+			-- of the toast just silently changing text. Spectacle catches
+			-- already get their own bigger shake from the banner above; a
+			-- small extra one here gives ordinary catches a bit of the same
+			-- punch without competing with it.
 			task.delay(celebrationDelaySeconds, function()
+				SpectacleUI.burst(UDim2.fromScale(0.5, 0.6), accentColor)
+				if not payload.spectacle then
+					pcall(SpectacleUI.shake, 0.05, 0.12)
+				end
 				StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
 			end)
 		elseif payload.outcome == "Pull" then

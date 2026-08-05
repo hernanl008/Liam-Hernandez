@@ -161,6 +161,40 @@ function SpectacleUI.shake(intensity: number, duration: number)
 	shakeCamera(intensity, duration)
 end
 
+-- A lightweight expanding-ring pop at an arbitrary screen position — the
+-- same trick RhythmUI's per-hit burst uses, but standalone (not scoped
+-- to a lane frame) so any caller can drop one anywhere. Meant for
+-- "every single instance of this thing feels a little alive" moments
+-- (e.g. every fish catch, not just the rare spectacle ones) that would
+-- get old fast as a full banner+speed-lines callout every time.
+function SpectacleUI.burst(position: UDim2, color: Color3, sizeOffset: number?)
+	ensureBuilt()
+	local gui = screenGui
+	if not gui then
+		return
+	end
+	local ring = Instance.new("Frame")
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = position
+	ring.Size = UDim2.fromOffset(0, 0)
+	ring.BackgroundColor3 = color
+	ring.BackgroundTransparency = 0.1
+	ring.BorderSizePixel = 0
+	ring.ZIndex = 0
+	ring.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = ring
+	local offset = sizeOffset or 90
+	TweenService:Create(ring, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.fromOffset(offset, offset),
+		BackgroundTransparency = 1,
+	}):Play()
+	task.delay(0.4, function()
+		ring:Destroy()
+	end)
+end
+
 export type BannerOptions = {
 	shake: boolean?,
 	holdSeconds: number?,
