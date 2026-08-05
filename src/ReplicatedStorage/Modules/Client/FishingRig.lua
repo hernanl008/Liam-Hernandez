@@ -8,16 +8,24 @@
 -- a multiplayer-visible version is a later step, this is "something is
 -- visibly happening" for now.
 --
--- Rod: two plain anchored Parts (a wood-colored pole + a glowing gold
--- Neon tip ball), held at a fixed offset from the character's
--- HumanoidRootPart rather than an actual hand — R6 vs R15 name their
--- arm parts differently ("Right Arm" vs "RightHand") and this project
--- already hit a rig-assumption surprise once (PlayerFreeze's
--- PlayerModule lookup); anchoring off the root instead sidesteps that
--- class of bug entirely. Fish: a single Neon-colored Part, manually
--- Lerp'd from a start position (the water, if a FishingSpot part is
--- known) to the rod tip over the reel's duration, with a sine-wave
--- wiggle added on top so it doesn't travel in a dead-straight line.
+-- Rod: two plain anchored Parts (a wood-colored pole + a bright gold tip
+-- ball), held at a fixed offset from the character's HumanoidRootPart
+-- rather than an actual hand — R6 vs R15 name their arm parts
+-- differently ("Right Arm" vs "RightHand") and this project already hit
+-- a rig-assumption surprise once (PlayerFreeze's PlayerModule lookup);
+-- anchoring off the root instead sidesteps that class of bug entirely.
+-- Fish: a single bright-colored Part, manually Lerp'd from a start
+-- position (the water, if a FishingSpot part is known) to the rod tip
+-- over the reel's duration, with a sine-wave wiggle added on top so it
+-- doesn't travel in a dead-straight line.
+--
+-- Deliberately NOT Enum.Material.Neon despite wanting these to pop:
+-- Neon renders overbright specifically to trigger bloom (AtmosphereService
+-- .lua's BloomEffect, Threshold = 1.4), and a large bright Neon surface
+-- held right above the character for the "holding it up" beat plausibly
+-- blooms out that whole region of the screen — which reads as "my
+-- character turned invisible," not as "cool glow." Saturated
+-- SmoothPlastic gets the contrast without the HDR overexposure risk.
 --
 -- Swap the rod/fish Parts for real meshes whenever real art exists —
 -- this module's public API (equipRod/bite/startReel/endReel/unequipRod)
@@ -38,8 +46,9 @@ local FishingRig = {}
 -- foreshortens to almost nothing viewed from steeply above. Both the
 -- rod and the fish below are deliberately oversized and high-contrast
 -- instead: a shallow hold angle so the rod's length actually reads as a
--- line across the screen, and Neon material on the tip/fish so they
--- stay clearly visible regardless of the scene's lighting/shadows.
+-- line across the screen, and saturated, high-contrast colors on the
+-- tip/fish so they stay clearly visible without relying on Neon/bloom
+-- (see the header comment above for why that backfired).
 local ROD_LENGTH = 7
 local ROD_HOLD_OFFSET = CFrame.new(0.9, 0.6, -0.8) * CFrame.Angles(math.rad(-20), math.rad(20), 0)
 
@@ -112,7 +121,7 @@ local function buildRod(): (Model, BasePart, BasePart)
 	tip.Shape = Enum.PartType.Ball
 	tip.Size = Vector3.new(0.7, 0.7, 0.7)
 	tip.Color = Color3.fromRGB(255, 210, 70)
-	tip.Material = Enum.Material.Neon
+	tip.Material = Enum.Material.SmoothPlastic
 	tip.CanCollide = false
 	tip.CanQuery = false
 	tip.Anchored = true
@@ -203,8 +212,8 @@ function FishingRig.startReel(durationSeconds: number)
 	local fish = Instance.new("Part")
 	fish.Name = "FishingCatchPlaceholder"
 	fish.Size = Vector3.new(2.4, 1.1, 1.1)
-	fish.Color = Color3.fromRGB(90, 200, 255)
-	fish.Material = Enum.Material.Neon
+	fish.Color = Color3.fromRGB(70, 180, 245)
+	fish.Material = Enum.Material.SmoothPlastic
 	fish.CanCollide = false
 	fish.CanQuery = false
 	fish.Anchored = true
