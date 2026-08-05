@@ -7,13 +7,7 @@
 -- normally. Still missing: tiles/grass.png, tiles/path.png,
 -- tiles/sakura_grass.png, tiles/tilled_soil.png — add those once
 -- uploaded (falls back to a blank placeholder until then).
--- Also still missing: sprites/fish_sheet.png — the whole fish + loot
--- roster on one sheet (tools/make_fish_sheet.py; cropped per-species at
--- runtime via FishSpriteSheet.lua). Until it's uploaded the reel-in
--- fish/pull standees fall back to plain colored blocks. Upload via
--- Asset Manager > Images (it's consumed by an ImageLabel, so it MUST be
--- an Image id, not a Decal id — same rule as the player sheets).
--- ALSO still needed for D-facing walk: sprites/player_idle_mirror.png +
+-- Still needed for D-facing walk: sprites/player_idle_mirror.png +
 -- sprites/player_walk_mirror.png (both files in assets/sprites/).
 return {
 	-- The pack's character walk/idle sheets, driving the 2D sprite-character
@@ -32,6 +26,12 @@ return {
 	-- Drawn by tools/make_water_tile.py — seamless, and animated at
 	-- runtime by WaterController scrolling its offset per tile.
 	["tiles/water.png"] = "rbxassetid://139611448879928",
+	-- The whole fish + loot roster on one sheet (tools/make_fish_sheet.py),
+	-- cropped per-species at runtime via FishSpriteSheet.lua. If catches
+	-- render as a dark-blue fragment instead of a clean pixel fish, the
+	-- uploaded file was a chat preview, not assets/sprites/fish_sheet.png —
+	-- re-upload the real file and replace this id.
+	["sprites/fish_sheet.png"] = "rbxassetid://117744610472440",
 	["sprites/player_placeholder.png"] = "rbxassetid://113485555309209",
 	["sprites/petal.png"] = "rbxassetid://135838448433089",
 	["sprites/kaya_placeholder.png"] = "rbxassetid://99746438596164",
