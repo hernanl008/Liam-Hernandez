@@ -20,11 +20,26 @@ local ProgressFeedback = require(Modules:WaitForChild("UI"):WaitForChild("Progre
 local StatusToast = require(Modules:WaitForChild("UI"):WaitForChild("StatusToast"))
 local CastMeterUI = require(Modules:WaitForChild("UI"):WaitForChild("CastMeterUI"))
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
+local FishingRig = require(Modules:WaitForChild("Client"):WaitForChild("FishingRig"))
 
 local FishingController = {}
 
 local SPOT_TAG = "FishingSpot"
 local HOOK_KEY = Enum.KeyCode.E
+
+-- Rough length of the reel-in chart, so the placeholder fish (FishingRig)
+-- physically arrives at the rod tip right as the minigame ends instead of
+-- drifting in on its own unrelated timer. Mirrors RhythmUI's own
+-- `endTime = lastNoteTime + HIT_TOLERANCE + 0.4` tail buffer approximately
+-- — exact sync isn't the point, just close enough that the fish "shows up"
+-- roughly when the chart resolves.
+local function estimateReelDuration(notes: any): number
+	local maxNoteTime = 0
+	for _, note in notes :: { { time: number, lane: number } } do
+		maxNoteTime = math.max(maxNoteTime, note.time)
+	end
+	return maxNoteTime + 0.75
+end
 
 -- Tints the reel-in minigame (RhythmUI's `accentColor` option) by the
 -- fish's own rarity, so a Legendary fight visibly reads as a bigger deal
@@ -69,6 +84,7 @@ function FishingController.init()
 
 	Remotes.get("FishBite").OnClientEvent:Connect(function()
 		awaitingHook = true
+		FishingRig.bite()
 		StatusToast.set("Something bites! Strike now — press E!", true)
 		hookConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if gameProcessed or not awaitingHook then
@@ -85,6 +101,7 @@ function FishingController.init()
 	Remotes.get("ReelStart").OnClientEvent:Connect(function(payload: { fishId: string, displayName: string, rarity: string, notes: any })
 		stopAwaitingHook()
 		StatusToast.set(nil)
+		FishingRig.startReel(estimateReelDuration(payload.notes))
 		RhythmUI.play(payload.notes, function(hits)
 			Remotes.get("ReelResult"):FireServer(hits)
 		end, RhythmGameConfig.TimingWindows, {
@@ -107,6 +124,11 @@ function FishingController.init()
 	})
 		stopAwaitingHook()
 		endFishing()
+		FishingRig.endReel(payload.outcome == "Caught")
+		-- Rod stays out a beat longer than the reel itself so the fish's
+		-- arrival/dart-away animation (FishingRig.endReel) has time to
+		-- finish playing before it's put away.
+		task.delay(0.5, FishingRig.unequipRod)
 		if payload.outcome == "Caught" then
 			local accentColor = (payload.rarity and RARITY_ACCENT_COLOR[payload.rarity]) or RARITY_ACCENT_COLOR.Common
 
@@ -187,10 +209,14 @@ function FishingController.init()
 				isFishing = true
 				activePrompt = prompt
 				prompt.Enabled = false
+				FishingRig.equipRod(instance)
 				CastMeterUI.start(function(power: number?)
 					if not power then
-						-- cancelled (e.g. walked away) — nothing was cast
+						-- cancelled (e.g. walked away) — nothing was cast, so
+						-- there's no bite/reel to animate; put the rod away
+						-- immediately instead of waiting on CatchResult.
 						endFishing()
+						FishingRig.unequipRod()
 						return
 					end
 					StatusToast.set("Casting your line into the deep...", true)
