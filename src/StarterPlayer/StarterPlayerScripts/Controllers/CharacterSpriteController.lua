@@ -13,11 +13,16 @@
 -- inspected, not just inferred from frame geometry): both are 32x32-px
 -- cells, 3 rows, in the standard convention for this style of asset
 -- pack — row 1 faces the camera (down), row 2 is a side profile, row 3
--- faces away (up). Idle has 4 columns (walk 6). The side row's default
--- facing (left vs right) was eyeballed from a small thumbnail, not
--- confirmed pixel-by-pixel — if characters look like they're moonwalking
--- sideways in Studio, flip SIDE_ROW_FACES_LEFT below; that's the only
--- thing that'd need to change.
+-- faces away (up). Idle has 4 columns (walk 6).
+--
+-- Known limitation: the side row is used as-is for BOTH left and right,
+-- so walking one of those two directions shows the character facing the
+-- wrong way. The obvious fix — a negative ImageLabel.Size to mirror it —
+-- does not work in Roblox: a negative GuiObject size renders *nothing*
+-- rather than flipping (it was written that way first and had to be
+-- removed). Proper fix is a pre-mirrored copy of each sheet, which means
+-- two more PNGs through the human-only upload step, so it's deferred
+-- rather than faked.
 --
 -- Technique: every BasePart/Accessory on the character goes fully
 -- transparent (the Humanoid/HumanoidRootPart stay — still needed for
@@ -51,10 +56,6 @@ local ROW_UP = 2
 local IDLE_FPS = 4
 local WALK_FPS = 10
 local MOVE_THRESHOLD = 0.05 -- Humanoid.MoveDirection magnitude below this counts as "standing still"
-
--- Eyeballed from the sheet thumbnail, not pixel-confirmed — flip if the
--- side-facing walk looks mirrored in Studio.
-local SIDE_ROW_FACES_LEFT = true
 
 -- Character height convention this game's already settled on
 -- (MapConfig.lua's PropSpot comment: props were sized "next to an
@@ -109,15 +110,20 @@ end
 local function applySprite(character: Model)
 	local humanoid = character:WaitForChild("Humanoid", 5)
 	local rootPart = character:WaitForChild("HumanoidRootPart", 5)
-	if not humanoid or not rootPart or not humanoid:IsA("Humanoid") or not rootPart:IsA("BasePart") then
+	if not humanoid or not humanoid:IsA("Humanoid") then
+		warn(`[CharacterSpriteController] no Humanoid on {character.Name} after 5s — leaving it 3D.`)
+		return
+	end
+	if not rootPart or not rootPart:IsA("BasePart") then
+		warn(`[CharacterSpriteController] no HumanoidRootPart on {character.Name} after 5s — leaving it 3D.`)
 		return
 	end
 
 	hideCharacterParts(character)
 	local image = buildBillboard(rootPart)
+	print(`[CharacterSpriteController] sprite applied to {character.Name}; idle id = {AssetIds.sprite("player_idle")}`)
 
 	local lastRow = ROW_DOWN
-	local lastFlip = false
 	local currentSheetIsWalk: boolean? = nil -- forces the first frame's Image assignment
 	local frameTimer = 0
 
@@ -132,18 +138,13 @@ local function applySprite(character: Model)
 		local moving = moveDirection.Magnitude > MOVE_THRESHOLD
 
 		local row = lastRow
-		local flip = lastFlip
 		if moving then
 			if math.abs(moveDirection.X) > math.abs(moveDirection.Z) then
 				row = ROW_SIDE
-				local facingRight = moveDirection.X > 0
-				flip = if SIDE_ROW_FACES_LEFT then facingRight else not facingRight
 			else
 				row = if moveDirection.Z > 0 then ROW_DOWN else ROW_UP
-				flip = false
 			end
 			lastRow = row
-			lastFlip = flip
 		end
 
 		local columns = if moving then WALK_COLUMNS else IDLE_COLUMNS
@@ -156,7 +157,6 @@ local function applySprite(character: Model)
 			currentSheetIsWalk = moving
 		end
 		image.ImageRectOffset = Vector2.new(column * FRAME_SIZE, row * FRAME_SIZE)
-		image.Size = UDim2.fromScale(flip and -1 or 1, 1)
 	end)
 end
 
@@ -169,16 +169,25 @@ function CharacterSpriteController.init()
 	-- chased once with the Neon/bloom washout. 3D avatars stay until the
 	-- art actually exists; upload player_idle.png/player_walk.png, sync,
 	-- and this activates on its own with no code change.
-	if AssetIds.sprite("player_idle") == "rbxassetid://0" or AssetIds.sprite("player_walk") == "rbxassetid://0" then
+	local idleId = AssetIds.sprite("player_idle")
+	local walkId = AssetIds.sprite("player_walk")
+	print(`[CharacterSpriteController] init — idle = {idleId}, walk = {walkId}`)
+	if idleId == "rbxassetid://0" or walkId == "rbxassetid://0" then
 		warn("[CharacterSpriteController] player_idle/player_walk sprites not uploaded yet — keeping 3D avatars until they are.")
 		return
 	end
 
+	-- task.spawn, not a direct call: applySprite yields (WaitForChild with
+	-- a 5s timeout), and init() runs near the top of Main.client.lua's
+	-- controller list — calling it inline would stall every controller
+	-- after it for up to 5 seconds per already-spawned character.
 	local function onPlayer(player: Player)
 		if player.Character then
-			applySprite(player.Character)
+			task.spawn(applySprite, player.Character)
 		end
-		player.CharacterAdded:Connect(applySprite)
+		player.CharacterAdded:Connect(function(character)
+			task.spawn(applySprite, character)
+		end)
 	end
 
 	for _, player in Players:GetPlayers() do
