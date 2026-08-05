@@ -20,6 +20,8 @@ local Theme = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("UI
 
 local CatchShowcaseUI = {}
 
+local DIAMOND_SIZE = 190
+
 local screenGui: ScreenGui? = nil
 local frame: Frame
 local diamond: Frame
@@ -46,10 +48,13 @@ local function ensureBuilt()
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	screenGui = gui
 
+	-- Square and big enough that the rotated diamond never reaches the
+	-- edges. The frame is just a positioning anchor — both children are
+	-- centered in it, which is what keeps them aligned.
 	frame = Instance.new("Frame")
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
 	frame.Position = UDim2.fromScale(0.5, 0.4)
-	frame.Size = UDim2.fromOffset(288, 144)
+	frame.Size = UDim2.fromOffset(DIAMOND_SIZE * 2, DIAMOND_SIZE * 2)
 	frame.BackgroundTransparency = 1
 	frame.Visible = false
 	frame.Parent = gui
@@ -64,7 +69,7 @@ local function ensureBuilt()
 	diamond = Instance.new("Frame")
 	diamond.AnchorPoint = Vector2.new(0.5, 0.5)
 	diamond.Position = UDim2.fromScale(0.5, 0.5)
-	diamond.Size = UDim2.fromOffset(150, 150)
+	diamond.Size = UDim2.fromOffset(DIAMOND_SIZE, DIAMOND_SIZE)
 	diamond.Rotation = 45
 	diamond.BackgroundColor3 = Theme.RetroColors.Bronze
 	diamond.BackgroundTransparency = 0.3
@@ -74,8 +79,18 @@ local function ensureBuilt()
 	diamondStroke.Thickness = 3
 	diamondStroke.Parent = diamond
 
+	-- Sized to actually FIT INSIDE the rotated diamond, centered on the
+	-- same point. The first pass let the image fill the whole frame while
+	-- the diamond was much smaller, so the fish overhung it badly on both
+	-- sides. For a diamond of side S the inscribed half-diagonal is
+	-- S*sqrt(2)/2, and a w x h box fits when w/2 + h/2 <= that; with the
+	-- sheet's 2:1 cells that solves to the constants below.
+	local halfDiagonal = DIAMOND_SIZE * math.sqrt(2) / 2
+	local imageHeight = math.floor(halfDiagonal * 2 / 3)
 	image = Instance.new("ImageLabel")
-	image.Size = UDim2.fromScale(1, 1)
+	image.AnchorPoint = Vector2.new(0.5, 0.5)
+	image.Position = UDim2.fromScale(0.5, 0.5)
+	image.Size = UDim2.fromOffset(imageHeight * 2, imageHeight)
 	image.BackgroundTransparency = 1
 	image.ScaleType = Enum.ScaleType.Stretch
 	image.ResampleMode = Enum.ResamplerMode.Pixelated
@@ -105,17 +120,20 @@ function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: nu
 	diamond.BackgroundColor3 = accentColor
 	frame.Visible = true
 
-	-- Pop in with overshoot, then breathe gently while held.
+	-- Pop in with overshoot, then breathe gently while held. Both are
+	-- deliberately unhurried — the first pass snapped in at 0.28s and
+	-- pulsed twice a second, which on top of the banner, sparkles and
+	-- toast landing in the same moment read as frantic.
 	scale.Scale = 0
-	TweenService:Create(scale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	TweenService:Create(scale, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Scale = 1,
 	}):Play()
-	task.delay(0.28, function()
+	task.delay(0.42, function()
 		if showToken == token then
 			local pulse = TweenService:Create(
 				scale,
-				TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-				{ Scale = 1.05 }
+				TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Scale = 1.03 }
 			)
 			pulse:Play()
 			pulseTween = pulse

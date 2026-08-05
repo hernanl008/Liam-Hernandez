@@ -150,11 +150,11 @@ local function applySprite(character: Model)
 	hideCharacterParts(character)
 	print(`[CharacterSpriteController] sprite applied to {character.Name}; image loaded OK ({idleId})`)
 
-	-- The pack's side profile faces RIGHT only (see the comment at
+	-- The pack's side profile faces LEFT only (see the comment at
 	-- useMirror below for how that was finally established). Roblox can't
-	-- mirror an ImageLabel, so walking LEFT needs these pre-mirrored
+	-- mirror an ImageLabel, so walking RIGHT needs these pre-mirrored
 	-- sheets (tools/make_mirrored_player_sheets.py). Optional — without
-	-- them the code falls back to the unmirrored side row, i.e. left
+	-- them the code falls back to the unmirrored side row, i.e. right
 	-- moonwalks but nothing breaks.
 	local walkId = AssetIds.sprite("player_walk")
 	local idleMirrorId = AssetIds.sprite("player_idle_mirror")
@@ -205,13 +205,15 @@ local function applySprite(character: Model)
 
 		-- Mirrored sheets are only meaningful for the side row; front and
 		-- back are symmetric enough that flipping them would be noise.
-		-- Base sheet's side row faces RIGHT — established by live
-		-- observation (moving right looks correct; moving left moonwalks),
-		-- after two separate pixel-analysis attempts called it left and
-		-- were both wrong (a 1px centroid margin is noise, and the zoomed
-		-- "verification" crop turned out to be half a frame). The mirror
-		-- serves LEFT.
-		local useMirror = hasMirror and row == ROW_SIDE and not facingRight
+		-- Base sheet's side row faces LEFT; the mirror serves RIGHT.
+		-- Settled by the only test that actually discriminates: with the
+		-- mirrors uploaded and the mirror bound to LEFT, left still
+		-- moonwalked — which is only possible if the mirror faces right,
+		-- i.e. the base faces left. (Earlier flip-flopping came from
+		-- trusting a report made while the mirrors weren't loaded at all,
+		-- when both directions necessarily drew the same sheet and so
+		-- couldn't distinguish anything.)
+		local useMirror = hasMirror and row == ROW_SIDE and facingRight
 		local wanted: string
 		if moving then
 			wanted = if useMirror then walkMirrorId else walkId

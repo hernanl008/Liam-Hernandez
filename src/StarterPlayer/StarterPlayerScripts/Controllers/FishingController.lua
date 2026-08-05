@@ -147,42 +147,46 @@ function FishingController.init()
 			-- was celebrating an empty patch of air.
 			FishingRig.endReel(true, {
 				onHeld = function()
-					-- The requested "zoom of the species" — the caught fish's
-					-- sprite blown up center-screen for the length of the
-					-- hold, popping in with everything else.
+					-- Staggered, not simultaneous. Everything used to land in
+					-- the same instant, which read as overwhelming: the fish
+					-- zoom leads (it's the subject), the banner follows once
+					-- it's settled, and the toast comes last. Roughly a beat
+					-- between each, all inside the 2.2s hold.
 					if payload.fishId then
-						CatchShowcaseUI.show(payload.fishId, accentColor, 1.25)
-					end
-					if payload.spectacle then
-						-- Priority: a Legendary catch always reads as
-						-- Legendary first; otherwise a near-flawless reel-in
-						-- (PERFECT_CATCH_QUALITY_THRESHOLD) gets its own
-						-- distinct banner rather than folding into the
-						-- generic combo-triggered "AMAZING CATCH!".
-						local label: string
-						if payload.rarity == "Legendary" then
-							label = "LEGENDARY CATCH!"
-						elseif payload.perfect then
-							label = "PERFECT CATCH!"
-						else
-							label = "AMAZING CATCH!"
-						end
-						SpectacleUI.banner(label, accentColor, { shake = true, retro = true })
-					else
-						ProgressFeedback.announce("FISHING", payload)
-						-- Ordinary catches: a small rarity ring near the held
-						-- fish (screen center-ish under the locked camera —
-						-- NOT the old 0.88 bottom-of-screen spot, which was
-						-- nowhere near the fish) + a tiny shake. Spectacle
-						-- catches skip it; the ribbon banner is already a lot.
-						SpectacleUI.burst(UDim2.fromScale(0.5, 0.42), accentColor)
-						pcall(SpectacleUI.shake, 0.05, 0.12)
+						CatchShowcaseUI.show(payload.fishId, accentColor, 1.7)
 					end
 					SoundPlayer.play(SoundIds.CatchSuccess)
-					-- Toast trails the banner pop by one beat so it reads as
-					-- BANG-then-confirmation, still while the fish is up
-					-- (the hold lasts 1.4s).
-					task.delay(0.15, function()
+
+					-- Beat 2: the callout, once the zoom has settled.
+					task.delay(0.5, function()
+						if payload.spectacle then
+							-- Priority: a Legendary catch always reads as
+							-- Legendary first; otherwise a near-flawless
+							-- reel-in (PERFECT_CATCH_QUALITY_THRESHOLD) gets
+							-- its own distinct banner rather than folding
+							-- into the generic combo-triggered
+							-- "AMAZING CATCH!".
+							local label: string
+							if payload.rarity == "Legendary" then
+								label = "LEGENDARY CATCH!"
+							elseif payload.perfect then
+								label = "PERFECT CATCH!"
+							else
+								label = "AMAZING CATCH!"
+							end
+							SpectacleUI.banner(label, accentColor, { shake = true, retro = true })
+						else
+							ProgressFeedback.announce("FISHING", payload)
+							-- Ordinary catches: a small rarity ring near the
+							-- held fish + a tiny shake. Spectacle catches skip
+							-- it; the ribbon banner is already a lot.
+							SpectacleUI.burst(UDim2.fromScale(0.5, 0.42), accentColor)
+							pcall(SpectacleUI.shake, 0.05, 0.12)
+						end
+					end)
+
+					-- Beat 3: the confirmation line, last.
+					task.delay(1.0, function()
 						StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
 					end)
 				end,

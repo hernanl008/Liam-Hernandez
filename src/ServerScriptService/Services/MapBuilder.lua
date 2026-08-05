@@ -108,12 +108,24 @@ local function buildGround(folder: Folder)
 				else
 					part.Material = Enum.Material.SmoothPlastic
 
-					local texture = Instance.new("Texture")
-					texture.Face = Enum.NormalId.Top
-					texture.Texture = AssetIds.tile(tileDef.textureName)
-					texture.StudsPerTileU = tileSize
-					texture.StudsPerTileV = tileSize
-					texture.Parent = part
+					-- Same "only commit to the texture once it exists" rule the
+					-- water branch above already followed. This branch used to
+					-- attach the Texture unconditionally, so every grass/path/
+					-- soil tile got one pointing at rbxassetid://0 (none of
+					-- those PNGs are uploaded yet) — an unresolvable Texture
+					-- still draws its quad over the part's Top face, hiding the
+					-- fallbackColor underneath and making the ground read as
+					-- missing. Without the Texture the tile is a flat colored
+					-- block, which is exactly what fallbackColor is for.
+					local tileId = AssetIds.tile(tileDef.textureName)
+					if tileId ~= "rbxassetid://0" then
+						local texture = Instance.new("Texture")
+						texture.Face = Enum.NormalId.Top
+						texture.Texture = tileId
+						texture.StudsPerTileU = tileSize
+						texture.StudsPerTileV = tileSize
+						texture.Parent = part
+					end
 				end
 			end
 		end

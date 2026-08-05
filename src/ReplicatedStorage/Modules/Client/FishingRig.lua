@@ -426,10 +426,10 @@ end
 -- the 2D minigame ended, well before this 3D beat even starts).
 local HELD_OFFSET = CFrame.new(0, 3.4, -0.6)
 local HELD_RISE_SECONDS = 0.35
--- Long enough to actually read the toast/banner that now fires AT the
--- hold (see onHeld below) while the fish is still up — 1.0 was tuned
--- for when the celebration came after the pop instead.
-local HELD_HOLD_SECONDS = 1.4
+-- Covers the full staggered celebration (zoom -> banner at +0.5 ->
+-- toast at +1.0, see FishingController's onHeld) with room to breathe
+-- at the end, so the fish is still overhead for all of it.
+local HELD_HOLD_SECONDS = 2.2
 
 -- Small gold diamond glints that pop around the held-up catch and drift
 -- upward as they fade — the "sparkling catch" beat, in the world, at the

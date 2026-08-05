@@ -26,6 +26,7 @@
 -- tile per frame to every player for no gameplay reason.
 
 local CollectionService = game:GetService("CollectionService")
+local ContentProvider = game:GetService("ContentProvider")
 local RunService = game:GetService("RunService")
 
 local WaterController = {}
@@ -83,11 +84,57 @@ local function track(part: Instance)
 	end)
 end
 
+-- MapBuilder commits to the textured path as soon as an id is wired,
+-- but a wired id can still fail to render (moderation, wrong asset
+-- type, bad upload) — and a Texture whose image never loads draws
+-- NOTHING, leaving flat blue blocks with no waves at all. Verify the
+-- image actually loaded and, if it didn't, strip the textures and fall
+-- back to Roblox's built-in animated Water material, which needs no
+-- asset. Same "keep the fallback until the replacement is proven"
+-- rule as the sprite character and the fish standees.
+local function verifyOrFallback()
+	local first = tiles[1]
+	if not first then
+		return
+	end
+	-- Texture instances expose no IsLoaded, so probe the same image id
+	-- through a throwaway ImageLabel, which does.
+	local probe = Instance.new("ImageLabel")
+	probe.Image = first.texture.Texture
+	pcall(function()
+		ContentProvider:PreloadAsync({ probe })
+	end)
+	local loaded = probe.IsLoaded
+	probe:Destroy()
+	if loaded then
+		return
+	end
+
+	warn(
+		`[WaterController] water texture {first.texture.Texture} never loaded — falling back to Material.Water. `
+			.. `Most likely the uploaded asset is still in moderation, is a Decal id, or was the wrong file.`
+	)
+	for _, tile in tiles do
+		local part = tile.texture.Parent
+		if part and part:IsA("BasePart") then
+			part.Material = Enum.Material.Water
+			part.Transparency = 0.15
+		end
+		tile.texture:Destroy()
+		if tile.overlay then
+			tile.overlay:Destroy()
+		end
+	end
+	table.clear(tiles)
+	table.clear(tileByTexture)
+end
+
 function WaterController.init()
 	for _, part in CollectionService:GetTagged(WATER_TAG) do
 		track(part)
 	end
 	CollectionService:GetInstanceAddedSignal(WATER_TAG):Connect(track)
+	task.spawn(verifyOrFallback)
 
 	RunService.Heartbeat:Connect(function()
 		if #tiles == 0 then
