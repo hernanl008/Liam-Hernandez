@@ -1,11 +1,16 @@
 --!strict
 -- Celebratory feedback for standout moments (legendary catches, high
 -- combos, Gold-tier dishes) — the "make it feel more anime" pass, see
--- GDD.md §11/§14. A radiating speed-line burst (the shonen "impact
--- frame" look, built from plain UI Frames — no art asset needed) pops
--- behind a Bangers-font banner, plus a brief screen-tint flash and an
--- optional camera shake. Swap the visuals for real VFX/sound later; the
--- API (SpectacleUI.banner) doesn't need to change when that happens.
+-- GDD.md §11/§14. Anime mode: a radiating speed-line burst (the shonen
+-- "impact frame" look) pops behind a Bangers-font banner. Retro mode
+-- (BannerOptions.retro — fishing's catch banners): a parchment ribbon
+-- unrolls open with a shimmer sweep and a gold sparkle-diamond burst
+-- instead — the speed-line motif reads as anime regardless of what
+-- color it's tinted, so retro gets its own presentation rather than a
+-- recolored copy of the same effect. Both share a brief screen-tint
+-- flash and an optional camera shake. Everything here is plain UI
+-- Frames, no art assets — swap the visuals for real VFX/sound later;
+-- the API (SpectacleUI.banner) doesn't need to change when that happens.
 
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -22,10 +27,13 @@ local flashFrame: Frame
 local speedLines: CanvasGroup
 local speedLinesScale: UIScale
 local retroRibbon: Frame
+local retroShimmer: Frame
+local gemSparkles: { Frame } = {}
 
 local SPEED_LINE_COUNT = 14
 local RETRO_RIBBON_CLOSED_SIZE = UDim2.fromScale(0, 0.18)
 local RETRO_RIBBON_OPEN_SIZE = UDim2.fromScale(0.82, 0.18)
+local GEM_COUNT = 6
 
 -- Small round rivet/stud detail, same "bolted wood plaque" look used by
 -- CastMeterUI/RhythmUI — duplicated rather than shared (see those files'
@@ -107,6 +115,7 @@ local function ensureBuilt()
 	retroRibbon.Position = UDim2.fromScale(0.5, 0.22)
 	retroRibbon.Size = RETRO_RIBBON_CLOSED_SIZE
 	retroRibbon.BorderSizePixel = 0
+	retroRibbon.ClipsDescendants = true
 	retroRibbon.Visible = false
 	retroRibbon.ZIndex = 1
 	retroRibbon.Parent = gui
@@ -115,6 +124,47 @@ local function ensureBuilt()
 	addRivet(retroRibbon, 1, 0)
 	addRivet(retroRibbon, 0, 1)
 	addRivet(retroRibbon, 1, 1)
+
+	-- A bright diagonal bar that sweeps once across the parchment as it
+	-- opens — the "light catching a treasure" trick, clipped to the
+	-- ribbon's own bounds (ClipsDescendants above) so it never spills
+	-- outside it.
+	local shimmer = Instance.new("Frame")
+	shimmer.AnchorPoint = Vector2.new(0.5, 0.5)
+	shimmer.Size = UDim2.new(0, 50, 3, 0)
+	shimmer.Position = UDim2.fromScale(-0.25, 0.5)
+	shimmer.Rotation = 25
+	shimmer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	shimmer.BackgroundTransparency = 1
+	shimmer.BorderSizePixel = 0
+	shimmer.ZIndex = 2
+	shimmer.Parent = retroRibbon
+	retroShimmer = shimmer
+
+	-- Retro-mode-only "treasure sparkle" — small gold diamonds that pop
+	-- outward from the ribbon and fade, replacing the anime speed-lines
+	-- burst below for retro banners entirely (a shonen "impact frame" is
+	-- the wrong visual language for a wood-and-parchment medieval look,
+	-- however it's tinted). Built once here, hidden; a banner() call only
+	-- animates them when retro = true.
+	for i = 1, GEM_COUNT do
+		local angle = math.rad((360 / GEM_COUNT) * i + 15)
+		local gem = Instance.new("Frame")
+		gem.AnchorPoint = Vector2.new(0.5, 0.5)
+		gem.Position = UDim2.new(0.5, math.cos(angle) * 240, 0.22, math.sin(angle) * 130)
+		gem.Size = UDim2.fromOffset(0, 0)
+		gem.Rotation = 45
+		gem.BackgroundColor3 = Theme.RetroColors.Bronze
+		gem.BorderSizePixel = 0
+		gem.ZIndex = 1
+		gem.Visible = false
+		gem.Parent = gui
+		local gemStroke = Instance.new("UIStroke")
+		gemStroke.Color = Theme.RetroColors.WoodDark
+		gemStroke.Thickness = 1
+		gemStroke.Parent = gem
+		table.insert(gemSparkles, gem)
+	end
 
 	bannerLabel = Instance.new("TextLabel")
 	bannerLabel.Size = UDim2.fromScale(0.8, 0.14)
@@ -199,11 +249,12 @@ export type BannerOptions = {
 	shake: boolean?,
 	holdSeconds: number?,
 	-- Retro-medieval presentation (pixel font via Theme.styleRetroImpact,
-	-- the parchment ribbon backdrop, a warm cream flash and rarity-tinted
-	-- speed lines instead of white ones) instead of the default anime
-	-- Bangers-font/gold look. Fishing catches opt into this; Gold-tier
-	-- dishes and level-ups stay on the anime presentation until their own
-	-- turn (same "mechanic by mechanic" rollout as the rest of the UI).
+	-- the parchment ribbon backdrop with a shimmer sweep, a warm cream
+	-- flash, and a gold sparkle-diamond burst) instead of the default
+	-- anime Bangers-font/gold-look/speed-lines. Fishing catches opt into
+	-- this; Gold-tier dishes and level-ups stay on the anime presentation
+	-- until their own turn (same "mechanic by mechanic" rollout as the
+	-- rest of the UI).
 	retro: boolean?,
 }
 
@@ -244,11 +295,61 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 	-- a Gold-tier dish) would leave the ribbon stuck open behind text it
 	-- was never meant to frame.
 	retroRibbon.Visible = retro
+	for _, gem in gemSparkles do
+		gem.Visible = false
+	end
 	if retro then
 		retroRibbon.Size = RETRO_RIBBON_CLOSED_SIZE
+		retroShimmer.Position = UDim2.fromScale(-0.25, 0.5)
+		retroShimmer.BackgroundTransparency = 1
 		TweenService:Create(retroRibbon, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Size = RETRO_RIBBON_OPEN_SIZE,
 		}):Play()
+		-- Shimmer sweeps once, timed to land right as the ribbon finishes
+		-- unrolling — "light catching the treasure" the instant it's fully
+		-- revealed, not before.
+		task.delay(0.15, function()
+			if not isCurrent() then
+				return
+			end
+			retroShimmer.BackgroundTransparency = 0.4
+			TweenService:Create(retroShimmer, TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+				Position = UDim2.fromScale(1.25, 0.5),
+			}):Play()
+			task.delay(0.4, function()
+				if isCurrent() then
+					retroShimmer.BackgroundTransparency = 1
+				end
+			end)
+		end)
+		-- Sparkle diamonds pop outward in a quick stagger, hold briefly,
+		-- then fade — the retro-medieval "treasure found" replacement for
+		-- the anime speed-lines burst below, which is skipped entirely in
+		-- retro mode (see the header comment on gemSparkles).
+		for i, gem in gemSparkles do
+			gem.Visible = true
+			gem.Size = UDim2.fromOffset(0, 0)
+			gem.BackgroundColor3 = resolvedColor
+			gem.BackgroundTransparency = 0
+			local gemDelay = (i - 1) * 0.03
+			task.delay(gemDelay, function()
+				if isCurrent() then
+					TweenService:Create(gem, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+						Size = UDim2.fromOffset(16, 16),
+					}):Play()
+				end
+			end)
+			task.delay(0.4 + gemDelay, function()
+				if isCurrent() then
+					TweenService:Create(gem, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+				end
+			end)
+			task.delay(0.75 + gemDelay, function()
+				if isCurrent() then
+					gem.Visible = false
+				end
+			end)
+		end
 	end
 
 	flashFrame.Visible = true
@@ -271,26 +372,34 @@ function SpectacleUI.banner(text: string, color: Color3?, options: BannerOptions
 		end
 	end)
 
-	local speedLineColor = retro and resolvedColor or Color3.fromRGB(255, 255, 255)
-	for _, line in speedLines:GetChildren() do
-		if line:IsA("Frame") then
-			line.BackgroundColor3 = speedLineColor
+	-- Anime mode only — the "shonen impact frame" speed-line burst is the
+	-- wrong visual language for retro-medieval banners regardless of what
+	-- color it's tinted, so retro gets the gem-sparkle burst above instead
+	-- and skips this entirely (also fixes it competing/cluttering with
+	-- the ribbon+shimmer+sparkles all going off at once).
+	if retro then
+		speedLines.Visible = false
+	else
+		for _, line in speedLines:GetChildren() do
+			if line:IsA("Frame") then
+				line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			end
 		end
+		speedLines.Visible = true
+		speedLinesScale.Scale = 0.3
+		speedLines.GroupTransparency = 0
+		TweenService:Create(speedLinesScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		task.delay(0.1, function()
+			if isCurrent() then
+				TweenService:Create(speedLines, TweenInfo.new(0.35), { GroupTransparency = 1 }):Play()
+			end
+		end)
+		task.delay(0.5, function()
+			if isCurrent() then
+				speedLines.Visible = false
+			end
+		end)
 	end
-	speedLines.Visible = true
-	speedLinesScale.Scale = 0.3
-	speedLines.GroupTransparency = 0
-	TweenService:Create(speedLinesScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
-	task.delay(0.1, function()
-		if isCurrent() then
-			TweenService:Create(speedLines, TweenInfo.new(0.35), { GroupTransparency = 1 }):Play()
-		end
-	end)
-	task.delay(0.5, function()
-		if isCurrent() then
-			speedLines.Visible = false
-		end
-	end)
 
 	TweenService:Create(bannerLabel, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		TextTransparency = 0,
