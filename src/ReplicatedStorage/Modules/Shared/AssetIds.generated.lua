@@ -7,6 +7,13 @@
 -- normally. Still missing: tiles/grass.png, tiles/path.png,
 -- tiles/sakura_grass.png, tiles/tilled_soil.png, tiles/water.png — add
 -- those once uploaded (falls back to a blank placeholder until then).
+-- Also missing: sprites/player_idle.png + sprites/player_walk.png (the
+-- pack's character walk/idle sheets, now in assets/sprites/) — the 2D
+-- sprite-character conversion (CharacterSpriteController.lua) stays
+-- dormant, keeping normal 3D avatars, until BOTH are uploaded and
+-- listed here; then it activates with no code change. And
+-- sprites/fish_generic.png (any fish image works) for the reel-in's
+-- placeholder fish standee (FishingRig.lua).
 return {
 	["sprites/player_placeholder.png"] = "rbxassetid://113485555309209",
 	["sprites/petal.png"] = "rbxassetid://135838448433089",

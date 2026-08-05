@@ -401,12 +401,18 @@ sessions:
   than 3D models, matching §6's "thin parts read as 2D under a locked
   camera" approach — no new rendering technique introduced, just decals
   on the face CameraController's fixed angle always sees.
-- Character walk/idle sheets and the interior-furniture sheet were
-  **not** wired in this pass — swapping the player's 3D avatar for a
-  sprite-based character is the bigger, separately-tracked fallback from
-  §6/§14, and there's no interior-room feature yet for the furniture to
-  furnish. Both are sitting in the extracted pack, ready whenever those
-  features exist.
+- Character walk/idle sheets: **now wired in**
+  (`CharacterSpriteController.lua` — the sprite-based-character fallback
+  §6/§14 originally deferred). The sheets live in `assets/sprites/` as
+  `player_idle.png` (4 frames x 3 directions, 32x32 cells) and
+  `player_walk.png` (6 x 3), rendered as an animated `BillboardGui`
+  sprite over a fully-transparent (but still physically present) 3D rig,
+  with direction picked from `Humanoid.MoveDirection` and the side row
+  mirrored for left vs right. The controller stays dormant (normal 3D
+  avatars) until both sheets are actually uploaded and present in
+  `AssetIds.generated.lua` — hiding the rig with no sprite to show would
+  make characters invisible. The interior-furniture sheet remains
+  unwired: there's still no interior-room feature to furnish.
 - **Map grew from the 10x14 proof-of-concept plot to a 26x34 map**
   (`MapConfig.lua`) with four named districts around the village square,
   connected by a path cross: **Maple Hollow** (the forest fringe north

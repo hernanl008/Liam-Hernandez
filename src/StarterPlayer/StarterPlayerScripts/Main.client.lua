@@ -21,8 +21,10 @@ local AmbienceController = require(Controllers:WaitForChild("AmbienceController"
 local ShopController = require(Controllers:WaitForChild("ShopController"))
 local CropVisualController = require(Controllers:WaitForChild("CropVisualController"))
 local OpeningCutsceneController = require(Controllers:WaitForChild("OpeningCutsceneController"))
+local CharacterSpriteController = require(Controllers:WaitForChild("CharacterSpriteController"))
 
 CameraController.init()
+CharacterSpriteController.init()
 FarmingController.init()
 CropVisualController.init()
 FishingController.init()
