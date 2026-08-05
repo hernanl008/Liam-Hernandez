@@ -26,8 +26,6 @@
 -- tile per frame to every player for no gameplay reason.
 
 local CollectionService = game:GetService("CollectionService")
-local ContentProvider = game:GetService("ContentProvider")
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local WaterController = {}
@@ -85,15 +83,24 @@ local function track(part: Instance)
 	end)
 end
 
--- MapBuilder commits to the textured path as soon as an id is wired,
--- but a wired id can still fail to render (moderation, wrong asset
--- type, bad upload) — and a Texture whose image never loads draws
--- NOTHING, leaving flat blue blocks with no waves at all. Verify the
--- image actually loaded and, if it didn't, strip the textures and fall
--- back to Roblox's built-in animated Water material, which needs no
--- asset. Same "keep the fallback until the replacement is proven"
--- rule as the sprite character and the fish standees.
-local function verifyOrFallback()
+-- Reports what the water is actually doing, and nothing more.
+--
+-- This used to also verify the texture through an ImageLabel probe and,
+-- on failure, destroy every water Texture and fall back to Roblox's
+-- Material.Water. That check was unsound and did real damage twice, so
+-- it is gone. The reason it cannot work: Texture.Texture accepts a
+-- *Decal* id, but ImageLabel.Image does not. An asset uploaded as a
+-- Decal renders perfectly well as water and fails the probe every
+-- time — which is exactly what happened here (59 tiles tagged, the id
+-- wired, "never loaded" reported, working textures destroyed).
+--
+-- There is no way to ask a Texture whether its image loaded, so there
+-- is no sound automated check to make. The failure mode it was guarding
+-- against — flat blue blocks with no waves — is obvious on sight, and
+-- the print below names the id to check when that happens. A fallback
+-- that can delete working art on a false positive is worse than the bug
+-- it was written for.
+local function reportState()
 	-- The map is built on the server, so its parts and their tags arrive
 	-- by replication some time after this controller starts. Wait for a
 	-- tile rather than reading tiles[1] immediately and giving up.
@@ -109,56 +116,10 @@ local function verifyOrFallback()
 		)
 		return
 	end
-	print(`[WaterController] animating {#tiles} water tiles with {first.texture.Texture}`)
-	-- Texture instances expose no IsLoaded, so probe the same image id
-	-- through a throwaway ImageLabel, which does.
-	--
-	-- The probe MUST be parented into the DataModel and actually
-	-- rendering. An ImageLabel that was never in a rendered tree can
-	-- report IsLoaded = false indefinitely no matter what PreloadAsync
-	-- did, so the first version of this check -- which probed an
-	-- unparented label -- was capable of reporting failure for perfectly
-	-- good art and then destroying every water texture on the strength
-	-- of it. Hence one pixel, effectively invisible but not fully
-	-- transparent (a fully transparent image can be skipped entirely).
-	local holder = Instance.new("ScreenGui")
-	holder.Name = "WaterTextureProbe"
-	holder.ResetOnSpawn = false
-	holder.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-
-	local probe = Instance.new("ImageLabel")
-	probe.Size = UDim2.fromOffset(1, 1)
-	probe.BackgroundTransparency = 1
-	probe.ImageTransparency = 0.99
-	probe.Image = first.texture.Texture
-	probe.Parent = holder
-
-	pcall(function()
-		ContentProvider:PreloadAsync({ probe })
-	end)
-	local loaded = probe.IsLoaded
-	holder:Destroy()
-	if loaded then
-		return
-	end
-
-	warn(
-		`[WaterController] water texture {first.texture.Texture} never loaded — falling back to Material.Water. `
-			.. `Most likely the uploaded asset is still in moderation, is a Decal id, or was the wrong file.`
+	print(
+		`[WaterController] animating {#tiles} water tiles with {first.texture.Texture}. `
+			.. `If these render as flat blue with no waves, that id is the one to re-upload.`
 	)
-	for _, tile in tiles do
-		local part = tile.texture.Parent
-		if part and part:IsA("BasePart") then
-			part.Material = Enum.Material.Water
-			part.Transparency = 0.15
-		end
-		tile.texture:Destroy()
-		if tile.overlay then
-			tile.overlay:Destroy()
-		end
-	end
-	table.clear(tiles)
-	table.clear(tileByTexture)
 end
 
 function WaterController.init()
@@ -166,7 +127,7 @@ function WaterController.init()
 		track(part)
 	end
 	CollectionService:GetInstanceAddedSignal(WATER_TAG):Connect(track)
-	task.spawn(verifyOrFallback)
+	task.spawn(reportState)
 
 	local elapsed = 0
 

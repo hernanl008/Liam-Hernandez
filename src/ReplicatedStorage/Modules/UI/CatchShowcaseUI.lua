@@ -52,9 +52,12 @@ local diamondInner: Frame
 local image: ImageLabel
 local plaque: Frame
 local plaqueLabel: TextLabel
+local callout: Frame
+local calloutLabel: TextLabel
+local calloutStroke: UIStroke
+local calloutScale: UIScale
 local scale: UIScale
 local pulseTween: Tween? = nil
-local raysTween: Tween? = nil
 
 -- Bumped per show(); delayed hide steps check they still own the
 -- showcase so back-to-back catches can't have an old hide clobber a new
@@ -190,12 +193,57 @@ local function ensureBuilt()
 	local sizeConstraint = Instance.new("UITextSizeConstraint")
 	sizeConstraint.MaxTextSize = 16
 	sizeConstraint.Parent = plaqueLabel
+
+	-- Quality callout, mirroring the plaque above the diamond. This used
+	-- to be SpectacleUI's full-width banner at the top of the screen,
+	-- which put the celebration in three separate places at once — banner
+	-- at the top, card in the middle, toast at the bottom. Folding it
+	-- into the card makes the whole catch one object the eye can rest on.
+	callout = Instance.new("Frame")
+	callout.AnchorPoint = Vector2.new(0.5, 1)
+	callout.Position = UDim2.new(0.5, 0, 0.5, -(DIAMOND_SPAN // 2) + 6)
+	callout.Size = UDim2.fromOffset(DIAMOND_SPAN, 32)
+	callout.BackgroundColor3 = Theme.RetroColors.WoodDark
+	callout.BorderSizePixel = 0
+	callout.Visible = false
+	callout.ZIndex = 6
+	callout.Parent = frame
+	local calloutCorner = Instance.new("UICorner")
+	calloutCorner.CornerRadius = UDim.new(0, 4)
+	calloutCorner.Parent = callout
+	calloutStroke = Instance.new("UIStroke")
+	calloutStroke.Color = Theme.RetroColors.Bronze
+	calloutStroke.Thickness = 2
+	calloutStroke.Parent = callout
+
+	calloutScale = Instance.new("UIScale")
+	calloutScale.Parent = callout
+
+	calloutLabel = Instance.new("TextLabel")
+	calloutLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	calloutLabel.Position = UDim2.fromScale(0.5, 0.5)
+	calloutLabel.Size = UDim2.new(1, -12, 1, -8)
+	calloutLabel.BackgroundTransparency = 1
+	calloutLabel.FontFace = Theme.RetroFontFace
+	calloutLabel.TextScaled = true
+	calloutLabel.ZIndex = 7
+	calloutLabel.Parent = callout
+	local calloutConstraint = Instance.new("UITextSizeConstraint")
+	calloutConstraint.MaxTextSize = 15
+	calloutConstraint.Parent = calloutLabel
 end
 
 -- Zooms `spriteId`'s sheet cell up center-screen for `seconds`, tinting
 -- the backdrop diamond with `accentColor` (the fish's rarity color).
--- `displayName` labels the plaque; omitted, the plaque hides.
-function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: number, displayName: string?): boolean
+-- `displayName` labels the plaque below; `calloutText` (e.g. "LEGENDARY
+-- CATCH!") labels a ribbon above. Either omitted hides its ribbon.
+function CatchShowcaseUI.show(
+	spriteId: string,
+	accentColor: Color3,
+	seconds: number,
+	displayName: string?,
+	calloutText: string?
+): boolean
 	local sheetId = AssetIds.sprite("fish_sheet")
 	if sheetId == "rbxassetid://0" then
 		return false
@@ -208,10 +256,6 @@ function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: nu
 		pulseTween:Cancel()
 		pulseTween = nil
 	end
-	if raysTween then
-		raysTween:Cancel()
-		raysTween = nil
-	end
 
 	image.Image = sheetId
 	image.ImageRectOffset = FishSpriteSheet.rectOffsetFor(spriteId)
@@ -219,10 +263,15 @@ function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: nu
 	for _, ray in rays:GetChildren() do
 		if ray:IsA("Frame") then
 			ray.BackgroundColor3 = accentColor
+			ray.BackgroundTransparency = 0.72
 		end
 	end
 	plaque.Visible = displayName ~= nil
 	plaqueLabel.Text = string.upper(displayName or "")
+	callout.Visible = false
+	calloutLabel.Text = string.upper(calloutText or "")
+	calloutLabel.TextColor3 = accentColor
+	calloutStroke.Color = accentColor
 	frame.Visible = true
 
 	-- Pop in with overshoot, then breathe gently while held. Both are
@@ -234,12 +283,37 @@ function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: nu
 		Scale = 1,
 	}):Play()
 
-	-- Slow counter-rotating sunburst. Slow on purpose: fast spokes strobe
-	-- against the pixel grid, which is the opposite of crisp.
+	-- The sunburst is an IMPACT, not a fixture: it flashes with the pop
+	-- and is gone in a third of a second, leaving a calm card behind.
+	-- Spinning it for the whole hold (the previous version) meant
+	-- something was always moving under the sprite, which is what made a
+	-- crisp card still feel busy.
 	rays.Rotation = 0
-	local spin = TweenService:Create(rays, TweenInfo.new(seconds + 1, Enum.EasingStyle.Linear), { Rotation = 22 })
-	spin:Play()
-	raysTween = spin
+	TweenService:Create(rays, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Rotation = 10,
+	}):Play()
+	for _, ray in rays:GetChildren() do
+		if ray:IsA("Frame") then
+			TweenService:Create(ray, TweenInfo.new(0.38, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				BackgroundTransparency = 1,
+			}):Play()
+		end
+	end
+
+	-- The callout lands a beat after the card, so the two read as
+	-- cause and effect rather than arriving in a heap.
+	if calloutText then
+		task.delay(0.4, function()
+			if showToken ~= token then
+				return
+			end
+			callout.Visible = true
+			calloutScale.Scale = 0
+			TweenService:Create(calloutScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Scale = 1,
+			}):Play()
+		end)
+	end
 
 	task.delay(0.42, function()
 		if showToken == token then
@@ -267,6 +341,7 @@ function CatchShowcaseUI.show(spriteId: string, accentColor: Color3, seconds: nu
 		task.delay(0.22, function()
 			if showToken == token then
 				frame.Visible = false
+				callout.Visible = false
 			end
 		end)
 	end)

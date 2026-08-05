@@ -437,35 +437,40 @@ local HELD_HOLD_SECONDS = 2.2
 -- are safe here (unlike the rod/fish, nothing re-drives these parts per
 -- frame, which is the conflict the header warns about).
 local function spawnCatchSparkles(center: Vector3)
-	for i = 1, 6 do
-		task.delay((i - 1) * 0.07, function()
-			local sparkle = Instance.new("Part")
-			sparkle.Name = "CatchSparkle"
-			sparkle.Size = Vector3.new(0.35, 0.35, 0.06)
-			sparkle.Color = Color3.fromRGB(255, 226, 120)
-			sparkle.Material = Enum.Material.SmoothPlastic
-			sparkle.CanCollide = false
-			sparkle.CanQuery = false
-			sparkle.Anchored = true
-			local offset = Vector3.new(
-				(math.random() - 0.5) * 3.2,
-				(math.random() - 0.5) * 2.2,
-				(math.random() - 0.5) * 0.8
-			)
-			-- Rotated 45 degrees in-plane: reads as a diamond glint, and
-			-- stays camera-facing for the same fixed-camera reason the fish
-			-- sprite does.
-			sparkle.CFrame = CFrame.new(center + offset) * CFrame.Angles(0, 0, math.rad(45))
-			sparkle.Parent = Workspace
-			TweenService:Create(sparkle, TweenInfo.new(0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Position = sparkle.Position + Vector3.new(0, 1.4, 0),
-				Transparency = 1,
-			}):Play()
-			task.delay(0.75, function()
-				sparkle:Destroy()
-			end)
-		end)
-	end
+	-- ONE expanding ring on the water, not a scatter of glints.
+	--
+	-- The previous version spawned six 0.35-stud specks at random offsets.
+	-- At this game's camera distance (CameraController sits ~44 studs
+	-- back) a 0.35-stud part is a couple of screen pixels, so six of them
+	-- drifting in random directions read as dust or video noise rather
+	-- than as sparkle — which is exactly how it was described, twice.
+	-- Scale is the whole problem: an effect at this camera has to be
+	-- big and simple or it may as well not exist.
+	--
+	-- A flat ring lying on the water surface is the shape that survives a
+	-- top-down camera. It starts tight around the fish and expands as it
+	-- fades, so the eye reads outward motion from the catch point.
+	local ring = Instance.new("Part")
+	ring.Name = "CatchRing"
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Size = Vector3.new(0.08, 2.5, 2.5)
+	ring.Color = Color3.fromRGB(255, 236, 176)
+	ring.Material = Enum.Material.SmoothPlastic
+	ring.Transparency = 0.35
+	ring.CanCollide = false
+	ring.CanQuery = false
+	ring.Anchored = true
+	-- Rotated flat: a Cylinder's length runs along its local X, so this
+	-- lays the disc face-up on the water.
+	ring.CFrame = CFrame.new(center - Vector3.new(0, 1.2, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	ring.Parent = Workspace
+	TweenService:Create(ring, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(0.08, 13, 13),
+		Transparency = 1,
+	}):Play()
+	task.delay(0.8, function()
+		ring:Destroy()
+	end)
 end
 
 export type EndReelCallbacks = {

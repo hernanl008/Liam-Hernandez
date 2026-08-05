@@ -147,48 +147,57 @@ function FishingController.init()
 			-- was celebrating an empty patch of air.
 			FishingRig.endReel(true, {
 				onHeld = function()
-					-- Staggered, not simultaneous. Everything used to land in
-					-- the same instant, which read as overwhelming: the fish
-					-- zoom leads (it's the subject), the banner follows once
-					-- it's settled, and the toast comes last. Roughly a beat
-					-- between each, all inside the 2.2s hold.
-					if payload.fishId then
-						CatchShowcaseUI.show(payload.fishId, accentColor, 1.7, payload.displayName)
-					end
-					SoundPlayer.play(SoundIds.CatchSuccess)
-
-					-- Beat 2: the callout, once the zoom has settled.
-					task.delay(0.5, function()
-						if payload.spectacle then
-							-- Priority: a Legendary catch always reads as
-							-- Legendary first; otherwise a near-flawless
-							-- reel-in (PERFECT_CATCH_QUALITY_THRESHOLD) gets
-							-- its own distinct banner rather than folding
-							-- into the generic combo-triggered
-							-- "AMAZING CATCH!".
-							local label: string
-							if payload.rarity == "Legendary" then
-								label = "LEGENDARY CATCH!"
-							elseif payload.perfect then
-								label = "PERFECT CATCH!"
-							else
-								label = "AMAZING CATCH!"
-							end
-							SpectacleUI.banner(label, accentColor, { shake = true, retro = true })
+					-- ONE object on screen, not three. This used to fire a
+					-- banner at the top, a card in the middle, a ring burst,
+					-- a screen shake and a toast at the bottom — five
+					-- elements across three regions, which read as noise and
+					-- buried the dialogue line at the bottom of the screen.
+					-- Now the card carries all of it: the fish, its name on a
+					-- plaque below, and the quality callout on a ribbon
+					-- above. Nothing else is drawn.
+					local label: string? = nil
+					if payload.spectacle then
+						-- Priority: a Legendary catch always reads as
+						-- Legendary first; otherwise a near-flawless reel-in
+						-- (PERFECT_CATCH_QUALITY_THRESHOLD) gets its own
+						-- distinct callout rather than folding into the
+						-- generic combo-triggered "AMAZING CATCH!".
+						if payload.rarity == "Legendary" then
+							label = "LEGENDARY CATCH!"
+						elseif payload.perfect then
+							label = "PERFECT CATCH!"
 						else
-							ProgressFeedback.announce("FISHING", payload)
-							-- Ordinary catches: a small rarity ring near the
-							-- held fish + a tiny shake. Spectacle catches skip
-							-- it; the ribbon banner is already a lot.
-							SpectacleUI.burst(UDim2.fromScale(0.5, 0.42), accentColor)
-							pcall(SpectacleUI.shake, 0.05, 0.12)
+							label = "AMAZING CATCH!"
 						end
-					end)
+					end
 
-					-- Beat 3: the confirmation line, last.
-					task.delay(1.0, function()
-						StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
-					end)
+					SoundPlayer.play(SoundIds.CatchSuccess)
+					local fishId = payload.fishId
+					local shown = false
+					if fishId then
+						shown = CatchShowcaseUI.show(fishId, accentColor, 1.9, payload.displayName, label)
+					end
+
+					if not shown then
+						-- No fish sheet uploaded, so there's no card to carry
+						-- the moment — fall back to the old banner + line.
+						if label then
+							SpectacleUI.banner(label, accentColor, { shake = true, retro = true })
+						end
+						task.delay(0.4, function()
+							StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)
+						end)
+					end
+
+					-- Level-ups and first-time discoveries still get their own
+					-- banner, but AFTER the card has gone rather than on top
+					-- of it. They're rare and worth their own moment; the
+					-- point of the cleanup is that two things never share one.
+					if payload.leveledUp or payload.newDiscovery then
+						task.delay(2.3, function()
+							ProgressFeedback.announce("FISHING", payload)
+						end)
+					end
 				end,
 				onComplete = FishingRig.unequipRod,
 			})
