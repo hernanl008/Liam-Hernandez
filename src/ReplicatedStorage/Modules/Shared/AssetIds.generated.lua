@@ -10,12 +10,16 @@
 -- Also still missing: sprites/fish_generic.png (any fish image works)
 -- for the reel-in's placeholder fish standee (FishingRig.lua).
 return {
-	-- The pack's character walk/idle sheets — with both of these present,
-	-- CharacterSpriteController.lua's upload guard passes and the 2D
-	-- sprite-character conversion goes live (3D avatars hidden, animated
-	-- billboard sprite in their place).
-	["sprites/player_idle.png"] = "rbxassetid://131358847859636",
-	["sprites/player_walk.png"] = "rbxassetid://72817581827486",
+	-- The pack's character walk/idle sheets, driving the 2D sprite-character
+	-- conversion (CharacterSpriteController.lua). These two are *Image*
+	-- assets (uploaded via Studio's Asset Manager), NOT Decal assets like
+	-- every other entry here — every other sprite below is only ever used
+	-- as a Decal.Texture (MapBuilder.placeProps), which happily accepts a
+	-- Decal id, but these are used as ImageLabel.Image, which does not. The
+	-- first upload of these two came back as Decal ids and silently never
+	-- loaded. If you ever re-upload them, use Asset Manager > Images.
+	["sprites/player_idle.png"] = "rbxassetid://121634740972126",
+	["sprites/player_walk.png"] = "rbxassetid://105981369730127",
 	["sprites/player_placeholder.png"] = "rbxassetid://113485555309209",
 	["sprites/petal.png"] = "rbxassetid://135838448433089",
 	["sprites/kaya_placeholder.png"] = "rbxassetid://99746438596164",
