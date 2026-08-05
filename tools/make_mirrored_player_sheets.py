@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Generates horizontally-mirrored copies of the player sprite sheets.
 
-The pack's character sheets only contain ONE side profile, facing left.
-Roblox has no way to mirror an ImageLabel at runtime (a negative Size
-renders nothing rather than flipping), so walking right showed a
-left-facing character. These pre-mirrored sheets are the fix: the
-controller picks the mirrored sheet when moving right.
+The pack's character sheets only contain ONE side profile — facing
+RIGHT (established by live observation: moving right looks correct,
+moving left moonwalks; two earlier pixel-analysis attempts called it
+left and were both wrong). Roblox has no way to mirror an ImageLabel at
+runtime (a negative Size renders nothing rather than flipping), so
+walking left moonwalked. These pre-mirrored sheets are the fix: the
+controller picks the mirrored sheet when moving left.
 
 Each 32x32 CELL is flipped individually, NOT the sheet as a whole —
 flipping the whole image would also reverse column order, scrambling the
