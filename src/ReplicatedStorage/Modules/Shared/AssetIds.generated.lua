@@ -5,8 +5,8 @@
 -- issue that manual upload sidesteps) — same `{ [path] = "rbxassetid://..." }`
 -- shape either way, so nothing else needs to change once uploads succeed
 -- normally. Still missing: tiles/grass.png, tiles/path.png,
--- tiles/sakura_grass.png, tiles/tilled_soil.png, tiles/water.png — add
--- those once uploaded (falls back to a blank placeholder until then).
+-- tiles/sakura_grass.png, tiles/tilled_soil.png — add those once
+-- uploaded (falls back to a blank placeholder until then).
 -- Also still missing: sprites/fish_generic.png (any fish image works)
 -- for the reel-in's fish standee, which falls back to a plain colored
 -- block until uploaded.
@@ -24,6 +24,9 @@ return {
 	-- Drawn by tools/make_fishing_rod_sprite.py (the pack has no rod art).
 	-- Used as a Decal on FishingRig's rod standee.
 	["sprites/fishing_rod.png"] = "rbxassetid://122948917384062",
+	-- Drawn by tools/make_water_tile.py — seamless, and animated at
+	-- runtime by WaterController scrolling its offset per tile.
+	["tiles/water.png"] = "rbxassetid://139611448879928",
 	["sprites/player_placeholder.png"] = "rbxassetid://113485555309209",
 	["sprites/petal.png"] = "rbxassetid://135838448433089",
 	["sprites/kaya_placeholder.png"] = "rbxassetid://99746438596164",

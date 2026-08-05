@@ -172,6 +172,16 @@ local function applySprite(character: Model)
 			else
 				row = if moveDirection.Z > 0 then ROW_DOWN else ROW_UP
 			end
+			if row ~= lastRow then
+				-- Only on change, so this is a handful of lines per session
+				-- rather than 60/sec. Tells us whether a direction key is
+				-- actually selecting the row we think it is.
+				print(
+					`[CharacterSpriteController] row -> {row} `
+						.. `(0=front 1=back 2=side) moveDir X={string.format("%.2f", moveDirection.X)} `
+						.. `Z={string.format("%.2f", moveDirection.Z)}`
+				)
+			end
 			lastRow = row
 		end
 
