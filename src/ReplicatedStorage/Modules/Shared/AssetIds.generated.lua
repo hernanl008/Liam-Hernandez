@@ -20,18 +20,26 @@ return {
 	-- loaded. If you ever re-upload them, use Asset Manager > Images.
 	["sprites/player_idle.png"] = "rbxassetid://121634740972126",
 	["sprites/player_walk.png"] = "rbxassetid://105981369730127",
+	-- Per-cell horizontal flips of the two sheets above
+	-- (tools/make_mirrored_player_sheets.py), for whichever side
+	-- direction the base sheet doesn't already face.
+	["sprites/player_idle_mirror.png"] = "rbxassetid://76986687020932",
+	["sprites/player_walk_mirror.png"] = "rbxassetid://127202540573742",
 	-- Drawn by tools/make_fishing_rod_sprite.py (the pack has no rod art).
 	-- Used as a Decal on FishingRig's rod standee.
 	["sprites/fishing_rod.png"] = "rbxassetid://122948917384062",
 	-- Drawn by tools/make_water_tile.py — seamless, and animated at
 	-- runtime by WaterController scrolling its offset per tile.
-	["tiles/water.png"] = "rbxassetid://139611448879928",
+	-- Re-uploaded after the dash-period seam fix; the previous id
+	-- (139611448879928) permanently serves the seamed art, since Roblox
+	-- assets are immutable.
+	["tiles/water.png"] = "rbxassetid://121025605768602",
 	-- The whole fish + loot roster on one sheet (tools/make_fish_sheet.py),
 	-- cropped per-species at runtime via FishSpriteSheet.lua. If catches
 	-- render as a dark-blue fragment instead of a clean pixel fish, the
 	-- uploaded file was a chat preview, not assets/sprites/fish_sheet.png —
 	-- re-upload the real file and replace this id.
-	["sprites/fish_sheet.png"] = "rbxassetid://117744610472440",
+	["sprites/fish_sheet.png"] = "rbxassetid://85432915523617",
 	["sprites/player_placeholder.png"] = "rbxassetid://113485555309209",
 	["sprites/petal.png"] = "rbxassetid://135838448433089",
 	["sprites/kaya_placeholder.png"] = "rbxassetid://99746438596164",
