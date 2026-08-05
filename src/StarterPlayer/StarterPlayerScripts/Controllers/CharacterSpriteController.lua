@@ -42,6 +42,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AssetIds = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Shared"):WaitForChild("AssetIds"))
 
@@ -119,12 +120,34 @@ local function applySprite(character: Model)
 		return
 	end
 
-	hideCharacterParts(character)
+	-- Build the sprite and confirm the image ACTUALLY loads before hiding
+	-- the 3D rig. Hiding first and trusting the image to show up is how
+	-- you get an invisible player when the asset doesn't render (wrong id
+	-- type, still in moderation, etc.) — the rig is the fallback, so it
+	-- only goes away once there's something real to replace it with.
 	local image = buildBillboard(rootPart)
-	print(`[CharacterSpriteController] sprite applied to {character.Name}; idle id = {AssetIds.sprite("player_idle")}`)
+	local idleId = AssetIds.sprite("player_idle")
+	image.Image = idleId
+	pcall(function()
+		ContentProvider:PreloadAsync({ image })
+	end)
+	if not image.IsLoaded then
+		warn(
+			`[CharacterSpriteController] image {idleId} never loaded (IsLoaded = false) — keeping the 3D avatar. `
+				.. `Most likely the uploaded asset is a Decal id rather than an Image id, or it's still in moderation.`
+		)
+		local billboard = image.Parent
+		if billboard then
+			billboard:Destroy()
+		end
+		return
+	end
+
+	hideCharacterParts(character)
+	print(`[CharacterSpriteController] sprite applied to {character.Name}; image loaded OK ({idleId})`)
 
 	local lastRow = ROW_DOWN
-	local currentSheetIsWalk: boolean? = nil -- forces the first frame's Image assignment
+	local currentSheetIsWalk = false -- the idle sheet is already assigned above
 	local frameTimer = 0
 
 	local conn: RBXScriptConnection
