@@ -104,7 +104,10 @@ function FishingController.init()
 	Remotes.get("ReelStart").OnClientEvent:Connect(function(payload: { fishId: string, displayName: string, rarity: string, notes: any })
 		stopAwaitingHook()
 		StatusToast.set(nil)
-		FishingRig.startReel(estimateReelDuration(payload.notes))
+		-- fishId picks the species' cell on the fish sheet, so the thing
+		-- thrashing on the line (and later held overhead) is the actual
+		-- fish being fought, not a generic stand-in.
+		FishingRig.startReel(estimateReelDuration(payload.notes), payload.fishId)
 		RhythmUI.play(payload.notes, function(hits)
 			Remotes.get("ReelResult"):FireServer(hits)
 		end, RhythmGameConfig.TimingWindows, {
@@ -119,6 +122,7 @@ function FishingController.init()
 		outcome: string,
 		displayName: string?,
 		rarity: string?,
+		pullId: string?,
 		pullType: string?,
 		spectacle: boolean?,
 		perfect: boolean?,
@@ -182,7 +186,7 @@ function FishingController.init()
 				FishingRig.unequipRod()
 				ProgressFeedback.announce("FISHING", payload)
 				StatusToast.setTemporary(`Hauled from the depths: {payload.displayName}.`, 2, true)
-			end, payload.pullType == "Treasure")
+			end, payload.pullType == "Treasure", payload.pullId)
 		else
 			-- GotAway / ZoneLocked: dart-away animation (or nothing, for
 			-- ZoneLocked which never had a fish), then the letdown.

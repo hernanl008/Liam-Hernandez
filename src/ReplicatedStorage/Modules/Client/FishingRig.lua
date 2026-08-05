@@ -17,19 +17,17 @@
 -- ("Right Arm" vs "RightHand") and this project already hit a
 -- rig-assumption surprise once (PlayerFreeze's PlayerModule lookup);
 -- anchoring off the root instead sidesteps that class of bug entirely.
--- Fish: a flat, thin, unrotated Part with a Decal on its Back face — the
--- exact same "camera-facing sprite standee" convention MapBuilder.lua's
--- placeProps already uses for every tree/house/animal in the game
--- (CameraController's camera is fixed and never rotates, so an unrotated
--- part's Back face is reliably always what's on screen; no per-frame
--- "face the camera" math needed). AssetIds.sprite("fish_generic") has no
--- uploaded art yet so the Decal is currently blank — the Part's own
--- bright color is what's actually visible right now; the Decal slot is
--- just sitting there ready to pick up real fish art later with no code
--- changes, same as every other sprite in this game. Manually Lerp'd from
--- a start position (the water, if a FishingSpot part is known) to the
--- rod tip over the reel's duration, with a sine-wave wiggle added on top
--- so it doesn't travel in a dead-straight line.
+-- Fish: a flat, thin, unrotated Part rendering the hooked species' cell
+-- of the fish/loot sprite sheet (assets/sprites/fish_sheet.png, one
+-- upload for the whole roster) via a SurfaceGui ImageLabel on its Back
+-- face — an ImageLabel because Decals/Textures can't crop a sheet, and
+-- Back face because CameraController's camera is fixed and never
+-- rotates, so an unrotated part's Back face is reliably always what's
+-- on screen. Falls back to a plain colored block until the sheet is
+-- uploaded. Manually Lerp'd from a start position (the water, if a
+-- FishingSpot part is known) to the rod tip over the reel's duration,
+-- with a sine-wave wiggle added on top so it doesn't travel in a
+-- dead-straight line.
 --
 -- Deliberately NOT Enum.Material.Neon despite wanting these to pop:
 -- Neon renders overbright specifically to trigger bloom (AtmosphereService
@@ -52,6 +50,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AssetIds = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Shared"):WaitForChild("AssetIds"))
+local FishSpriteSheet = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Shared"):WaitForChild("FishSpriteSheet"))
 
 local FishingRig = {}
 
@@ -293,12 +292,49 @@ function FishingRig.splash()
 	end)
 end
 
--- Spawns the placeholder fish at the water and starts it swimming toward
--- the rod tip over `durationSeconds` (FishingController passes the same
--- length RhythmUI computes for the reel-in chart, so the fish physically
--- arrives right as the minigame ends). `reeling = true` also drives the
--- rod's pull-and-release bob for the same span via computeHeldCFrame.
-function FishingRig.startReel(durationSeconds: number)
+-- Renders `spriteId`'s cell of the fish/loot sheet onto `part`'s Back
+-- face, if the sheet is uploaded. A SurfaceGui ImageLabel, NOT a Decal:
+-- Decals/Textures can only show a whole image, and the entire point of
+-- the one-sheet approach (one manual upload for the whole roster) is
+-- cropping a single cell out at render time via ImageRectOffset.
+-- Returns false when the sheet isn't uploaded yet — caller keeps the
+-- part's plain color visible as the fallback.
+local function applySheetSprite(part: BasePart, spriteId: string): boolean
+	local sheetId = AssetIds.sprite("fish_sheet")
+	if sheetId == "rbxassetid://0" then
+		return false
+	end
+	local surface = Instance.new("SurfaceGui")
+	surface.Face = Enum.NormalId.Back
+	surface.LightInfluence = 0
+	surface.Parent = part
+
+	local image = Instance.new("ImageLabel")
+	image.Size = UDim2.fromScale(1, 1)
+	image.BackgroundTransparency = 1
+	image.Image = sheetId
+	image.ScaleType = Enum.ScaleType.Stretch
+	image.ResampleMode = Enum.ResamplerMode.Pixelated
+	image.ImageRectSize = Vector2.new(FishSpriteSheet.CELL_WIDTH, FishSpriteSheet.CELL_HEIGHT)
+	image.ImageRectOffset = FishSpriteSheet.rectOffsetFor(spriteId)
+	image.Parent = surface
+
+	-- With the sprite carrying the visuals, the part itself goes
+	-- near-invisible (0.999, not 1 — the same "fully transparent from
+	-- birth suppresses attached visuals" engine quirk placeProps works
+	-- around).
+	part.Transparency = 0.999
+	return true
+end
+
+-- Spawns the fish at the water and starts it swimming toward the rod
+-- tip over `durationSeconds` (FishingController passes the same length
+-- RhythmUI computes for the reel-in chart, so the fish physically
+-- arrives right as the minigame ends). `fishId` picks which species'
+-- cell of the fish sheet to show — the actual fish on the line, visible
+-- during the fight and in the held-up catch pose. `reeling = true` also
+-- drives the rod's pull-and-release bob via computeHeldCFrame.
+function FishingRig.startReel(durationSeconds: number, fishId: string?)
 	if not rodModel then
 		return
 	end
@@ -322,23 +358,20 @@ function FishingRig.startReel(durationSeconds: number)
 
 	local fish = Instance.new("Part")
 	fish.Name = "FishingCatchPlaceholder"
-	fish.Size = Vector3.new(2.4, 1.1, 0.15)
+	fish.Size = Vector3.new(2.4, 1.2, 0.15)
 	fish.Color = Color3.fromRGB(70, 180, 245)
 	fish.Material = Enum.Material.SmoothPlastic
 	fish.CanCollide = false
 	fish.CanQuery = false
 	fish.Anchored = true
 	-- Position only, no rotation applied (or ever set again below) — a
-	-- fixed orientation is exactly what keeps the Decal's Back face
-	-- reliably camera-facing under this game's locked camera angle.
+	-- fixed orientation is exactly what keeps the Back face reliably
+	-- camera-facing under this game's locked camera angle.
 	fish.CFrame = CFrame.new(startCFrame.Position)
 	fish.Parent = Workspace
 	fishPart = fish
 
-	local fishDecal = Instance.new("Decal")
-	fishDecal.Face = Enum.NormalId.Back
-	fishDecal.Texture = AssetIds.sprite("fish_generic")
-	fishDecal.Parent = fish
+	applySheetSprite(fish, fishId or "Generic")
 
 	local startTime = os.clock()
 	fishConn = RunService.Heartbeat:Connect(function()
@@ -517,11 +550,12 @@ local SNAG_SECONDS = 0.5
 -- A junk/treasure "Pull" never calls startReel — the server resolves it
 -- immediately, no reel-in chart — so it previously had zero animation at
 -- all, unlike every other outcome. This gives it its own quick beat: the
--- rod dips hard (reusing the same `biting` wobble bite() uses) while a
--- small snag prop rises straight to the rod tip and spins once, then
--- pops. `isTreasure` just picks the color (gold vs. driftwood-brown) —
--- no separate geometry, still a placeholder either way.
-function FishingRig.snagPull(onComplete: (() -> ())?, isTreasure: boolean?)
+-- rod dips hard (reusing the same `biting` wobble bite() uses) while the
+-- snagged item rises straight to the rod tip, then pops. `pullId` picks
+-- the item's cell of the fish/loot sheet (driftwood, boot, locket, coin
+-- pouch); `isTreasure` colors the fallback block (gold vs. brown) when
+-- the sheet isn't uploaded.
+function FishingRig.snagPull(onComplete: (() -> ())?, isTreasure: boolean?, pullId: string?)
 	if not rodModel then
 		if onComplete then
 			onComplete()
@@ -541,14 +575,19 @@ function FishingRig.snagPull(onComplete: (() -> ())?, isTreasure: boolean?)
 
 	local snag = Instance.new("Part")
 	snag.Name = "FishingPullPlaceholder"
-	snag.Size = Vector3.new(0.9, 0.9, 0.9)
+	snag.Size = Vector3.new(1.8, 0.9, 0.15)
 	snag.Color = isTreasure and Color3.fromRGB(255, 215, 80) or Color3.fromRGB(120, 100, 80)
 	snag.Material = Enum.Material.SmoothPlastic
 	snag.CanCollide = false
 	snag.CanQuery = false
 	snag.Anchored = true
-	snag.CFrame = startCFrame
+	snag.CFrame = CFrame.new(startCFrame.Position)
 	snag.Parent = Workspace
+
+	-- With a sprite the spin is dropped (a camera-facing flat can't spin
+	-- about Y without foreshortening to a sliver); the fallback block
+	-- keeps it since a colored cube reads better with some motion.
+	local hasSprite = pullId ~= nil and applySheetSprite(snag, pullId)
 
 	local startTime = os.clock()
 	local conn: RBXScriptConnection
@@ -569,7 +608,11 @@ function FishingRig.snagPull(onComplete: (() -> ())?, isTreasure: boolean?)
 		local alpha = elapsed / SNAG_SECONDS
 		local targetPosition = (heldNow * CFrame.new(0, 0, -ROD_LENGTH)).Position
 		local position = startCFrame.Position:Lerp(targetPosition, alpha)
-		snag.CFrame = CFrame.new(position) * CFrame.Angles(0, alpha * math.rad(360), 0)
+		if hasSprite then
+			snag.CFrame = CFrame.new(position)
+		else
+			snag.CFrame = CFrame.new(position) * CFrame.Angles(0, alpha * math.rad(360), 0)
+		end
 	end)
 end
 

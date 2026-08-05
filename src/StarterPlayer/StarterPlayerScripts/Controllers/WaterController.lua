@@ -10,11 +10,16 @@
 -- (see tools/make_water_tile.py), so sliding its offset gives
 -- continuous motion off a single asset with no visible loop point.
 --
--- The "randomized" part is per-tile: each tile gets its own phase, drift
--- direction and sway speed, so the cove reads as a body of water with
--- waves moving through it rather than one giant texture sliding in
--- lockstep — which is exactly what a uniform scroll looks like across a
--- grid, and reads as obviously fake.
+-- All tiles share ONE global offset, deliberately: each tile part shows
+-- exactly one repeat of the seamless texture (StudsPerTile == tile
+-- size), so equal offsets make neighbouring tiles' edges line up into
+-- one continuous surface. The first version randomized drift per tile
+-- to avoid "lockstep sliding" — which was exactly backwards for a tile
+-- GRID: every tile boundary became a visible seam where two unrelated
+-- offsets met, and the cove read as a patchwork of out-of-sync squares
+-- (caught in a live screenshot). The organic variation now comes from
+-- the two LAYERS moving against each other, not from tiles disagreeing
+-- with their neighbours.
 --
 -- Client-side on purpose: it's pure decoration, nothing depends on it,
 -- and animating it on the server would replicate a property change per
@@ -37,13 +42,16 @@ local SWAY_SPEED = 0.55
 -- each other is what makes the surface shimmer instead of just travel.
 local OVERLAY_SPEED_MULTIPLIER = -1.6
 
+-- One fixed drift heading for the whole cove (a lazy diagonal), shared
+-- by every tile — see the header for why per-tile variation is exactly
+-- what broke it.
+local DRIFT_HEADING = math.rad(25)
+local DRIFT_X = math.cos(DRIFT_HEADING) * DRIFT_STUDS_PER_SECOND
+local DRIFT_Y = math.sin(DRIFT_HEADING) * DRIFT_STUDS_PER_SECOND
+
 type WaterTile = {
 	texture: Texture,
 	overlay: Texture?,
-	phase: number,
-	driftX: number,
-	driftY: number,
-	swaySpeed: number,
 }
 
 local tiles: { WaterTile } = {}
@@ -59,16 +67,9 @@ local function track(part: Instance)
 	local overlayInstance = part:FindFirstChild(WATER_OVERLAY_NAME)
 	local overlay = if overlayInstance and overlayInstance:IsA("Texture") then overlayInstance else nil
 
-	-- math.random() per tile, not a hash of position: neighbouring tiles
-	-- getting unrelated values is the whole point.
-	local angle = math.random() * math.pi * 2
 	table.insert(tiles, {
 		texture = texture,
 		overlay = overlay,
-		phase = math.random() * math.pi * 2,
-		driftX = math.cos(angle) * DRIFT_STUDS_PER_SECOND,
-		driftY = math.sin(angle) * DRIFT_STUDS_PER_SECOND,
-		swaySpeed = SWAY_SPEED * (0.7 + math.random() * 0.6),
 	})
 
 	texture.Destroying:Connect(function()
@@ -93,16 +94,20 @@ function WaterController.init()
 			return
 		end
 		local t = os.clock()
+		-- Computed ONCE, applied to every tile identically — equal offsets
+		-- are what keep the tiled pattern continuous across part edges.
+		local sway = math.sin(t * SWAY_SPEED) * SWAY_AMPLITUDE_STUDS
+		local baseU = t * DRIFT_X + sway
+		local baseV = t * DRIFT_Y
+		local overlayU = t * DRIFT_X * OVERLAY_SPEED_MULTIPLIER - sway * 0.5
+		local overlayV = t * DRIFT_Y * OVERLAY_SPEED_MULTIPLIER
 		for _, tile in tiles do
-			-- Steady drift plus a slow crosswise sway, so crests wander
-			-- instead of tracking a dead-straight line.
-			local sway = math.sin(t * tile.swaySpeed + tile.phase) * SWAY_AMPLITUDE_STUDS
-			tile.texture.OffsetStudsU = tile.phase + t * tile.driftX + sway
-			tile.texture.OffsetStudsV = tile.phase + t * tile.driftY
+			tile.texture.OffsetStudsU = baseU
+			tile.texture.OffsetStudsV = baseV
 			local overlay = tile.overlay
 			if overlay then
-				overlay.OffsetStudsU = -tile.phase + t * tile.driftX * OVERLAY_SPEED_MULTIPLIER - sway * 0.5
-				overlay.OffsetStudsV = tile.phase + t * tile.driftY * OVERLAY_SPEED_MULTIPLIER
+				overlay.OffsetStudsU = overlayU
+				overlay.OffsetStudsV = overlayV
 			end
 		end
 	end)

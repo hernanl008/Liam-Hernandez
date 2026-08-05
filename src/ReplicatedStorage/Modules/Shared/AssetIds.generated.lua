@@ -7,9 +7,14 @@
 -- normally. Still missing: tiles/grass.png, tiles/path.png,
 -- tiles/sakura_grass.png, tiles/tilled_soil.png — add those once
 -- uploaded (falls back to a blank placeholder until then).
--- Also still missing: sprites/fish_generic.png (any fish image works)
--- for the reel-in's fish standee, which falls back to a plain colored
--- block until uploaded.
+-- Also still missing: sprites/fish_sheet.png — the whole fish + loot
+-- roster on one sheet (tools/make_fish_sheet.py; cropped per-species at
+-- runtime via FishSpriteSheet.lua). Until it's uploaded the reel-in
+-- fish/pull standees fall back to plain colored blocks. Upload via
+-- Asset Manager > Images (it's consumed by an ImageLabel, so it MUST be
+-- an Image id, not a Decal id — same rule as the player sheets).
+-- ALSO still needed for D-facing walk: sprites/player_idle_mirror.png +
+-- sprites/player_walk_mirror.png (both files in assets/sprites/).
 return {
 	-- The pack's character walk/idle sheets, driving the 2D sprite-character
 	-- conversion (CharacterSpriteController.lua). These two are *Image*

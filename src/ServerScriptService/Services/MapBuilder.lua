@@ -86,8 +86,14 @@ local function buildGround(folder: Folder)
 						overlay.Name = WATER_OVERLAY_NAME
 						overlay.Face = Enum.NormalId.Top
 						overlay.Texture = waterId
-						overlay.StudsPerTileU = tileSize * 0.6
-						overlay.StudsPerTileV = tileSize * 0.6
+						-- Exactly half the tile size — 2 clean repeats per
+						-- part — so the overlay pattern also lines up across
+						-- part edges. The first pass used 0.6x, which is
+						-- 1.67 repeats per part: misaligned at every tile
+						-- boundary, one of the two causes of the visibly
+						-- out-of-sync water grid.
+						overlay.StudsPerTileU = tileSize * 0.5
+						overlay.StudsPerTileV = tileSize * 0.5
 						overlay.Transparency = 0.55
 						overlay.Parent = part
 						CollectionService:AddTag(part, WATER_TAG)
