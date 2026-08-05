@@ -7,8 +7,11 @@
 -- normally. Still missing: tiles/grass.png, tiles/path.png,
 -- tiles/sakura_grass.png, tiles/tilled_soil.png, tiles/water.png — add
 -- those once uploaded (falls back to a blank placeholder until then).
--- Also still missing: sprites/fish_generic.png (any fish image works)
--- for the reel-in's placeholder fish standee (FishingRig.lua).
+-- Also still missing, both used by FishingRig.lua and both falling back
+-- to plain colored blocks until uploaded: sprites/fish_generic.png (any
+-- fish image works) for the reel-in's fish standee, and
+-- sprites/fishing_rod.png (already drawn, sitting in assets/sprites/)
+-- for the rod itself.
 return {
 	-- The pack's character walk/idle sheets, driving the 2D sprite-character
 	-- conversion (CharacterSpriteController.lua). These two are *Image*

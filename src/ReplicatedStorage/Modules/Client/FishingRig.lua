@@ -8,11 +8,14 @@
 -- a multiplayer-visible version is a later step, this is "something is
 -- visibly happening" for now.
 --
--- Rod: two plain anchored Parts (a wood-colored pole + a bright gold tip
--- ball), held at a fixed offset from the character's HumanoidRootPart
--- rather than an actual hand — R6 vs R15 name their arm parts
--- differently ("Right Arm" vs "RightHand") and this project already hit
--- a rig-assumption surprise once (PlayerFreeze's PlayerModule lookup);
+-- Rod: a flat sprite standee (assets/sprites/fishing_rod.png, drawn by
+-- tools/make_fishing_rod_sprite.py since the asset pack has no rod),
+-- falling back to two plain anchored Parts (wood-colored pole + gold tip
+-- ball) for as long as that sprite hasn't been uploaded. Either way it's
+-- held at a fixed offset from the character's HumanoidRootPart rather
+-- than an actual hand — R6 vs R15 name their arm parts differently
+-- ("Right Arm" vs "RightHand") and this project already hit a
+-- rig-assumption surprise once (PlayerFreeze's PlayerModule lookup);
 -- anchoring off the root instead sidesteps that class of bug entirely.
 -- Fish: a flat, thin, unrotated Part with a Decal on its Back face — the
 -- exact same "camera-facing sprite standee" convention MapBuilder.lua's
@@ -66,6 +69,7 @@ local ROD_HOLD_OFFSET = CFrame.new(0.9, 0.6, -0.8) * CFrame.Angles(math.rad(-20)
 local rodModel: Model? = nil
 local rodPole: BasePart? = nil
 local rodTip: BasePart? = nil
+local rodIsSprite = false
 local followConn: RBXScriptConnection? = nil
 
 local biting = false
@@ -96,38 +100,71 @@ local function getWaterOrigin(): CFrame?
 	return rootCFrame and rootCFrame * CFrame.new(0, -0.5, -10)
 end
 
+-- The rod's current animation angle, in radians: a short dip right after
+-- a bite (visual "something just tugged the line" cue), or a steady
+-- pull-and-release bob while actively reeling. Recomputed from the clock
+-- every frame rather than driven by a tween — a one-off tween would get
+-- silently overwritten the very next frame by whatever's re-driving the
+-- rod's CFrame on Heartbeat (the same class of bug PlayerFreeze's
+-- WalkSpeed fix was chasing). Shared by both rod looks: the 3D pole
+-- applies it as a pitch, the sprite as an in-plane roll.
+local function currentWobble(): number
+	if biting then
+		local elapsed = os.clock() - biteStartTime
+		if elapsed < 0.35 then
+			return math.sin(elapsed / 0.35 * math.pi) * math.rad(20)
+		end
+		biting = false
+		return 0
+	elseif reeling then
+		return math.sin(os.clock() * 7) * math.rad(10)
+	end
+	return 0
+end
+
 local function computeHeldCFrame(): CFrame?
 	local rootCFrame = getRootCFrame()
 	if not rootCFrame then
 		return nil
 	end
-	local held = rootCFrame * ROD_HOLD_OFFSET
-	-- A short dip right after a bite (visual "something just tugged the
-	-- line" cue) and a steady pull-and-release bob while actively
-	-- reeling — both computed as an extra rotation added on top of the
-	-- held pose each frame, never a separate tween, so they can't fight
-	-- the continuous re-positioning below (the same class of bug
-	-- PlayerFreeze's WalkSpeed fix was chasing — a one-off tween gets
-	-- silently overwritten the very next frame by whatever's re-driving
-	-- CFrame every Heartbeat).
-	local wobble = 0
-	if biting then
-		local elapsed = os.clock() - biteStartTime
-		if elapsed < 0.35 then
-			wobble = math.sin(elapsed / 0.35 * math.pi) * math.rad(20)
-		else
-			biting = false
-		end
-	elseif reeling then
-		wobble = math.sin(os.clock() * 7) * math.rad(10)
-	end
-	return held * CFrame.Angles(wobble, 0, 0)
+	return rootCFrame * ROD_HOLD_OFFSET * CFrame.Angles(currentWobble(), 0, 0)
 end
 
-local function buildRod(): (Model, BasePart, BasePart)
+-- Two rod looks. Preferred: a single flat sprite standee (assets/sprites/
+-- fishing_rod.png), matching the now-2D-sprite player character and the
+-- Decal-standee convention MapBuilder.placeProps uses for every prop.
+-- Fallback: the original 3D pole + tip ball, kept for exactly as long as
+-- the rod sprite hasn't been uploaded — a Decal pointed at an
+-- unuploaded asset renders nothing, and an invisible rod is strictly
+-- worse than a blocky one (same "don't remove the fallback until the
+-- replacement is confirmed" rule CharacterSpriteController learned the
+-- hard way).
+local function buildRod(): (Model, BasePart, BasePart?)
 	local model = Instance.new("Model")
 	model.Name = "FishingRodPlaceholder"
 
+	local spriteId = AssetIds.sprite("fishing_rod")
+	if spriteId ~= "rbxassetid://0" then
+		rodIsSprite = true
+		local sprite = Instance.new("Part")
+		sprite.Name = "RodSprite"
+		sprite.Size = Vector3.new(ROD_LENGTH * 0.8, ROD_LENGTH * 0.8, 0.15)
+		sprite.Transparency = 0.999 -- see placeProps: 1.0 from birth suppresses the Decal too
+		sprite.CanCollide = false
+		sprite.CanQuery = false
+		sprite.Anchored = true
+		sprite.Parent = model
+
+		local decal = Instance.new("Decal")
+		decal.Face = Enum.NormalId.Back
+		decal.Texture = spriteId
+		decal.Parent = sprite
+
+		model.Parent = Workspace
+		return model, sprite, nil
+	end
+
+	rodIsSprite = false
 	local pole = Instance.new("Part")
 	pole.Name = "Pole"
 	pole.Size = Vector3.new(0.4, 0.4, ROD_LENGTH)
@@ -168,11 +205,23 @@ function FishingRig.equipRod(spotPart: BasePart?)
 
 	followConn = RunService.Heartbeat:Connect(function()
 		local held = computeHeldCFrame()
-		if not held or not rodPole or not rodTip then
+		if not held or not rodPole then
 			return
 		end
-		rodPole.CFrame = held * CFrame.new(0, 0, -ROD_LENGTH / 2)
-		rodTip.CFrame = held * CFrame.new(0, 0, -ROD_LENGTH)
+		if rodIsSprite then
+			-- Position only, plus a roll about the part's OWN Z axis. Z is
+			-- the axis the Decal's Back face points along, so rolling around
+			-- it tilts the rod image in-plane without ever turning the face
+			-- away from the fixed camera — the wobble still reads, and the
+			-- sprite never foreshortens into a sliver.
+			local midpoint = (held * CFrame.new(0, 0, -ROD_LENGTH / 2)).Position
+			rodPole.CFrame = CFrame.new(midpoint) * CFrame.Angles(0, 0, currentWobble())
+		else
+			rodPole.CFrame = held * CFrame.new(0, 0, -ROD_LENGTH / 2)
+			if rodTip then
+				rodTip.CFrame = held * CFrame.new(0, 0, -ROD_LENGTH)
+			end
+		end
 	end)
 end
 
