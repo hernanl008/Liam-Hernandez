@@ -167,16 +167,16 @@ function FishingController.init()
 					ProgressFeedback.announce("FISHING", payload)
 				end
 
-				-- Every catch — not just spectacle ones — gets a rarity-
+				-- An ordinary catch (no banner) still gets a small rarity-
 				-- colored ring pop right where the toast is about to appear,
-				-- so even a routine Silver Minnow feels like *something*
-				-- happened instead of the toast just silently changing text.
-				-- Spectacle catches already get their own bigger shake from
-				-- the banner above; a small extra one here gives ordinary
-				-- catches a bit of the same punch without competing with it.
+				-- so it doesn't feel completely flat next to a spectacle one.
+				-- Spectacle catches skip this entirely now — the ribbon
+				-- banner + tinted speed lines + shake is already a lot of
+				-- motion happening at once, and a second sparkle effect on
+				-- top of it read as visual clutter rather than an addition.
 				task.delay(celebrationDelaySeconds, function()
-					SpectacleUI.burst(UDim2.fromScale(0.5, 0.6), accentColor)
 					if not payload.spectacle then
+						SpectacleUI.burst(UDim2.fromScale(0.5, 0.88), accentColor)
 						pcall(SpectacleUI.shake, 0.05, 0.12)
 					end
 					StatusToast.setTemporary(`Landed! A {payload.displayName} breaks the surface!`, 2, true)

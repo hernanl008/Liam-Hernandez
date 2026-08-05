@@ -8,16 +8,16 @@
 -- a multiplayer-visible version is a later step, this is "something is
 -- visibly happening" for now.
 --
--- Rod: two plain anchored Parts (a wood-colored pole + a dark metal tip
--- ball), held at a fixed offset from the character's HumanoidRootPart
--- rather than an actual hand — R6 vs R15 name their arm parts
--- differently ("Right Arm" vs "RightHand") and this project already hit
--- a rig-assumption surprise once (PlayerFreeze's PlayerModule lookup);
--- anchoring off the root instead sidesteps that class of bug entirely.
--- Fish: a single colored Part, manually Lerp'd from a start position
--- (the water, if a FishingSpot part is known) to the rod tip over the
--- reel's duration, with a sine-wave wiggle added on top so it doesn't
--- travel in a dead-straight line.
+-- Rod: two plain anchored Parts (a wood-colored pole + a glowing gold
+-- Neon tip ball), held at a fixed offset from the character's
+-- HumanoidRootPart rather than an actual hand — R6 vs R15 name their
+-- arm parts differently ("Right Arm" vs "RightHand") and this project
+-- already hit a rig-assumption surprise once (PlayerFreeze's
+-- PlayerModule lookup); anchoring off the root instead sidesteps that
+-- class of bug entirely. Fish: a single Neon-colored Part, manually
+-- Lerp'd from a start position (the water, if a FishingSpot part is
+-- known) to the rod tip over the reel's duration, with a sine-wave
+-- wiggle added on top so it doesn't travel in a dead-straight line.
 --
 -- Swap the rod/fish Parts for real meshes whenever real art exists —
 -- this module's public API (equipRod/bite/startReel/endReel/unequipRod)
@@ -29,10 +29,19 @@ local Workspace = game:GetService("Workspace")
 
 local FishingRig = {}
 
-local ROD_LENGTH = 5
--- Relative to HumanoidRootPart: held out to the character's right side,
--- angled forward-down, like casting toward water in front of them.
-local ROD_HOLD_OFFSET = CFrame.new(0.9, 0.2, -0.7) * CFrame.Angles(math.rad(-55), math.rad(25), 0)
+-- Sized/angled for THIS game's actual camera (CameraController.lua: a
+-- fixed 3/4 top-down view ~44 studs away — sqrt(38^2 + 22^2) — at a
+-- steep ~60 degree downward pitch), not a third-person/close-up camera.
+-- The first pass used realistic proportions (a 0.15-stud-thick pole
+-- angled -55 degrees, almost straight down) that were essentially
+-- invisible at this distance/angle — a thin near-vertical line
+-- foreshortens to almost nothing viewed from steeply above. Both the
+-- rod and the fish below are deliberately oversized and high-contrast
+-- instead: a shallow hold angle so the rod's length actually reads as a
+-- line across the screen, and Neon material on the tip/fish so they
+-- stay clearly visible regardless of the scene's lighting/shadows.
+local ROD_LENGTH = 7
+local ROD_HOLD_OFFSET = CFrame.new(0.9, 0.6, -0.8) * CFrame.Angles(math.rad(-20), math.rad(20), 0)
 
 local rodModel: Model? = nil
 local rodPole: BasePart? = nil
@@ -90,8 +99,8 @@ local function buildRod(): (Model, BasePart, BasePart)
 
 	local pole = Instance.new("Part")
 	pole.Name = "Pole"
-	pole.Size = Vector3.new(0.15, 0.15, ROD_LENGTH)
-	pole.Color = Color3.fromRGB(96, 64, 36)
+	pole.Size = Vector3.new(0.4, 0.4, ROD_LENGTH)
+	pole.Color = Color3.fromRGB(150, 100, 55)
 	pole.Material = Enum.Material.Wood
 	pole.CanCollide = false
 	pole.CanQuery = false
@@ -101,9 +110,9 @@ local function buildRod(): (Model, BasePart, BasePart)
 	local tip = Instance.new("Part")
 	tip.Name = "Tip"
 	tip.Shape = Enum.PartType.Ball
-	tip.Size = Vector3.new(0.2, 0.2, 0.2)
-	tip.Color = Color3.fromRGB(40, 40, 40)
-	tip.Material = Enum.Material.Metal
+	tip.Size = Vector3.new(0.7, 0.7, 0.7)
+	tip.Color = Color3.fromRGB(255, 210, 70)
+	tip.Material = Enum.Material.Neon
 	tip.CanCollide = false
 	tip.CanQuery = false
 	tip.Anchored = true
@@ -193,9 +202,9 @@ function FishingRig.startReel(durationSeconds: number)
 
 	local fish = Instance.new("Part")
 	fish.Name = "FishingCatchPlaceholder"
-	fish.Size = Vector3.new(1, 0.5, 0.5)
-	fish.Color = Color3.fromRGB(120, 170, 210)
-	fish.Material = Enum.Material.SmoothPlastic
+	fish.Size = Vector3.new(2.4, 1.1, 1.1)
+	fish.Color = Color3.fromRGB(90, 200, 255)
+	fish.Material = Enum.Material.Neon
 	fish.CanCollide = false
 	fish.CanQuery = false
 	fish.Anchored = true
@@ -229,7 +238,7 @@ end
 -- tracking correctly even if the player moves during the hold (they're
 -- not frozen for this — PlayerFreeze already released them the moment
 -- the 2D minigame ended, well before this 3D beat even starts).
-local HELD_OFFSET = CFrame.new(0, 2.1, -0.6)
+local HELD_OFFSET = CFrame.new(0, 3.4, -0.6)
 local HELD_RISE_SECONDS = 0.35
 local HELD_HOLD_SECONDS = 1.0
 

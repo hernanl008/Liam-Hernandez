@@ -30,6 +30,15 @@ local panel: Frame
 local label: TextLabel
 local currentlyRetro = false
 
+-- Retro mode sits lower than the anime default — closer to the bottom
+-- edge, out from under the cast meter/reel-in panel/rod-and-fish 3D
+-- performance that all live in the vertical middle of the screen while
+-- fishing, instead of competing with them for the same space.
+local ANIME_POSITION = UDim2.fromScale(0.5, 0.6)
+local ANIME_SHADOW_POSITION = UDim2.fromScale(0.508, 0.615)
+local RETRO_POSITION = UDim2.fromScale(0.5, 0.88)
+local RETRO_SHADOW_POSITION = UDim2.fromScale(0.508, 0.895)
+
 local function addRivet(anchorX: number, anchorY: number)
 	local rivet = Instance.new("Frame")
 	rivet.Name = "Rivet"
@@ -63,9 +72,13 @@ local function applyStyle(retro: boolean)
 		addRivet(1, 0)
 		addRivet(0, 1)
 		addRivet(1, 1)
+		panel.Position = RETRO_POSITION
+		shadow.Position = RETRO_SHADOW_POSITION
 	else
 		Theme.applyPanel(panel, { strokeThickness = 1 })
 		Theme.styleBody(label)
+		panel.Position = ANIME_POSITION
+		shadow.Position = ANIME_SHADOW_POSITION
 	end
 	currentlyRetro = retro
 end
@@ -83,7 +96,7 @@ local function ensureBuilt()
 	shadow = Instance.new("Frame")
 	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
 	shadow.Size = UDim2.fromScale(0.42, 0.075)
-	shadow.Position = UDim2.fromScale(0.508, 0.615)
+	shadow.Position = ANIME_SHADOW_POSITION
 	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	shadow.BackgroundTransparency = 0.55
 	shadow.BorderSizePixel = 0
@@ -97,7 +110,7 @@ local function ensureBuilt()
 	panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Size = UDim2.fromScale(0.4, 0.07)
-	panel.Position = UDim2.fromScale(0.5, 0.6)
+	panel.Position = ANIME_POSITION
 	panel.BorderSizePixel = 0
 	panel.Visible = false
 	panel.Parent = gui
