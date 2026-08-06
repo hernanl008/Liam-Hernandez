@@ -12,11 +12,20 @@
 -- retro-medieval "gamemode" presentation instead — wood/parchment panel,
 -- a title, the combo counter in the cutscene's pixel font, and a
 -- right-hand vertical "CATCH" meter that rises on good hits and drains
--- on misses. If it empties, the chart ends early (cleanup() fires with
--- whatever hits landed so far) — RhythmScoring.evaluate on the server
--- scores the untouched notes as 0 either way, so an early exit already
--- naturally reads as a poor reel-in (FishingService's MIN_CATCH_QUALITY
--- check fires "GotAway") without needing a separate server-side signal.
+-- on misses.
+--
+-- That meter is the win condition, not decoration: FILL it and the fish
+-- is landed, EMPTY it and the fish escapes, and either outcome ends the
+-- chart on the spot. It used to be a survival check — it only mattered
+-- if you let it bottom out, and the fish was landed on a separate
+-- quality threshold when the notes ran out, so the bar could finish
+-- nearly full and still lose, or nearly empty and still win.
+--
+-- The bar's model lives in RhythmScoring (shared) rather than here,
+-- because the SERVER rules on the catch. Both sides run
+-- RhythmScoring.simulateMeter over the same hits, so the verdict the
+-- server reaches is always the one the player just watched fill. This
+-- file only draws it.
 -- The whole retro presentation lives in one CanvasGroup so it can fade
 -- in/out as a single unit via GroupTransparency instead of tweening
 -- every child individually.
@@ -52,10 +61,16 @@ local DEFAULT_WINDOWS: { RhythmScoring.TimingWindow } = {
 -- more from a top-tier hit than a single miss costs means one whiff
 -- doesn't doom a run, but a genuinely bad one drains it before the chart
 -- would otherwise finish.
-local METER_START = 0.45
-local METER_MAX_GAIN = 0.14 -- a Perfect-tier hit; scaled down for lesser windows
-local METER_MISS_PENALTY = 0.16 -- a note's window passed with no input at all
-local METER_WHIFF_PENALTY = 0.08 -- a lane was pressed but no note was there to hit
+-- The numbers live in RhythmScoring.meterFor (shared), not here. Filling
+-- the bar IS the catch, so the server has to reach the same verdict from
+-- the same hits; a second copy of the tuning in the UI is exactly how
+-- the two would drift apart and start disagreeing about whether a fish
+-- was landed. This file only draws what that model says.
+--
+-- Note the absence of a whiff penalty. Pressing a lane with no note
+-- there used to drain the bar, but the server never learns about an
+-- input that hit nothing, so charging for it would desync the two.
+-- Whiffs still break the combo, which shows up in the quality score.
 
 local RhythmUI = {}
 
@@ -192,7 +207,8 @@ function RhythmUI.play(
 	local meterFill: Frame? = nil
 	local meterFrameScale: UIScale? = nil
 	local meterStroke: UIStroke? = nil
-	local meterValue = METER_START
+	local meter = RhythmScoring.meterFor(#notes)
+	local meterValue = meter.start
 	local warningTween: Tween? = nil
 	local laneScales: { [number]: UIScale } = {}
 
@@ -296,7 +312,7 @@ function RhythmUI.play(
 		local fillFrame = Instance.new("Frame")
 		fillFrame.AnchorPoint = Vector2.new(0, 1)
 		fillFrame.Position = UDim2.fromScale(0, 1)
-		fillFrame.Size = UDim2.fromScale(1, METER_START)
+		fillFrame.Size = UDim2.fromScale(1, meter.start)
 		fillFrame.BorderSizePixel = 0
 		fillFrame.BackgroundColor3 = accentColor
 		fillFrame.Parent = meterTrack
@@ -457,6 +473,16 @@ function RhythmUI.play(
 				SoundPlayer.play(SoundIds.ReelMeterEmpty)
 			end
 			cleanup()
+		elseif meterValue >= 1 then
+			-- Filling the meter IS the catch. The bar used to be a survival
+			-- check -- it only mattered if you let it hit zero, and the fish
+			-- was landed when the note chart ran out no matter where the bar
+			-- had got to, so it was possible to finish on a nearly-empty bar
+			-- and still be told you caught it. Now the bar decides: fill it
+			-- and the fish is yours, empty it and it's gone, and the chart
+			-- loops (see the Heartbeat below) until one of those happens.
+			pcall(SpectacleUI.shake, 0.12, 0.18)
+			cleanup()
 		end
 	end
 
@@ -529,7 +555,7 @@ function RhythmUI.play(
 
 			local window = RhythmScoring.classify(offset, scoringWindows)
 			updateCombo(window.name == topWindowName)
-			adjustMeter((window.qualityScore / topWindow.qualityScore) * METER_MAX_GAIN)
+			adjustMeter((window.qualityScore / topWindow.qualityScore) * meter.maxGain)
 			if retro then
 				punchLane(laneIndex, 1.18)
 				spawnHitBurst(laneFrames[laneIndex], laneHitColor)
@@ -542,7 +568,6 @@ function RhythmUI.play(
 			flashUntil[laneIndex] = os.clock() + 0.15
 			flashColor[laneIndex] = laneWhiffColor
 			updateCombo(false) -- whiffed input on this lane breaks the streak too
-			adjustMeter(-METER_WHIFF_PENALTY)
 			if retro then
 				punchLane(laneIndex, 0.88)
 				SoundPlayer.play(SoundIds.ReelMiss)
@@ -569,7 +594,7 @@ function RhythmUI.play(
 			if not hitNotes[i] and not missedNotes[i] and (elapsed - note.time) > HIT_TOLERANCE then
 				missedNotes[i] = true
 				updateCombo(false)
-				adjustMeter(-METER_MISS_PENALTY)
+				adjustMeter(-meter.missPenalty)
 				if retro then
 					punchLane(note.lane, 0.85)
 					SoundPlayer.play(SoundIds.ReelMiss)

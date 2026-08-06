@@ -21,7 +21,6 @@ local DayCycleService = require(script.Parent:WaitForChild("DayCycleService"))
 local FishingService = {}
 
 local BASE_HOOK_WINDOW_SECONDS = 1.2
-local MIN_CATCH_QUALITY = 15 -- below this, the fish gets away even if hooked
 
 -- Rain (DayCycleService.getCurrentWeather) — see the RequestCast handler.
 local RAIN_WEIGHT_BONUS = 0.15
@@ -267,15 +266,29 @@ function FishingService.init()
 		local assistMode = data ~= nil and data.assistMode or false
 		local result = RhythmScoring.evaluate(reel.chart, hits, RhythmGameConfig.TimingWindows, assistMode)
 
-		if result.quality < MIN_CATCH_QUALITY then
+		-- The catch meter decides, not a quality threshold. The player
+		-- watches a bar rise and fall for the whole reel-in, so the bar
+		-- has to be the thing that rules on the fish -- a separate quality
+		-- cutoff meant someone could finish on a nearly-full bar and be
+		-- told the fish got away, or on a nearly-empty one and be told
+		-- they caught it. Same shared model the client draws from
+		-- (RhythmScoring.simulateMeter), same hits, so the verdict the
+		-- server reaches is always the one the player just watched.
+		--
+		-- Still computed server-side from the reported hits, not trusted
+		-- from a client-sent "I won" flag: the client sends what it
+		-- pressed and the server rules on it, exactly as before.
+		local meter = RhythmScoring.simulateMeter(reel.chart, hits, RhythmGameConfig.TimingWindows, assistMode)
+
+		if not meter.filled then
 			Remotes.get("CatchResult"):FireClient(player, { outcome = "GotAway", fishId = reel.fish.id })
 			return
 		end
 
 		local isNewDiscovery = PlayerDataService.addItem(player, "fish", reel.fish.id, 1)
 
-		-- Quality-scaled XP: a barely-passing reel (near MIN_CATCH_QUALITY)
-		-- earns ~0.65x the base rarity XP, a flawless one ~1.5x, and a
+		-- Quality-scaled XP: a barely-scraped reel earns ~0.65x the base
+		-- rarity XP, a flawless one ~1.5x, and a
 		-- near-perfect chart (>= PERFECT_CATCH_QUALITY_THRESHOLD) gets an
 		-- extra 2.4x on top — the exact "perfect catch" XP multiplier real
 		-- fishing games use, adapted here to our combo-scored quality

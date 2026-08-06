@@ -39,6 +39,7 @@ local HudUI = {}
 local goldLabel: TextLabel
 local dayLabel: TextLabel
 local clockLabel: TextLabel
+local weatherLabel: TextLabel
 local goldFill: Frame
 local built = false
 
@@ -132,7 +133,7 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	-- continuous line has no such state — an almost-empty bar still
 	-- clearly reads as a bar. It is also a third of the width, which is
 	-- what actually buys the top-right corner some room.
-	local row = makePanel(gui, UDim2.fromOffset(168, 36), UDim2.new(1, -10, 0, topOffset), Vector2.new(1, 0))
+	local row = makePanel(gui, UDim2.fromOffset(210, 36), UDim2.new(1, -10, 0, topOffset), Vector2.new(1, 0))
 
 	local coin = Instance.new("Frame")
 	coin.AnchorPoint = Vector2.new(0, 0.5)
@@ -229,18 +230,65 @@ local function ensureBuilt()
 
 	local top = topbarOffset()
 
-	-- Top right, calendar then clock, side by side as in the reference.
-	-- 10px between panels, and the calendar sized to its longest real
-	-- string ("AUTUMN 28 RAIN") rather than padded out to a round number.
-	local dayPanel = makePanel(gui, UDim2.fromOffset(200, 36), UDim2.new(1, -140, 0, top), Vector2.new(1, 0))
-	dayLabel = makeLabel(dayPanel, Theme.RetroColors.Ink, Enum.TextXAlignment.Center, 14)
-	dayLabel.Text = "DAY 1"
+	-- ONE stacked plaque, not two side-by-side panels: date on top,
+	-- weather on a tinted strip between, clock underneath. The reference
+	-- Liam supplied reads as a single hanging sign with its rows divided
+	-- internally, and that silhouette is most of why it looks designed
+	-- rather than assembled — two separate floating boxes have two
+	-- outlines, two shadows and a gap that belongs to neither.
+	local calendar = makePanel(gui, UDim2.fromOffset(210, 96), UDim2.new(1, -10, 0, top), Vector2.new(1, 0))
 
-	local clockPanel = makePanel(gui, UDim2.fromOffset(130, 36), UDim2.new(1, -10, 0, top), Vector2.new(1, 0))
-	clockLabel = makeLabel(clockPanel, Theme.RetroColors.Ink, Enum.TextXAlignment.Center, 14)
+	dayLabel = Instance.new("TextLabel")
+	dayLabel.Position = UDim2.fromOffset(0, 8)
+	dayLabel.Size = UDim2.new(1, 0, 0, 22)
+	dayLabel.BackgroundTransparency = 1
+	dayLabel.FontFace = Theme.RetroFontFace
+	dayLabel.TextSize = 14
+	dayLabel.TextColor3 = Theme.RetroColors.Ink
+	dayLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	dayLabel.Text = "SPRING 1"
+	dayLabel.ZIndex = 2
+	dayLabel.Parent = calendar
+
+	-- Weather strip. This is where the reference puts its row of little
+	-- icons; ours carries the word, on its own tinted band so the panel
+	-- reads as three rows rather than three lines of text.
+	local strip = Instance.new("Frame")
+	strip.AnchorPoint = Vector2.new(0.5, 0)
+	strip.Position = UDim2.new(0.5, 0, 0, 34)
+	strip.Size = UDim2.new(1, -20, 0, 24)
+	strip.BackgroundColor3 = Theme.RetroColors.WoodLight
+	strip.BackgroundTransparency = 0.55
+	strip.BorderSizePixel = 0
+	strip.ZIndex = 2
+	strip.Parent = calendar
+	local stripCorner = Instance.new("UICorner")
+	stripCorner.CornerRadius = UDim.new(0, 3)
+	stripCorner.Parent = strip
+
+	weatherLabel = Instance.new("TextLabel")
+	weatherLabel.Size = UDim2.fromScale(1, 1)
+	weatherLabel.BackgroundTransparency = 1
+	weatherLabel.FontFace = Theme.RetroFontFace
+	weatherLabel.TextSize = 10
+	weatherLabel.TextColor3 = Theme.RetroColors.Ink
+	weatherLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	weatherLabel.Text = "CLEAR"
+	weatherLabel.ZIndex = 3
+	weatherLabel.Parent = strip
+
+	clockLabel = Instance.new("TextLabel")
+	clockLabel.Position = UDim2.fromOffset(0, 62)
+	clockLabel.Size = UDim2.new(1, 0, 0, 24)
+	clockLabel.BackgroundTransparency = 1
+	clockLabel.FontFace = Theme.RetroFontFace
+	clockLabel.TextSize = 15
+	clockLabel.TextColor3 = Theme.RetroColors.Ink
 	clockLabel.Text = "6:00 AM"
+	clockLabel.ZIndex = 2
+	clockLabel.Parent = calendar
 
-	buildGoldRow(gui, top + 46)
+	buildGoldRow(gui, top + 104)
 end
 
 local function clockTimeToText(dayProgress: number): string
@@ -261,9 +309,8 @@ function HudUI.setDay(day: number, dayProgress: number, season: string?, weather
 	ensureBuilt()
 	-- Upper case throughout: PressStart2P has no lower case worth reading
 	-- at this size, and mixed case in it looks like a rendering fault.
-	local seasonPrefix = season and `{string.upper(season)} ` or ""
-	local weatherSuffix = (weather and weather ~= "Clear") and ` {string.upper(weather)}` or ""
-	dayLabel.Text = `{seasonPrefix}{day}{weatherSuffix}`
+	dayLabel.Text = string.upper(season and `{season} {day}` or `DAY {day}`)
+	weatherLabel.Text = string.upper(weather or "CLEAR")
 	clockLabel.Text = clockTimeToText(dayProgress)
 end
 

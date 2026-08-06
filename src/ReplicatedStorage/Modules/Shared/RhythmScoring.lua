@@ -109,4 +109,108 @@ function RhythmScoring.evaluate(notes: { Note }, hits: { Hit }, windows: { Timin
 	return { quality = quality, maxCombo = maxCombo, topWindowName = topWindow.name }
 end
 
+-- ---------------------------------------------------------------------
+-- Catch meter
+--
+-- The fishing reel-in shows a rising "CATCH" bar, and filling it IS the
+-- catch: full lands the fish, empty loses it. That makes the bar a
+-- gameplay rule rather than decoration, so it CANNOT live only in the
+-- client UI -- the server decides whether a fish is caught, and if the
+-- two computed it differently the player would fill the bar and be told
+-- they lost, which is worse than having no bar at all.
+--
+-- So the model lives here, next to the scoring both sides already share.
+-- RhythmUI runs it to draw the bar, FishingService runs it to rule on
+-- the catch, and because it is a pure function of (notes, hits) -- data
+-- the server already receives -- they cannot disagree.
+--
+-- That constraint is also why whiffs (pressing a lane with no note
+-- there) carry no meter penalty: the server never learns about an input
+-- that hit nothing, so charging for it would desync the two. Whiffs
+-- still break the combo, which is felt in `quality` above.
+
+export type MeterConfig = {
+	start: number,
+	maxGain: number, -- awarded for a top-window hit, scaled down for lesser ones
+	missPenalty: number, -- a note whose window passed with no input
+}
+
+export type MeterResult = {
+	value: number, -- final level, 0-1
+	filled: boolean, -- reached the top: the fish is landed
+	emptied: boolean, -- bottomed out: the fish escapes
+	resolvedAtNote: number?, -- 1-based index of the note that ended it, if any
+}
+
+RhythmScoring.METER_START = 0.45
+-- Fraction of a chart's notes that must land at the top window to fill
+-- the bar from its starting level.
+local METER_NOTES_TO_FILL = 0.75
+-- Missing costs slightly more than hitting pays, so a run of misses
+-- can't be walked back for free.
+local METER_MISS_RATIO = 1.15
+
+-- Meter tuning for a chart of `noteCount` notes.
+--
+-- Derived from the chart length rather than fixed, because a fixed gain
+-- makes the bar mean different things at different difficulties: with a
+-- flat 0.14 per hit, a 4-note chart needs every single note perfect to
+-- fill while a 9-note chart fills halfway through and the rest is
+-- theatre. Scaling it means "fill the bar" always means the same thing
+-- -- land about three quarters of the notes cleanly -- whether the fish
+-- is a minnow or a legendary.
+function RhythmScoring.meterFor(noteCount: number): MeterConfig
+	local needed = math.max(1, math.ceil(noteCount * METER_NOTES_TO_FILL))
+	local gain = (1 - RhythmScoring.METER_START) / needed
+	return {
+		start = RhythmScoring.METER_START,
+		maxGain = gain,
+		missPenalty = gain * METER_MISS_RATIO,
+	}
+end
+
+-- Replays `hits` against `notes` in chart order and returns where the
+-- meter ended up. Stops at the first note that fills or empties it, so
+-- the outcome matches what the player saw happen live.
+function RhythmScoring.simulateMeter(
+	notes: { Note },
+	hits: { Hit },
+	windows: { TimingWindow },
+	assistMode: boolean?,
+	config: MeterConfig?
+): MeterResult
+	local meter = config or RhythmScoring.meterFor(#notes)
+	local topWindow = findTopWindow(windows)
+
+	-- Index the hits so notes can be walked in order; a later duplicate
+	-- hit on the same note is ignored rather than paying out twice.
+	local hitByNote: { [number]: Hit } = {}
+	for _, hit in hits do
+		if hitByNote[hit.noteIndex] == nil then
+			hitByNote[hit.noteIndex] = hit
+		end
+	end
+
+	local value = meter.start
+	for index in notes do
+		local hit = hitByNote[index]
+		if hit then
+			local window = RhythmScoring.classify(hit.offsetSeconds, windows, assistMode)
+			value += (window.qualityScore / topWindow.qualityScore) * meter.maxGain
+		else
+			value -= meter.missPenalty
+		end
+		value = math.clamp(value, 0, 1)
+
+		if value >= 1 then
+			return { value = 1, filled = true, emptied = false, resolvedAtNote = index }
+		elseif value <= 0 then
+			return { value = 0, filled = false, emptied = true, resolvedAtNote = index }
+		end
+	end
+
+	return { value = value, filled = false, emptied = false, resolvedAtNote = nil }
+end
+
+
 return RhythmScoring
