@@ -205,6 +205,22 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	goldLabel.Parent = row
 end
 
+-- How far down the HUD has to start to clear Roblox's own topbar (the
+-- chat, player-list and menu buttons). A hard-coded margin doesn't work:
+-- the inset differs between desktop, mobile and consoles, and again on
+-- devices with a notch. GuiService.TopbarInset reports the real reserved
+-- rectangle, so ask for it — with a fallback for any client where the
+-- property doesn't exist.
+local function topbarOffset(): number
+	local ok, inset = pcall(function()
+		return GuiService.TopbarInset
+	end)
+	if ok and inset then
+		return inset.Height + 8
+	end
+	return 44
+end
+
 local function ensureBuilt()
 	if built then
 		return

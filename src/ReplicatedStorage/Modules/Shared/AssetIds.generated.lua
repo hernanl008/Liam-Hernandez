@@ -52,6 +52,11 @@ return {
 	["tiles/sakura_grass.png"] = "rbxassetid://100479103017033",
 	["tiles/path.png"] = "rbxassetid://98093140302876",
 	["tiles/tilled_soil.png"] = "rbxassetid://100134395813240",
+	-- Dialogue portraits for the whole speaking cast on one sheet
+	-- (tools/make_portrait_sheet.py), cropped per character at render
+	-- time via PortraitSheet.lua. Replaces the speaker's-initial-in-a-box
+	-- placeholder in DialogueUI, and MemoryToast uses the same cells.
+	["sprites/portrait_sheet.png"] = "rbxassetid://74409610845372",
 	["sprites/player_placeholder.png"] = "rbxassetid://113485555309209",
 	["sprites/petal.png"] = "rbxassetid://135838448433089",
 	["sprites/kaya_placeholder.png"] = "rbxassetid://99746438596164",
