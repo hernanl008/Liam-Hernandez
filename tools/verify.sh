@@ -9,7 +9,11 @@
 #
 #   1. Parse.   luau-compile on every file. Catches syntax errors, which
 #               in Roblox surface as a module silently failing to load.
-#   2. Locals.  check_undefined_locals.py. Catches calling a local that
+#   2. Strokes. check_text_strokes.py. Catches a UIStroke that will
+#               outline TEXT rather than a border. Purely visual, and it
+#               survived two rounds of "the text is unreadable" because
+#               every other label on screen looked fine.
+#   3. Locals.  check_undefined_locals.py. Catches calling a local that
 #               was never declared -- a RUNTIME error, so the parser is
 #               happy and the file loads, then blows up mid-execution.
 #               A HUD edit deleted a helper this way and took the entire
@@ -56,6 +60,10 @@ fi
 echo
 echo "== undefined locals =="
 python3 tools/check_undefined_locals.py || status=1
+
+echo
+echo "== text strokes =="
+python3 tools/check_text_strokes.py || status=1
 
 echo
 if [ "$status" -eq 0 ]; then

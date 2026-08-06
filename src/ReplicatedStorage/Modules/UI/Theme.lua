@@ -93,6 +93,14 @@ function Theme.applyRetroPanel(frame: Frame | ImageLabel, options: { strokeThick
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Theme.RetroColors.WoodDark
 	stroke.Thickness = (options and options.strokeThickness) or 4
+	-- Border, not the Contextual default. Contextual outlines the border
+	-- of a Frame but the GLYPHS of a TextLabel/TextButton/TextBox, and
+	-- these helpers get applied to buttons (ShopUI's sell buttons, the
+	-- dialogue options) as readily as to panels. On a button that default
+	-- draws a thick dark outline around every letter, which at pixel-font
+	-- sizes smears the text into unreadable blobs. Border is a no-op on
+	-- Frames, so it is always the right thing for a shared helper.
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = frame
 
 	local gradient = Instance.new("UIGradient")
@@ -133,6 +141,14 @@ function Theme.applyRetroCard(frame: Frame, radius: number?)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Theme.RetroColors.WoodMid
 	stroke.Thickness = 2
+	-- Border, not the Contextual default. Contextual outlines the border
+	-- of a Frame but the GLYPHS of a TextLabel/TextButton/TextBox, and
+	-- these helpers get applied to buttons (ShopUI's sell buttons, the
+	-- dialogue options) as readily as to panels. On a button that default
+	-- draws a thick dark outline around every letter, which at pixel-font
+	-- sizes smears the text into unreadable blobs. Border is a no-op on
+	-- Frames, so it is always the right thing for a shared helper.
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = frame
 end
 
@@ -173,6 +189,14 @@ function Theme.applyPanel(frame: Frame | ImageLabel, options: { strokeThickness:
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Theme.Colors.PanelStroke
 	stroke.Thickness = (options and options.strokeThickness) or 2
+	-- Border, not the Contextual default. Contextual outlines the border
+	-- of a Frame but the GLYPHS of a TextLabel/TextButton/TextBox, and
+	-- these helpers get applied to buttons (ShopUI's sell buttons, the
+	-- dialogue options) as readily as to panels. On a button that default
+	-- draws a thick dark outline around every letter, which at pixel-font
+	-- sizes smears the text into unreadable blobs. Border is a no-op on
+	-- Frames, so it is always the right thing for a shared helper.
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = frame
 
 	local gradient = Instance.new("UIGradient")

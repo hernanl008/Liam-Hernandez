@@ -100,6 +100,15 @@ local function applyParchment(frame: GuiObject, cornerRadius: number, strokeThic
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Theme.RetroColors.WoodDark
 	stroke.Thickness = strokeThickness
+	-- Border, not Contextual. UIStroke's default ApplyStrokeMode is
+	-- Contextual, which on a Frame outlines the border but on a TEXT
+	-- object (TextButton/TextLabel/TextBox) strokes the GLYPHS instead.
+	-- This helper is called on the dialogue option buttons, so a 2px dark
+	-- stroke was being drawn around every letter of 11px pixel text --
+	-- which smeared them into unreadable blobs while every plain
+	-- TextLabel elsewhere stayed crisp. Forcing Border makes it outline
+	-- the button like it does the panels, and is a no-op on Frames.
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = frame
 
 	local bevel = Instance.new("Frame")
