@@ -95,11 +95,20 @@ DialogueData.Kaya = {
 		text = "Take your time. Not like the field's going anywhere. Come find me at the store when you decide.",
 		options = nil,
 	},
+	-- Carries the remaining choices itself rather than routing back to
+	-- kaya_farm_1. Returning to the offer put "What's the catch?" back on
+	-- the menu, so the player could ask forever and Kaya would answer as
+	-- if for the first time every time — a conversation that forgets
+	-- itself. Answering and re-offering in one node also drops a Continue
+	-- click from the path. tools/check_dialogue_loops.py guards this.
 	kaya_farm_1c = {
 		speaker = "Kaya",
 		text = "Ha — no catch. Grandfather says every hand helps, and this valley's had fewer of those "
-			.. "lately. That's it. That's the catch.",
-		options = { { text = "Continue", next = "kaya_farm_1" } },
+			.. "lately. That's it. That's the catch. So — yes or no?",
+		options = {
+			{ text = "Then I'm in.", next = "kaya_farm_2", relationshipDelta = 1, action = "GrantStarterFarm" },
+			{ text = "Let me think about it.", next = "kaya_farm_1b" },
+		},
 	},
 	kaya_farm_2 = {
 		speaker = "Kaya",

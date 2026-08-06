@@ -32,6 +32,7 @@
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 
@@ -44,18 +45,32 @@ local SkillTreeUI = {}
 
 local SKILL_ORDER: { SkillTreeConfig.SkillId } = { "Farming", "Fishing", "Cooking" }
 
-local NODE_SIZE = 54
-local TRUNK_WIDTH = 6
-local SPINE_HEIGHT = 6
+local NODE_SIZE = 64
+local TRUNK_WIDTH = 7
+local SPINE_HEIGHT = 7
+-- Horizontal distance between trunks on the canvas.
+local BRANCH_SPACING = 340
+-- Breathing room around the tree's extent, so a branch never sits flush
+-- against the edge you can drag it to.
+local CANVAS_PAD_X = 220
+local CANVAS_PAD_TOP = 150
+local CANVAS_PAD_BOTTOM = 96
+-- How much bigger than the viewport the canvas is made, so there is
+-- always somewhere to drag to.
+local OVERSCAN = 1.35
 -- Vertical gap between node centres on a trunk. Not a constant: it is
 -- solved from the measured canvas height in rebuild() so a branch always
 -- fits, whatever the window size. Hard-coding it meant the top node ran
 -- off the canvas on a short window -- three nodes at a fixed 96px need
 -- 323px of height, and a small window leaves under 300.
-local NODE_SPACING_MIN = 62
-local NODE_SPACING_MAX = 104
+-- Fixed now, not solved from the viewport: the tree lives on its own
+-- canvas that the player drags around, so it no longer has to shrink to
+-- fit whatever window it opened in. That was the right answer while the
+-- tree was locked inside a small panel and the wrong one for a space you
+-- can move through.
+local NODE_SPACING = 150
 -- Distance from the spine up to the first node's centre.
-local TRUNK_BASE = 66
+local TRUNK_BASE = 110
 
 local COLOR_LOCKED = Color3.fromRGB(96, 74, 56)
 local COLOR_TRACK = Color3.fromRGB(112, 88, 62)
@@ -64,7 +79,9 @@ local screenGui: ScreenGui? = nil
 local backdrop: Frame
 local panel: Frame
 local panelScale: UIScale
-local treeArea: Frame
+local viewport: Frame
+local canvas: Frame
+local canvasExtent = Vector2.new(0, 0)
 local pointsLabel: TextLabel
 local detailName: TextLabel
 local detailBody: TextLabel
@@ -95,6 +112,66 @@ local function perkStatus(
 	return "available"
 end
 
+-- Drag-to-pan. Clamped so the canvas can never be pulled away from the
+-- viewport entirely, and centred on whichever axis the tree is smaller
+-- than the window -- panning into empty parchment is worse than not
+-- panning, so the space only moves where there is actually more tree.
+local dragging = false
+local dragOrigin = Vector2.new(0, 0)
+local canvasOrigin = Vector2.new(0, 0)
+
+local function clampCanvas(x: number, y: number): (number, number)
+	local view = viewport.AbsoluteSize
+	local slackX = canvasExtent.X - view.X
+	local slackY = canvasExtent.Y - view.Y
+	if slackX <= 0 then
+		x = (view.X - canvasExtent.X) / 2
+	else
+		x = math.clamp(x, -slackX, 0)
+	end
+	if slackY <= 0 then
+		y = (view.Y - canvasExtent.Y) / 2
+	else
+		y = math.clamp(y, -slackY, 0)
+	end
+	return x, y
+end
+
+local function setCanvasPosition(x: number, y: number)
+	local cx, cy = clampCanvas(x, y)
+	canvas.Position = UDim2.fromOffset(cx, cy)
+end
+
+local function setupPanning()
+	viewport.InputBegan:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragOrigin = Vector2.new(input.Position.X, input.Position.Y)
+			canvasOrigin = Vector2.new(canvas.Position.X.Offset, canvas.Position.Y.Offset)
+		end
+	end)
+
+	-- Ended is watched on UserInputService rather than the viewport: a
+	-- drag that finishes with the cursor outside the panel would otherwise
+	-- never release, and the canvas would keep following the mouse.
+	UserInputService.InputEnded:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input: InputObject)
+		if not dragging then
+			return
+		end
+		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		local delta = Vector2.new(input.Position.X, input.Position.Y) - dragOrigin
+		setCanvasPosition(canvasOrigin.X + delta.X, canvasOrigin.Y + delta.Y)
+	end)
+end
+
 local function ensureBuilt()
 	if screenGui then
 		return
@@ -118,21 +195,19 @@ local function ensureBuilt()
 	backdrop.ZIndex = 1
 	backdrop.Parent = gui
 
+	-- Full screen. A skill tree is somewhere you go, not a dialog that
+	-- floats over the game, and the tree needs the whole viewport now that
+	-- it lives on a canvas you drag around.
 	panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromScale(0.82, 0.78)
+	panel.Size = UDim2.new(1, -24, 1, -24)
 	panel.ZIndex = 3
 	panel.Parent = gui
-
-	local panelSize = Instance.new("UISizeConstraint")
-	panelSize.MaxSize = Vector2.new(980, 620)
-	panelSize.Parent = panel
 
 	panelScale = Instance.new("UIScale")
 	panelScale.Parent = panel
 
-	Theme.panelShadow(panel, 10)
 	local face = Theme.framedPanel(panel, 10)
 
 	local padding = Instance.new("UIPadding")
@@ -164,14 +239,25 @@ local function ensureBuilt()
 	pointsLabel.ZIndex = 4
 	pointsLabel.Parent = face
 
-	-- The tree canvas. Nodes are positioned into this in pixels from the
-	-- bottom up, so a branch grows the way the eye expects.
-	treeArea = Instance.new("Frame")
-	treeArea.Position = UDim2.fromOffset(0, 30)
-	treeArea.Size = UDim2.new(1, 0, 1, -114)
-	treeArea.BackgroundTransparency = 1
-	treeArea.ZIndex = 4
-	treeArea.Parent = face
+	-- Viewport clips; canvas is the world inside it. The tree is laid out
+	-- on the canvas at a fixed scale and the canvas is dragged around
+	-- beneath the viewport, which is why nothing here shrinks to fit the
+	-- window any more.
+	viewport = Instance.new("Frame")
+	viewport.Position = UDim2.fromOffset(0, 30)
+	viewport.Size = UDim2.new(1, 0, 1, -114)
+	viewport.BackgroundTransparency = 1
+	viewport.ClipsDescendants = true
+	viewport.ZIndex = 4
+	viewport.Parent = face
+
+	canvas = Instance.new("Frame")
+	canvas.Name = "Canvas"
+	canvas.BackgroundTransparency = 1
+	canvas.ZIndex = 4
+	canvas.Parent = viewport
+
+	setupPanning()
 
 	-- Detail plaque, pinned to the bottom. One description at a time,
 	-- filled in on hover.
@@ -384,7 +470,8 @@ local function buildBranch(
 	skillId: SkillTreeConfig.SkillId,
 	index: number,
 	spineBottom: number,
-	nodeSpacing: number
+	nodeSpacing: number,
+	branchOffsetX: number
 ): { Instance }
 	local snapshot = InventoryCache.get()
 	local tree = SkillTreeConfig.Trees[skillId]
@@ -392,10 +479,9 @@ local function buildBranch(
 	local level = 1 + math.floor(xp / SkillTreeConfig.xpPerLevel)
 	local unlockedPerks = snapshot.unlockedPerks[skillId] or {}
 
-	-- Evenly spaced across the canvas, measured in absolute pixels at
-	-- build time so connectors and nodes share one coordinate space.
-	local width = treeArea.AbsoluteSize.X
-	local x = width * ((index - 0.5) / #SKILL_ORDER)
+	-- Fixed spacing on the canvas, not a fraction of the window: the
+	-- canvas has its own size and the viewport moves over it.
+	local x = branchOffsetX + CANVAS_PAD_X + (index - 1) * BRANCH_SPACING
 
 	local animated: { Instance } = {}
 
@@ -407,36 +493,93 @@ local function buildBranch(
 
 		-- A segment is lit when the perk above it is unlocked: the lit
 		-- run up a trunk is then exactly how far the player has climbed.
-		local fill = makeConnector(treeArea, x, segmentBottom, segmentHeight, status == "unlocked")
+		local fill = makeConnector(canvas, x, segmentBottom, segmentHeight, status == "unlocked")
 		fill:SetAttribute("FullHeight", segmentHeight)
 		table.insert(animated, fill)
 
-		local node = makeNode(treeArea, x, nodeBottom, status, perk, skillId, level)
+		local node = makeNode(canvas, x, nodeBottom, status, perk, skillId, level)
 		table.insert(animated, node)
 	end
 
-	-- Branch label under the trunk base.
+	-- Base plaque where the trunk meets the spine — the reference hangs an
+	-- icon at each branch's root, and a named plate does the same job of
+	-- anchoring the branch and saying what it is.
+	local plaque = Instance.new("Frame")
+	plaque.AnchorPoint = Vector2.new(0.5, 0.5)
+	plaque.Position = UDim2.new(0, x, 1, -spineBottom)
+	plaque.Size = UDim2.fromOffset(168, 34)
+	plaque.ZIndex = 7
+	plaque.Parent = canvas
+	local plaqueFace = Theme.framedPanel(plaque, 6)
+
 	local label = Instance.new("TextLabel")
-	label.AnchorPoint = Vector2.new(0.5, 1)
-	label.Position = UDim2.new(0, x, 1, -(spineBottom - 8))
-	label.Size = UDim2.fromOffset(160, 16)
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Position = UDim2.fromScale(0.5, 0.5)
+	label.Size = UDim2.new(1, -10, 1, -6)
 	label.BackgroundTransparency = 1
 	label.FontFace = Theme.RetroFontFace
 	label.TextSize = 11
 	label.TextColor3 = Theme.RetroColors.Ink
-	label.Text = `{string.upper(tree.displayName)}  {level}`
-	label.ZIndex = 6
-	label.Parent = treeArea
+	label.Text = `{string.upper(tree.displayName)} {level}`
+	label.ZIndex = 8
+	label.Parent = plaqueFace
 
 	return animated
+end
+
+-- Faint diamond lattice across the whole canvas, drawn behind
+-- everything. Its job is to make the space you drag through feel like a
+-- surface rather than blank parchment, and to give the drag a visible
+-- parallax reference -- without it, panning across empty background
+-- looks like nothing is happening.
+-- Extent the lattice was last painted for, so it is only redrawn when
+-- the canvas actually changes size. rebuild() runs on every perk unlock,
+-- and repainting a few hundred Frames each time to redraw a background
+-- that never changes would be pure waste.
+local latticeExtent = Vector2.new(-1, -1)
+
+local function paintLattice()
+	if latticeExtent == canvasExtent then
+		return
+	end
+	for _, child in canvas:GetChildren() do
+		if child.Name == "Lattice" then
+			child:Destroy()
+		end
+	end
+	latticeExtent = canvasExtent
+
+	local spacing = 96
+	local columns = math.ceil(canvasExtent.X / spacing)
+	local rows = math.ceil(canvasExtent.Y / spacing)
+	for column = 0, columns do
+		for row = 0, rows do
+			local mark = Instance.new("Frame")
+			mark.Name = "Lattice"
+			mark.AnchorPoint = Vector2.new(0.5, 0.5)
+			mark.Position = UDim2.fromOffset(column * spacing, row * spacing)
+			mark.Size = UDim2.fromOffset(6, 6)
+			mark.Rotation = 45
+			mark.BackgroundColor3 = Theme.RetroColors.WoodLight
+			-- Alternating weight, so it reads as a woven pattern rather
+			-- than graph paper.
+			mark.BackgroundTransparency = if (column + row) % 2 == 0 then 0.82 else 0.9
+			mark.BorderSizePixel = 0
+			mark.ZIndex = 2
+			mark.Parent = canvas
+		end
+	end
 end
 
 local function rebuild()
 	buildToken += 1
 	local token = buildToken
 
-	for _, child in treeArea:GetChildren() do
-		child:Destroy()
+	-- Everything except the lattice, which outlives a rebuild.
+	for _, child in canvas:GetChildren() do
+		if child.Name ~= "Lattice" then
+			child:Destroy()
+		end
 	end
 
 	local snapshot = InventoryCache.get()
@@ -446,39 +589,56 @@ local function rebuild()
 	end
 	pointsLabel.Text = string.upper(`{totalPoints} POINT{totalPoints == 1 and "" or "S"} - P TO CLOSE`)
 
-	local spineBottom = 34
+	-- Canvas extent, derived from the tree it has to hold. Sizing the
+	-- canvas rather than fitting the tree to the window is what lets the
+	-- nodes keep a comfortable size on any display: a small window shows
+	-- less of the tree instead of showing all of it smaller.
+	local longest = 0
+	for _, skillId in SKILL_ORDER do
+		longest = math.max(longest, #SkillTreeConfig.Trees[skillId].perks)
+	end
+	local spineBottom = CANVAS_PAD_BOTTOM
+	local treeWidth = CANVAS_PAD_X * 2 + (#SKILL_ORDER - 1) * BRANCH_SPACING
+	local treeHeight = spineBottom + TRUNK_BASE + (longest - 1) * NODE_SPACING + NODE_SIZE / 2 + CANVAS_PAD_TOP
+
+	-- At least a bit larger than the window in both axes, so dragging
+	-- always does something. Sized to the tree alone, three short branches
+	-- fit inside a desktop viewport and the space would be a static
+	-- picture — the drag would be dead on exactly the screens most people
+	-- play on. The surplus is not blank: the lattice below fills it.
+	local view = viewport.AbsoluteSize
+	canvasExtent = Vector2.new(
+		math.max(treeWidth, view.X * OVERSCAN),
+		math.max(treeHeight, view.Y * OVERSCAN)
+	)
+	canvas.Size = UDim2.fromOffset(canvasExtent.X, canvasExtent.Y)
+
+	-- Centre the tree horizontally within whatever surplus width there is,
+	-- so the branches stay a group rather than hugging the left edge.
+	local branchOffset = (canvasExtent.X - treeWidth) / 2
+
+	paintLattice()
+
+	local spineWidthTarget = (#SKILL_ORDER - 1) * BRANCH_SPACING
 
 	-- Root spine. Drawn from the middle outward so the tree assembles
 	-- from its centre rather than sweeping in from one side.
 	local spine = Instance.new("Frame")
 	spine.AnchorPoint = Vector2.new(0.5, 1)
-	spine.Position = UDim2.new(0.5, 0, 1, -spineBottom)
+	spine.Position = UDim2.new(0, branchOffset + CANVAS_PAD_X + spineWidthTarget / 2, 1, -spineBottom)
 	spine.Size = UDim2.new(0, 0, 0, SPINE_HEIGHT)
 	spine.BackgroundColor3 = Theme.RetroColors.Bronze
 	spine.BorderSizePixel = 0
 	spine.ZIndex = 4
-	spine.Parent = treeArea
+	spine.Parent = canvas
 
-	local width = treeArea.AbsoluteSize.X
-	local spineWidth = width * ((#SKILL_ORDER - 0.5) / #SKILL_ORDER - 0.5 / #SKILL_ORDER)
 	TweenService:Create(spine, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-		Size = UDim2.fromOffset(spineWidth, SPINE_HEIGHT),
+		Size = UDim2.fromOffset(spineWidthTarget, SPINE_HEIGHT),
 	}):Play()
-
-	-- Solve the node spacing from the height actually available, so the
-	-- tallest branch always lands inside the canvas.
-	local longest = 0
-	for _, skillId in SKILL_ORDER do
-		longest = math.max(longest, #SkillTreeConfig.Trees[skillId].perks)
-	end
-	local usable = treeArea.AbsoluteSize.Y - spineBottom - TRUNK_BASE - NODE_SIZE
-	local nodeSpacing = if longest > 1
-		then math.clamp(usable / (longest - 1), NODE_SPACING_MIN, NODE_SPACING_MAX)
-		else NODE_SPACING_MAX
 
 	local animated: { Instance } = {}
 	for i, skillId in SKILL_ORDER do
-		for _, instance in buildBranch(skillId, i, spineBottom, nodeSpacing) do
+		for _, instance in buildBranch(skillId, i, spineBottom, NODE_SPACING, branchOffset) do
 			table.insert(animated, instance)
 		end
 	end
@@ -514,6 +674,11 @@ end
 
 local function open()
 	rebuild()
+	-- Start centred horizontally and showing the base of the tree, which
+	-- is where the player's attention belongs: the lit part nearest the
+	-- root is what they just earned.
+	local view = viewport.AbsoluteSize
+	setCanvasPosition((view.X - canvasExtent.X) / 2, view.Y - canvasExtent.Y)
 	backdrop.BackgroundTransparency = 1
 	panelScale.Scale = 0.92
 	TweenService:Create(backdrop, TweenInfo.new(0.2), { BackgroundTransparency = 0.45 }):Play()
@@ -528,10 +693,10 @@ function SkillTreeUI.toggle()
 	local gui = screenGui :: ScreenGui
 	if visible then
 		gui.Enabled = true
-		-- One frame's wait so treeArea.AbsoluteSize is resolved before the
-		-- branches are laid out against it — everything here is positioned
-		-- in pixels, and on the very first open the canvas has no measured
-		-- size yet.
+		-- One frame's wait so viewport.AbsoluteSize is resolved before the
+		-- canvas is sized against it. The overscan and the initial scroll
+		-- position are both computed from the viewport's real size, and on
+		-- the very first open it has not been measured yet.
 		task.defer(open)
 	else
 		gui.Enabled = false
