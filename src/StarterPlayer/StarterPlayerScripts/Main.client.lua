@@ -24,9 +24,13 @@ local OpeningCutsceneController = require(Controllers:WaitForChild("OpeningCutsc
 local CharacterSpriteController = require(Controllers:WaitForChild("CharacterSpriteController"))
 local MouseCursorController = require(Controllers:WaitForChild("MouseCursorController"))
 local WaterController = require(Controllers:WaitForChild("WaterController"))
+local ChatController = require(Controllers:WaitForChild("ChatController"))
 
 CameraController.init()
 CharacterSpriteController.init()
+-- Before HudController: moves Roblox's chat window out of the top-left
+-- corner the HUD's skill chips occupy.
+ChatController.init()
 MouseCursorController.init()
 WaterController.init()
 FarmingController.init()

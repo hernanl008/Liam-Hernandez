@@ -20,6 +20,7 @@
 -- with progress toward the next 1,000g — so the same amount of screen
 -- space carries information instead of just texture.
 
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
@@ -115,8 +116,8 @@ local function makeLabel(
 	return label
 end
 
-local function buildGoldRow(gui: ScreenGui)
-	local row = makePanel(gui, UDim2.fromOffset(330, 36), UDim2.new(1, -10, 0, 54), Vector2.new(1, 0))
+local function buildGoldRow(gui: ScreenGui, topOffset: number)
+	local row = makePanel(gui, UDim2.fromOffset(330, 36), UDim2.new(1, -10, 0, topOffset), Vector2.new(1, 0))
 
 	-- Coin badge, standing in for the reference's gold "G" icon. Drawn
 	-- rather than uploaded: one more image asset is one more manual
@@ -204,9 +205,9 @@ local function buildGoldRow(gui: ScreenGui)
 	goldConstraint.Parent = goldLabel
 end
 
-local function buildSkillChips(gui: ScreenGui)
+local function buildSkillChips(gui: ScreenGui, topOffset: number)
 	local holder = Instance.new("Frame")
-	holder.Position = UDim2.fromOffset(10, 10)
+	holder.Position = UDim2.fromOffset(10, topOffset)
 	holder.Size = UDim2.fromOffset(300, 32)
 	holder.BackgroundTransparency = 1
 	holder.Parent = gui
@@ -226,6 +227,22 @@ local function buildSkillChips(gui: ScreenGui)
 	end
 end
 
+-- How far down the HUD has to start to clear Roblox's own topbar (the
+-- chat, player-list and menu buttons). Hard-coding a margin doesn't
+-- work: the inset differs between desktop, mobile and consoles, and it
+-- changes again on devices with a notch. GuiService.TopbarInset reports
+-- the real reserved rectangle, so ask for it — with a sane fallback for
+-- any client where the property doesn't exist.
+local function topbarOffset(): number
+	local ok, inset = pcall(function()
+		return GuiService.TopbarInset
+	end)
+	if ok and inset then
+		return inset.Height + 8
+	end
+	return 44
+end
+
 local function ensureBuilt()
 	if built then
 		return
@@ -237,17 +254,19 @@ local function ensureBuilt()
 	gui.ResetOnSpawn = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
+	local top = topbarOffset()
+
 	-- Top right, calendar then clock, side by side as in the reference.
-	local dayPanel = makePanel(gui, UDim2.fromOffset(210, 38), UDim2.new(1, -128, 0, 10), Vector2.new(1, 0))
+	local dayPanel = makePanel(gui, UDim2.fromOffset(210, 38), UDim2.new(1, -128, 0, top), Vector2.new(1, 0))
 	dayLabel = makeLabel(dayPanel, Theme.RetroColors.Ink, Enum.TextXAlignment.Center, 14)
 	dayLabel.Text = "DAY 1"
 
-	local clockPanel = makePanel(gui, UDim2.fromOffset(120, 38), UDim2.new(1, -10, 0, 10), Vector2.new(1, 0))
+	local clockPanel = makePanel(gui, UDim2.fromOffset(120, 38), UDim2.new(1, -10, 0, top), Vector2.new(1, 0))
 	clockLabel = makeLabel(clockPanel, Theme.RetroColors.Ink, Enum.TextXAlignment.Center, 14)
 	clockLabel.Text = "6:00 AM"
 
-	buildGoldRow(gui)
-	buildSkillChips(gui)
+	buildGoldRow(gui, top + 44)
+	buildSkillChips(gui, top)
 end
 
 local function clockTimeToText(dayProgress: number): string
