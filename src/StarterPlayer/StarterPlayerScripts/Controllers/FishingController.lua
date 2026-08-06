@@ -175,7 +175,20 @@ function FishingController.init()
 					local fishId = payload.fishId
 					local shown = false
 					if fishId then
-						shown = CatchShowcaseUI.show(fishId, accentColor, 1.9, payload.displayName, label)
+						shown = CatchShowcaseUI.show(fishId, {
+							accentColor = accentColor,
+							seconds = 1.9,
+							displayName = payload.displayName,
+							callout = label,
+							-- A first catch is worth marking, but it does not
+							-- need its own screen. It's a corner tag on the
+							-- card now, not the separate NEW DISCOVERY banner
+							-- that used to fire after the card had gone —
+							-- which turned one event into two interruptions
+							-- and made a routine first catch feel like a
+							-- bigger deal than a legendary one.
+							isNew = payload.newDiscovery,
+						})
 					end
 
 					if not shown then
@@ -189,11 +202,10 @@ function FishingController.init()
 						end)
 					end
 
-					-- Level-ups and first-time discoveries still get their own
-					-- banner, but AFTER the card has gone rather than on top
-					-- of it. They're rare and worth their own moment; the
-					-- point of the cleanup is that two things never share one.
-					if payload.leveledUp or payload.newDiscovery then
+					-- Level-ups keep their own banner, after the card rather
+					-- than over it: they're rare, they change what the player
+					-- can do next, and there's no room for them on the card.
+					if payload.leveledUp then
 						task.delay(2.3, function()
 							ProgressFeedback.announce("FISHING", payload)
 						end)

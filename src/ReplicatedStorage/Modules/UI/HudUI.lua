@@ -1,6 +1,6 @@
 --!strict
--- Persistent HUD: season/day, clock, purse, and the three pillar skill
--- levels. Always visible, no toggle.
+-- Persistent HUD: season/day, clock and purse. Always visible, no
+-- toggle.
 --
 -- Styled after the farm-sim convention Liam referenced: LIGHT parchment
 -- panels with a thick brown frame and dark ink text. The previous pass
@@ -12,8 +12,15 @@
 --
 -- Laid out as corner clusters, not the full-width bar this started as: a
 -- strip across the top of the screen is the shape of a web toolbar and
--- eats play area at every resolution. Calendar and purse go top right,
--- skills top left, and the middle of the screen stays the world's.
+-- eats play area at every resolution. Calendar, clock and purse all live
+-- top right; the rest of the screen stays the world's.
+--
+-- Skill levels used to sit as three chips in the top-left corner. They
+-- are gone: a level that changes a few times an hour does not earn
+-- permanent screen space, they collided with Roblox's own chat window,
+-- and the numbers are already on the skill tree screen where someone
+-- actually deciding something would look for them. Level-ups still
+-- announce themselves when they happen (ProgressFeedback).
 --
 -- The one deliberate departure from the reference: its money row is a
 -- set of decorative digit boxes. Ours is a real meter — the pips fill
@@ -25,7 +32,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local InventoryCache = require(Modules:WaitForChild("Client"):WaitForChild("InventoryCache"))
-local SkillTreeConfig = require(Modules:WaitForChild("Shared"):WaitForChild("SkillTreeConfig"))
 local Theme = require(Modules:WaitForChild("UI"):WaitForChild("Theme"))
 
 local HudUI = {}
@@ -37,7 +43,6 @@ local goldLabel: TextLabel
 local dayLabel: TextLabel
 local clockLabel: TextLabel
 local goldPips: { Frame } = {}
-local skillLabels: { [string]: TextLabel } = {}
 local built = false
 
 -- Parchment panel with a thick dark rim and a cream inner bevel. The
@@ -91,7 +96,7 @@ local function makeLabel(
 	parent: Frame,
 	color: Color3,
 	alignment: Enum.TextXAlignment,
-	maxSize: number,
+	textSize: number,
 	inset: number?
 ): TextLabel
 	local label = Instance.new("TextLabel")
@@ -100,18 +105,19 @@ local function makeLabel(
 	label.Size = UDim2.new(1, -(inset or 16), 1, -10)
 	label.BackgroundTransparency = 1
 	label.TextXAlignment = alignment
-	label.TextScaled = true
+	-- FIXED integer size, never TextScaled. TextScaled picks whatever
+	-- fractional size fits, and PressStart2P at a fractional size renders
+	-- its glyph grid across half-pixels and mushes. A
+	-- UITextSizeConstraint only caps the maximum -- it does not stop the
+	-- chosen size being fractional -- so capping never fixed it. Long
+	-- strings get truncated instead of shrunk.
+	label.TextSize = textSize
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.FontFace = Theme.RetroFontFace
 	label.TextColor3 = color
 	label.Text = ""
 	label.ZIndex = 2
 	label.Parent = parent
-
-	-- Capped, like every pixel-font label in this game: TextScaled left
-	-- uncapped lands the face on fractional glyph pixels and it softens.
-	local constraint = Instance.new("UITextSizeConstraint")
-	constraint.MaxTextSize = maxSize
-	constraint.Parent = label
 
 	return label
 end
@@ -143,13 +149,10 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	coinLabel.BackgroundTransparency = 1
 	coinLabel.FontFace = Theme.RetroFontFace
 	coinLabel.TextColor3 = Theme.RetroColors.WoodDark
-	coinLabel.TextScaled = true
+	coinLabel.TextSize = 11
 	coinLabel.Text = "G"
 	coinLabel.ZIndex = 3
 	coinLabel.Parent = coin
-	local coinConstraint = Instance.new("UITextSizeConstraint")
-	coinConstraint.MaxTextSize = 12
-	coinConstraint.Parent = coinLabel
 
 	-- Pip track. Unlike the reference's decorative digit boxes these
 	-- carry meaning: each pip is GOLD_PER_PIP, so a full row is the next
@@ -192,7 +195,7 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	goldLabel.Size = UDim2.fromOffset(110, 22)
 	goldLabel.BackgroundTransparency = 1
 	goldLabel.TextXAlignment = Enum.TextXAlignment.Right
-	goldLabel.TextScaled = true
+	goldLabel.TextSize = 16
 	goldLabel.FontFace = Theme.RetroFontFace
 	-- Rust rather than ink: the reference picks the money out in red, and
 	-- it's the one number on screen worth finding at a glance.
@@ -200,47 +203,6 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	goldLabel.Text = "0"
 	goldLabel.ZIndex = 2
 	goldLabel.Parent = row
-	local goldConstraint = Instance.new("UITextSizeConstraint")
-	goldConstraint.MaxTextSize = 18
-	goldConstraint.Parent = goldLabel
-end
-
-local function buildSkillChips(gui: ScreenGui, topOffset: number)
-	local holder = Instance.new("Frame")
-	holder.Position = UDim2.fromOffset(10, topOffset)
-	holder.Size = UDim2.fromOffset(300, 32)
-	holder.BackgroundTransparency = 1
-	holder.Parent = gui
-
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.Padding = UDim.new(0, 6)
-	layout.Parent = holder
-
-	for i, skillId in { "Farming", "Fishing", "Cooking" } do
-		local chip = makePanel(holder, UDim2.fromOffset(94, 30), UDim2.fromOffset(0, 0), Vector2.new(0, 0))
-		chip.LayoutOrder = i
-		-- Three letters: the full names overflowed a chip this size and
-		-- TextScaled shrank them to unreadable.
-		skillLabels[skillId] = makeLabel(chip, Theme.RetroColors.Ink, Enum.TextXAlignment.Center, 11, 10)
-		skillLabels[skillId].Text = `{string.upper(string.sub(skillId, 1, 3))} 1`
-	end
-end
-
--- How far down the HUD has to start to clear Roblox's own topbar (the
--- chat, player-list and menu buttons). Hard-coding a margin doesn't
--- work: the inset differs between desktop, mobile and consoles, and it
--- changes again on devices with a notch. GuiService.TopbarInset reports
--- the real reserved rectangle, so ask for it — with a sane fallback for
--- any client where the property doesn't exist.
-local function topbarOffset(): number
-	local ok, inset = pcall(function()
-		return GuiService.TopbarInset
-	end)
-	if ok and inset then
-		return inset.Height + 8
-	end
-	return 44
 end
 
 local function ensureBuilt()
@@ -266,7 +228,6 @@ local function ensureBuilt()
 	clockLabel.Text = "6:00 AM"
 
 	buildGoldRow(gui, top + 44)
-	buildSkillChips(gui, top)
 end
 
 local function clockTimeToText(dayProgress: number): string
@@ -309,14 +270,6 @@ function HudUI.refreshInventory()
 		pip.BackgroundColor3 = if i <= filled then Theme.RetroColors.Bronze else Theme.RetroColors.ParchmentShadow
 	end
 
-	for _, skillId in { "Farming", "Fishing", "Cooking" } do
-		local xp = snapshot.skillXp[skillId] or 0
-		local level = 1 + math.floor(xp / SkillTreeConfig.xpPerLevel)
-		local label = skillLabels[skillId]
-		if label then
-			label.Text = `{string.upper(string.sub(skillId, 1, 3))} {level}`
-		end
-	end
 end
 
 return HudUI

@@ -56,6 +56,8 @@ local callout: Frame
 local calloutLabel: TextLabel
 local calloutStroke: UIStroke
 local calloutScale: UIScale
+local newTag: Frame
+local newTagScale: UIScale
 local scale: UIScale
 local pulseTween: Tween? = nil
 
@@ -219,6 +221,43 @@ local function ensureBuilt()
 	calloutScale = Instance.new("UIScale")
 	calloutScale.Parent = callout
 
+	-- "NEW" corner tag for a first-time catch. This used to be a separate
+	-- full-screen NEW DISCOVERY banner fired 2.3s after the card had
+	-- gone, which turned one event into two interruptions and made a
+	-- routine first catch feel like a bigger deal than a legendary one.
+	-- As a tag it's on the same object as the fish it describes, and it
+	-- costs the player no extra time.
+	newTag = Instance.new("Frame")
+	newTag.AnchorPoint = Vector2.new(0.5, 0.5)
+	newTag.Position = UDim2.new(0.5, DIAMOND_SPAN // 2 - 18, 0.5, -(DIAMOND_SPAN // 2) + 18)
+	newTag.Size = UDim2.fromOffset(58, 26)
+	newTag.BackgroundColor3 = Theme.RetroColors.Rust
+	newTag.BorderSizePixel = 0
+	newTag.Rotation = -12
+	newTag.Visible = false
+	newTag.ZIndex = 8
+	newTag.Parent = frame
+	local newCorner = Instance.new("UICorner")
+	newCorner.CornerRadius = UDim.new(0, 4)
+	newCorner.Parent = newTag
+	local newStroke = Instance.new("UIStroke")
+	newStroke.Color = Theme.RetroColors.WoodDark
+	newStroke.Thickness = 2
+	newStroke.Parent = newTag
+
+	local newLabel = Instance.new("TextLabel")
+	newLabel.Size = UDim2.fromScale(1, 1)
+	newLabel.BackgroundTransparency = 1
+	newLabel.FontFace = Theme.RetroFontFace
+	newLabel.TextSize = 11
+	newLabel.TextColor3 = Theme.RetroColors.Parchment
+	newLabel.Text = "NEW"
+	newLabel.ZIndex = 9
+	newLabel.Parent = newTag
+
+	newTagScale = Instance.new("UIScale")
+	newTagScale.Parent = newTag
+
 	calloutLabel = Instance.new("TextLabel")
 	calloutLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	calloutLabel.Position = UDim2.fromScale(0.5, 0.5)
@@ -233,17 +272,24 @@ local function ensureBuilt()
 	calloutConstraint.Parent = calloutLabel
 end
 
--- Zooms `spriteId`'s sheet cell up center-screen for `seconds`, tinting
--- the backdrop diamond with `accentColor` (the fish's rarity color).
--- `displayName` labels the plaque below; `calloutText` (e.g. "LEGENDARY
--- CATCH!") labels a ribbon above. Either omitted hides its ribbon.
-function CatchShowcaseUI.show(
-	spriteId: string,
-	accentColor: Color3,
-	seconds: number,
-	displayName: string?,
-	calloutText: string?
-): boolean
+export type ShowOptions = {
+	accentColor: Color3, -- the fish's rarity colour, tints the diamond and rays
+	seconds: number, -- how long the card holds before shrinking away
+	displayName: string?, -- labels the plaque below; omitted hides it
+	callout: string?, -- e.g. "LEGENDARY CATCH!", ribbon above; omitted hides it
+	isNew: boolean?, -- first time catching this species
+}
+
+-- Zooms `spriteId`'s sheet cell up center-screen as a labelled card.
+--
+-- Options table rather than positional arguments: this grew to five
+-- trailing parameters, the last two of which were a string and a boolean
+-- that no call site could keep straight at a glance.
+function CatchShowcaseUI.show(spriteId: string, options: ShowOptions): boolean
+	local accentColor = options.accentColor
+	local seconds = options.seconds
+	local displayName = options.displayName
+	local calloutText = options.callout
 	local sheetId = AssetIds.sprite("fish_sheet")
 	if sheetId == "rbxassetid://0" then
 		return false
@@ -272,6 +318,7 @@ function CatchShowcaseUI.show(
 	calloutLabel.Text = string.upper(calloutText or "")
 	calloutLabel.TextColor3 = accentColor
 	calloutStroke.Color = accentColor
+	newTag.Visible = false
 	frame.Visible = true
 
 	-- Pop in with overshoot, then breathe gently while held. Both are
@@ -298,6 +345,21 @@ function CatchShowcaseUI.show(
 				BackgroundTransparency = 1,
 			}):Play()
 		end
+	end
+
+	-- The NEW tag stamps on just after the card settles, slightly ahead
+	-- of the callout so the two don't pop together.
+	if options.isNew then
+		task.delay(0.3, function()
+			if showToken ~= token then
+				return
+			end
+			newTag.Visible = true
+			newTagScale.Scale = 0
+			TweenService:Create(newTagScale, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Scale = 1,
+			}):Play()
+		end)
 	end
 
 	-- The callout lands a beat after the card, so the two read as
@@ -342,6 +404,7 @@ function CatchShowcaseUI.show(
 			if showToken == token then
 				frame.Visible = false
 				callout.Visible = false
+				newTag.Visible = false
 			end
 		end)
 	end)
