@@ -37,12 +37,31 @@ local CHARACTERS_PER_SECOND = 45
 local PORTRAIT_SCALE = 2
 local PORTRAIT_SIZE = PortraitSheet.CELL_SIZE * PORTRAIT_SCALE
 
-local NAME_TEXT_SIZE = 12
-local BODY_TEXT_SIZE = 13
-local OPTION_TEXT_SIZE = 12
-local OPTION_HEIGHT = 32
+local NAME_TEXT_SIZE = 11
+local BODY_TEXT_SIZE = 12
+local OPTION_TEXT_SIZE = 11
+local OPTION_HEIGHT = 28
+local OPTION_GAP = 6
+
+-- Every measurement the box's height is built from, in one place, so
+-- heightFor() below and the layout can't drift apart.
+local PAD = 14
+local PORTRAIT_PAD = 6 -- frame inset around the portrait image
+local PORTRAIT_BLOCK = PortraitSheet.CELL_SIZE * 2 + 6 -- portrait image plus its frame inset
+local COLUMN_GAP = 16
+
+-- Height of the portrait/text row. Taller than the portrait itself, and
+-- the number is measured rather than guessed: the longest line in
+-- DialogueData is 106 characters, PressStart2P is monospace at roughly
+-- TextSize per character, and the text column is about 430px wide at the
+-- box's capped width — so a worst-case line wraps to four rows. Four
+-- rows at BODY_TEXT_SIZE * 1.3 leading is 64px, plus 28px for the name
+-- and its rule. Sizing this to the portrait instead left 42px of text
+-- area and silently clipped the longest third of the script.
+local TOP_ROW = 92
 
 local screenGui: ScreenGui? = nil
+local boxFrame: Frame
 local portraitImage: ImageLabel
 local portraitLetter: TextLabel
 local speakerLabel: TextLabel
@@ -100,6 +119,17 @@ local function applyParchment(frame: GuiObject, cornerRadius: number, strokeThic
 	bevelStroke.Parent = bevel
 end
 
+-- Total box height for `optionCount` buttons: padding, the portrait/text
+-- row, then one row per option. Every term is a named constant so the box can never end up
+-- a few pixels off from what it actually contains.
+local function heightFor(optionCount: number): number
+	local optionsHeight = 0
+	if optionCount > 0 then
+		optionsHeight = optionCount * OPTION_HEIGHT + (optionCount - 1) * OPTION_GAP + PAD
+	end
+	return PAD * 2 + TOP_ROW + optionsHeight
+end
+
 local function ensureBuilt()
 	if screenGui then
 		return
@@ -112,34 +142,43 @@ local function ensureBuilt()
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	screenGui = gui
 
-	-- Smaller than the previous pass, and sized to its contents rather
-	-- than to a round number: portrait row + three option rows + padding.
+	-- Height is set per line by show(), from heightFor() below. A fixed
+	-- height meant a node with one CONTINUE button reserved room for
+	-- three options and left a slab of empty parchment under the text —
+	-- the single biggest reason the box looked oversized. Width is capped
+	-- narrower than before too: long measures are harder to read, and the
+	-- box has no business spanning the screen.
 	local box = Instance.new("Frame")
 	box.Name = "Box"
 	box.AnchorPoint = Vector2.new(0.5, 1)
-	box.Position = UDim2.new(0.5, 0, 1, -20)
-	box.Size = UDim2.new(1, -60, 0, 196)
+	box.Position = UDim2.new(0.5, 0, 1, -22)
+	box.Size = UDim2.new(1, -80, 0, 150)
 	box.Parent = gui
-	applyParchment(box, 8, 3)
+	-- Thinner rim than the 3-4px used before. At this panel size a heavy
+	-- border eats the parchment and makes the whole thing read as chunky.
+	applyParchment(box, 7, 2)
 
 	local boxSize = Instance.new("UISizeConstraint")
-	boxSize.MaxSize = Vector2.new(620, 196)
-	boxSize.MinSize = Vector2.new(300, 196)
+	boxSize.MaxSize = Vector2.new(540, 400)
+	boxSize.MinSize = Vector2.new(300, 100)
 	boxSize.Parent = box
 
 	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, 12)
-	padding.PaddingRight = UDim.new(0, 12)
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
+	padding.PaddingLeft = UDim.new(0, PAD)
+	padding.PaddingRight = UDim.new(0, PAD)
+	padding.PaddingTop = UDim.new(0, PAD)
+	padding.PaddingBottom = UDim.new(0, PAD)
 	padding.Parent = box
+	boxFrame = box
 
 	-- Portrait column, fixed width, so the text column's wrapping never
 	-- depends on the speaker or the panel's proportions.
 	local portraitFrame = Instance.new("Frame")
 	portraitFrame.Name = "Portrait"
-	portraitFrame.Size = UDim2.fromOffset(PORTRAIT_SIZE + 8, PORTRAIT_SIZE + 8)
-	portraitFrame.Position = UDim2.fromOffset(0, 0)
+	portraitFrame.Size = UDim2.fromOffset(PORTRAIT_BLOCK, PORTRAIT_BLOCK)
+	-- Centred in the row, which is taller than the portrait.
+	portraitFrame.AnchorPoint = Vector2.new(0, 0.5)
+	portraitFrame.Position = UDim2.fromOffset(0, TOP_ROW // 2)
 	portraitFrame.ZIndex = 2
 	portraitFrame.Parent = box
 	applyParchment(portraitFrame, 5, 2)
@@ -175,11 +214,11 @@ local function ensureBuilt()
 	letterCorner.Parent = portraitLetter
 
 	-- Text column beside the portrait.
-	local columnX = PORTRAIT_SIZE + 20
+	local columnX = PORTRAIT_BLOCK + COLUMN_GAP
 	local textColumn = Instance.new("Frame")
 	textColumn.Name = "TextColumn"
 	textColumn.Position = UDim2.fromOffset(columnX, 0)
-	textColumn.Size = UDim2.new(1, -columnX, 0, PORTRAIT_SIZE + 8)
+	textColumn.Size = UDim2.new(1, -columnX, 0, TOP_ROW)
 	textColumn.BackgroundTransparency = 1
 	textColumn.ZIndex = 2
 	textColumn.Parent = box
@@ -214,7 +253,7 @@ local function ensureBuilt()
 	textLabel.TextWrapped = true
 	textLabel.FontFace = Theme.RetroFontFace
 	textLabel.TextSize = BODY_TEXT_SIZE
-	textLabel.LineHeight = 1.35 -- pixel faces sit tight by default and run together when wrapped
+	textLabel.LineHeight = 1.3 -- pixel faces sit tight by default and run together when wrapped
 	textLabel.TextColor3 = Theme.RetroColors.Ink
 	textLabel.ZIndex = 3
 	textLabel.Parent = textColumn
@@ -223,8 +262,11 @@ local function ensureBuilt()
 	-- isn't squeezed into the narrower text column.
 	optionsFrame = Instance.new("Frame")
 	optionsFrame.Name = "Options"
-	optionsFrame.Position = UDim2.fromOffset(0, PORTRAIT_SIZE + 18)
-	optionsFrame.Size = UDim2.new(1, 0, 1, -(PORTRAIT_SIZE + 18))
+	-- Anchored to the BOTTOM of the padded area rather than offset from
+	-- the top, so it stays put as the box height changes per node.
+	optionsFrame.AnchorPoint = Vector2.new(0, 1)
+	optionsFrame.Position = UDim2.fromScale(0, 1)
+	optionsFrame.Size = UDim2.new(1, 0, 0, 0) -- height set in show()
 	optionsFrame.BackgroundTransparency = 1
 	optionsFrame.ZIndex = 2
 	optionsFrame.Parent = box
@@ -232,7 +274,7 @@ local function ensureBuilt()
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Vertical
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 5)
+	layout.Padding = UDim.new(0, OPTION_GAP)
 	layout.Parent = optionsFrame
 
 	-- Blinking "ready" arrow, bottom right. Shown only once the
@@ -361,6 +403,12 @@ function DialogueUI.show(speaker: string, text: string, options: { OptionDisplay
 			child:Destroy()
 		end
 	end
+
+	-- One CONTINUE button when a node offers no choices, so the box is
+	-- never taller than what it holds.
+	local rowCount = if #options == 0 then 1 else #options
+	boxFrame.Size = UDim2.new(1, -80, 0, heightFor(rowCount))
+	optionsFrame.Size = UDim2.new(1, 0, 0, rowCount * OPTION_HEIGHT + (rowCount - 1) * OPTION_GAP)
 
 	if #options == 0 then
 		local continueButton = Instance.new("TextButton")

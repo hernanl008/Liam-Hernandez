@@ -23,8 +23,8 @@
 -- announce themselves when they happen (ProgressFeedback).
 --
 -- The one deliberate departure from the reference: its money row is a
--- set of decorative digit boxes. Ours is a real meter — the pips fill
--- with progress toward the next 1,000g — so the same amount of screen
+-- set of decorative digit boxes. Ours is a real meter — a thin line
+-- under the amount fills with progress toward the next 1,000g — so the
 -- space carries information instead of just texture.
 
 local GuiService = game:GetService("GuiService")
@@ -36,13 +36,10 @@ local Theme = require(Modules:WaitForChild("UI"):WaitForChild("Theme"))
 
 local HudUI = {}
 
-local GOLD_PIP_COUNT = 8
-local GOLD_PER_PIP = 125 -- GOLD_PIP_COUNT * this == one full bar per 1,000g
-
 local goldLabel: TextLabel
 local dayLabel: TextLabel
 local clockLabel: TextLabel
-local goldPips: { Frame } = {}
+local goldFill: Frame
 local built = false
 
 -- Parchment panel with a thick dark rim and a cream inner bevel. The
@@ -71,7 +68,9 @@ local function makePanel(parent: Instance, size: UDim2, position: UDim2, anchor:
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Theme.RetroColors.WoodDark
-	stroke.Thickness = 3
+	-- 2px, not 3. On panels this small a heavier rim eats the parchment
+	-- and the cluster reads as chunky rather than crisp.
+	stroke.Thickness = 2
 	stroke.Parent = panel
 
 	local bevel = Instance.new("Frame")
@@ -123,15 +122,22 @@ local function makeLabel(
 end
 
 local function buildGoldRow(gui: ScreenGui, topOffset: number)
-	local row = makePanel(gui, UDim2.fromOffset(330, 36), UDim2.new(1, -10, 0, topOffset), Vector2.new(1, 0))
+	-- Compact purse: coin, amount, and a thin fill line along the bottom
+	-- for progress toward the next 1,000g.
+	--
+	-- This started as eight discrete pip boxes echoing the reference's
+	-- money row. It read as broken: at 100g none of them are lit, so the
+	-- HUD showed a row of eight empty slots, which looks like content
+	-- that failed to load rather than a meter that is nearly empty. A
+	-- continuous line has no such state — an almost-empty bar still
+	-- clearly reads as a bar. It is also a third of the width, which is
+	-- what actually buys the top-right corner some room.
+	local row = makePanel(gui, UDim2.fromOffset(168, 36), UDim2.new(1, -10, 0, topOffset), Vector2.new(1, 0))
 
-	-- Coin badge, standing in for the reference's gold "G" icon. Drawn
-	-- rather than uploaded: one more image asset is one more manual
-	-- upload, and a bronze disc with a G reads fine at this size.
 	local coin = Instance.new("Frame")
 	coin.AnchorPoint = Vector2.new(0, 0.5)
-	coin.Position = UDim2.new(0, 8, 0.5, 0)
-	coin.Size = UDim2.fromOffset(22, 22)
+	coin.Position = UDim2.new(0, 10, 0.5, -2)
+	coin.Size = UDim2.fromOffset(20, 20)
 	coin.BackgroundColor3 = Theme.RetroColors.Bronze
 	coin.BorderSizePixel = 0
 	coin.ZIndex = 2
@@ -149,60 +155,49 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	coinLabel.BackgroundTransparency = 1
 	coinLabel.FontFace = Theme.RetroFontFace
 	coinLabel.TextColor3 = Theme.RetroColors.WoodDark
-	coinLabel.TextSize = 11
+	coinLabel.TextSize = 10
 	coinLabel.Text = "G"
 	coinLabel.ZIndex = 3
 	coinLabel.Parent = coin
 
-	-- Pip track. Unlike the reference's decorative digit boxes these
-	-- carry meaning: each pip is GOLD_PER_PIP, so a full row is the next
-	-- thousand banked. Same footprint, actual information.
-	local track = Instance.new("Frame")
-	track.AnchorPoint = Vector2.new(0, 0.5)
-	track.Position = UDim2.new(0, 38, 0.5, 0)
-	track.Size = UDim2.fromOffset(GOLD_PIP_COUNT * 17, 20)
-	track.BackgroundTransparency = 1
-	track.ZIndex = 2
-	track.Parent = row
-
-	local trackLayout = Instance.new("UIListLayout")
-	trackLayout.FillDirection = Enum.FillDirection.Horizontal
-	trackLayout.Padding = UDim.new(0, 3)
-	trackLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	trackLayout.Parent = track
-
-	for i = 1, GOLD_PIP_COUNT do
-		local pip = Instance.new("Frame")
-		pip.Size = UDim2.fromOffset(14, 18)
-		pip.BackgroundColor3 = Theme.RetroColors.ParchmentShadow
-		pip.BorderSizePixel = 0
-		pip.LayoutOrder = i
-		pip.ZIndex = 2
-		pip.Parent = track
-		local pipCorner = Instance.new("UICorner")
-		pipCorner.CornerRadius = UDim.new(0, 2)
-		pipCorner.Parent = pip
-		local pipStroke = Instance.new("UIStroke")
-		pipStroke.Color = Theme.RetroColors.WoodMid
-		pipStroke.Thickness = 1
-		pipStroke.Parent = pip
-		table.insert(goldPips, pip)
-	end
-
 	goldLabel = Instance.new("TextLabel")
 	goldLabel.AnchorPoint = Vector2.new(1, 0.5)
-	goldLabel.Position = UDim2.new(1, -10, 0.5, 0)
-	goldLabel.Size = UDim2.fromOffset(110, 22)
+	goldLabel.Position = UDim2.new(1, -12, 0.5, -2)
+	goldLabel.Size = UDim2.fromOffset(110, 20)
 	goldLabel.BackgroundTransparency = 1
 	goldLabel.TextXAlignment = Enum.TextXAlignment.Right
 	goldLabel.TextSize = 16
 	goldLabel.FontFace = Theme.RetroFontFace
 	-- Rust rather than ink: the reference picks the money out in red, and
-	-- it's the one number on screen worth finding at a glance.
+	-- it is the one number on screen worth finding at a glance.
 	goldLabel.TextColor3 = Theme.RetroColors.Rust
 	goldLabel.Text = "0"
 	goldLabel.ZIndex = 2
 	goldLabel.Parent = row
+
+	-- Progress track, inset from both ends so it reads as part of the
+	-- panel rather than an edge.
+	local track = Instance.new("Frame")
+	track.AnchorPoint = Vector2.new(0.5, 1)
+	track.Position = UDim2.new(0.5, 0, 1, -6)
+	track.Size = UDim2.new(1, -22, 0, 3)
+	track.BackgroundColor3 = Theme.RetroColors.ParchmentShadow
+	track.BorderSizePixel = 0
+	track.ZIndex = 2
+	track.Parent = row
+	local trackCorner = Instance.new("UICorner")
+	trackCorner.CornerRadius = UDim.new(1, 0)
+	trackCorner.Parent = track
+
+	goldFill = Instance.new("Frame")
+	goldFill.Size = UDim2.fromScale(0, 1)
+	goldFill.BackgroundColor3 = Theme.RetroColors.Bronze
+	goldFill.BorderSizePixel = 0
+	goldFill.ZIndex = 3
+	goldFill.Parent = track
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(1, 0)
+	fillCorner.Parent = goldFill
 end
 
 -- How far down the HUD has to start to clear Roblox's own topbar (the
@@ -235,15 +230,17 @@ local function ensureBuilt()
 	local top = topbarOffset()
 
 	-- Top right, calendar then clock, side by side as in the reference.
-	local dayPanel = makePanel(gui, UDim2.fromOffset(210, 38), UDim2.new(1, -128, 0, top), Vector2.new(1, 0))
+	-- 10px between panels, and the calendar sized to its longest real
+	-- string ("AUTUMN 28 RAIN") rather than padded out to a round number.
+	local dayPanel = makePanel(gui, UDim2.fromOffset(200, 36), UDim2.new(1, -140, 0, top), Vector2.new(1, 0))
 	dayLabel = makeLabel(dayPanel, Theme.RetroColors.Ink, Enum.TextXAlignment.Center, 14)
 	dayLabel.Text = "DAY 1"
 
-	local clockPanel = makePanel(gui, UDim2.fromOffset(120, 38), UDim2.new(1, -10, 0, top), Vector2.new(1, 0))
+	local clockPanel = makePanel(gui, UDim2.fromOffset(130, 36), UDim2.new(1, -10, 0, top), Vector2.new(1, 0))
 	clockLabel = makeLabel(clockPanel, Theme.RetroColors.Ink, Enum.TextXAlignment.Center, 14)
 	clockLabel.Text = "6:00 AM"
 
-	buildGoldRow(gui, top + 44)
+	buildGoldRow(gui, top + 46)
 end
 
 local function clockTimeToText(dayProgress: number): string
@@ -275,16 +272,12 @@ function HudUI.refreshInventory()
 	local snapshot = InventoryCache.get()
 	goldLabel.Text = tostring(snapshot.gold)
 
-	-- Pips show progress through the current thousand. A player holding
-	-- exactly 1,000g reads as a full bar rather than an empty one, which
-	-- is the friendlier of the two rounding choices.
+	-- Fill shows progress through the current thousand. Someone holding
+	-- exactly 1,000g gets a full bar rather than an empty one, which is
+	-- the friendlier of the two rounding choices.
 	local intoThousand = snapshot.gold % 1000
-	local filled = if snapshot.gold > 0 and intoThousand == 0
-		then GOLD_PIP_COUNT
-		else math.floor(intoThousand / GOLD_PER_PIP)
-	for i, pip in goldPips do
-		pip.BackgroundColor3 = if i <= filled then Theme.RetroColors.Bronze else Theme.RetroColors.ParchmentShadow
-	end
+	local progress = if snapshot.gold > 0 and intoThousand == 0 then 1 else intoThousand / 1000
+	goldFill.Size = UDim2.fromScale(progress, 1)
 
 end
 
