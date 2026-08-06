@@ -139,10 +139,13 @@ local function buildPurse(gui: ScreenGui, top: number)
 	local width = DATE_WIDTH + PANEL_GAP + CLOCK_WIDTH
 	local face = makePanel(gui, UDim2.fromOffset(width, 38), UDim2.new(1, -MARGIN, 0, top), Vector2.new(1, 0))
 
+	-- Smaller, and centred against the amount rather than the panel: the
+	-- progress line occupies the bottom few pixels, so "the middle" for
+	-- the row's contents sits slightly above the panel's true centre.
 	local coin = Instance.new("Frame")
 	coin.AnchorPoint = Vector2.new(0, 0.5)
-	coin.Position = UDim2.new(0, 10, 0.5, -2)
-	coin.Size = UDim2.fromOffset(20, 20)
+	coin.Position = UDim2.new(0, 12, 0.5, -3)
+	coin.Size = UDim2.fromOffset(16, 16)
 	coin.BackgroundColor3 = Theme.RetroColors.Bronze
 	coin.BorderSizePixel = 0
 	coin.ZIndex = 5
@@ -161,14 +164,14 @@ local function buildPurse(gui: ScreenGui, top: number)
 	coinLabel.BackgroundTransparency = 1
 	coinLabel.FontFace = Theme.RetroFontFace
 	coinLabel.TextColor3 = Theme.RetroColors.WoodDark
-	coinLabel.TextSize = 10
+	coinLabel.TextSize = 8
 	coinLabel.Text = "G"
 	coinLabel.ZIndex = 6
 	coinLabel.Parent = coin
 
 	goldLabel = Instance.new("TextLabel")
 	goldLabel.AnchorPoint = Vector2.new(1, 0.5)
-	goldLabel.Position = UDim2.new(1, -12, 0.5, -2)
+	goldLabel.Position = UDim2.new(1, -12, 0.5, -3)
 	goldLabel.Size = UDim2.fromOffset(140, 20)
 	goldLabel.BackgroundTransparency = 1
 	goldLabel.TextXAlignment = Enum.TextXAlignment.Right

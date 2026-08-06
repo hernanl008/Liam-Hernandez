@@ -46,8 +46,8 @@ local OPTION_GAP = 6
 -- Every measurement the box's height is built from, in one place, so
 -- heightFor() below and the layout can't drift apart.
 local PAD = 14
-local PORTRAIT_PAD = 6 -- frame inset around the portrait image
-local PORTRAIT_BLOCK = PortraitSheet.CELL_SIZE * 2 + 6 -- portrait image plus its frame inset
+local PORTRAIT_FRAME_INSET = 6
+local PORTRAIT_BLOCK = PORTRAIT_SIZE + PORTRAIT_FRAME_INSET
 local COLUMN_GAP = 16
 
 -- Height of the portrait/text row. Taller than the portrait itself, and
@@ -142,7 +142,12 @@ local function addShadow(target: GuiObject, radius: number)
 	shadow.Name = "Shadow"
 	shadow.AnchorPoint = target.AnchorPoint
 	shadow.Position = target.Position + UDim2.fromOffset(0, 3)
-	shadow.Size = target.Size
+	-- Sized from the box's RESOLVED pixel size, not by copying its Size.
+	-- The box is UDim2.new(1, -80, ...) narrowed by a UISizeConstraint to
+	-- 540px; the shadow has no such constraint, so copying the UDim2 made
+	-- it span the whole screen minus 80 and stick out both sides as a
+	-- dark bar. AbsoluteSize is the value after constraints are applied.
+	shadow.Size = UDim2.fromOffset(target.AbsoluteSize.X, target.AbsoluteSize.Y)
 	shadow.BackgroundColor3 = Color3.fromRGB(38, 22, 12)
 	shadow.BackgroundTransparency = 0.55
 	shadow.BorderSizePixel = 0
@@ -152,9 +157,10 @@ local function addShadow(target: GuiObject, radius: number)
 	corner.CornerRadius = UDim.new(0, radius)
 	corner.Parent = shadow
 
-	-- The box resizes per node (heightFor), so the shadow has to follow.
-	target:GetPropertyChangedSignal("Size"):Connect(function()
-		shadow.Size = target.Size
+	-- The box resizes per node (heightFor) and its width depends on the
+	-- window, so follow AbsoluteSize rather than Size for both.
+	target:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		shadow.Size = UDim2.fromOffset(target.AbsoluteSize.X, target.AbsoluteSize.Y)
 	end)
 end
 
