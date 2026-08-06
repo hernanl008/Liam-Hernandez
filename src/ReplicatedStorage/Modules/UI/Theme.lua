@@ -237,4 +237,95 @@ function Theme.styleRetro(label: TextLabel, color: Color3?)
 	label.TextColor3 = color or Theme.Colors.TextPrimary
 end
 
+-- ---------------------------------------------------------------------
+-- Layered frames
+--
+-- The look every retro panel in this game is built from: a drop shadow,
+-- a dark outer rim, a bright metal ring, and the parchment face. The
+-- ring is the part a UIStroke can never provide, because a stroke only
+-- ever sits outside the shape and there is no way to get a bright band
+-- BETWEEN the dark edge and the face -- which is why earlier panels,
+-- built as one rectangle plus a stroke, read as flat no matter how they
+-- were coloured or arranged.
+--
+-- Lives here because it is now used by the HUD, the dialogue box and the
+-- skill tree, and three hand-copied versions of a sixty-line builder is
+-- exactly the kind of thing that drifts apart one panel at a time.
+
+-- Frames `target` and returns its FACE -- the parchment surface callers
+-- parent content to. Works on a TextButton as well as a Frame, though
+-- note that a face parented to a button covers that button's own text
+-- (Roblox draws a widget's text at the widget's ZIndex), so buttons want
+-- a transparent TextButton laid OVER the returned face instead.
+function Theme.framedPanel(target: GuiObject, radius: number): Frame
+	target.BackgroundColor3 = Theme.RetroColors.WoodDark
+	target.BorderSizePixel = 0
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = target
+
+	local ring = Instance.new("Frame")
+	ring.Name = "Ring"
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.fromScale(0.5, 0.5)
+	ring.Size = UDim2.new(1, -5, 1, -5)
+	ring.BackgroundColor3 = Theme.RetroColors.WoodLight
+	ring.BorderSizePixel = 0
+	ring.ZIndex = target.ZIndex
+	ring.Parent = target
+	local ringCorner = Instance.new("UICorner")
+	ringCorner.CornerRadius = UDim.new(0, math.max(radius - 2, 2))
+	ringCorner.Parent = ring
+
+	local face = Instance.new("Frame")
+	face.Name = "Face"
+	face.AnchorPoint = Vector2.new(0.5, 0.5)
+	face.Position = UDim2.fromScale(0.5, 0.5)
+	face.Size = UDim2.new(1, -5, 1, -5)
+	-- White, so the gradient shows its true colours: UIGradient multiplies
+	-- against BackgroundColor3 rather than replacing it.
+	face.BackgroundColor3 = Color3.new(1, 1, 1)
+	face.BorderSizePixel = 0
+	face.ZIndex = target.ZIndex
+	face.Parent = ring
+	local faceCorner = Instance.new("UICorner")
+	faceCorner.CornerRadius = UDim.new(0, math.max(radius - 4, 2))
+	faceCorner.Parent = face
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new(Theme.RetroColors.Parchment, Theme.RetroColors.ParchmentShadow)
+	gradient.Rotation = 90
+	gradient.Parent = face
+
+	return face
+end
+
+-- Drop shadow behind `target`, tracking its size. A sibling rather than
+-- a child, since a child always draws above its parent.
+--
+-- Sized from AbsoluteSize, not by copying Size: a panel whose Size is
+-- scale-based and narrowed by a UISizeConstraint resolves much smaller
+-- than its Size claims, and copying the UDim2 made the dialogue box's
+-- shadow span the screen and stick out both sides as a dark bar.
+function Theme.panelShadow(target: GuiObject, radius: number)
+	local shadow = Instance.new("Frame")
+	shadow.Name = "Shadow"
+	shadow.AnchorPoint = target.AnchorPoint
+	shadow.Position = target.Position + UDim2.fromOffset(0, 3)
+	shadow.Size = UDim2.fromOffset(target.AbsoluteSize.X, target.AbsoluteSize.Y)
+	shadow.BackgroundColor3 = Color3.fromRGB(38, 22, 12)
+	shadow.BackgroundTransparency = 0.55
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = target.ZIndex - 1
+	shadow.Parent = target.Parent
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = shadow
+
+	target:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		shadow.Size = UDim2.fromOffset(target.AbsoluteSize.X, target.AbsoluteSize.Y)
+	end)
+end
+
+
 return Theme
