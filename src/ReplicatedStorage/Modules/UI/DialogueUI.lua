@@ -82,55 +82,85 @@ local function colorForSpeaker(speaker: string): Color3
 	return Color3.fromHSV(hash / 359, 0.45, 0.62)
 end
 
--- Parchment surface with a thick dark rim and a cream inner bevel — the
--- same treatment HudUI uses, so the whole interface reads as one set.
-local function applyParchment(frame: GuiObject, cornerRadius: number, strokeThickness: number)
-	frame.BackgroundColor3 = Color3.new(1, 1, 1) -- UIGradient multiplies, so white shows true colours
-	frame.BorderSizePixel = 0
+-- Layered frame: shadow, dark rim, bright ring, parchment face. Same
+-- construction as HudUI's panels, so the whole interface reads as one
+-- set of objects rather than a pile of bordered rectangles. A single
+-- rectangle with a UIStroke -- which is what this was -- is flat no
+-- matter what colour the stroke is, because a stroke can only sit
+-- outside the shape and never gives you the bright band BETWEEN the
+-- dark edge and the face.
+--
+-- Returns the FACE to parent content to, and keeps working on a
+-- TextButton (the option rows) as well as a Frame.
+local function applyFramed(target: GuiObject, radius: number): Frame
+	target.BackgroundColor3 = Theme.RetroColors.WoodDark
+	target.BorderSizePixel = 0
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, cornerRadius)
-	corner.Parent = frame
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = target
 
+	local ring = Instance.new("Frame")
+	ring.Name = "Ring"
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.fromScale(0.5, 0.5)
+	ring.Size = UDim2.new(1, -5, 1, -5)
+	ring.BackgroundColor3 = Theme.RetroColors.WoodLight
+	ring.BorderSizePixel = 0
+	ring.ZIndex = target.ZIndex
+	ring.Parent = target
+	local ringCorner = Instance.new("UICorner")
+	ringCorner.CornerRadius = UDim.new(0, math.max(radius - 2, 2))
+	ringCorner.Parent = ring
+
+	local face = Instance.new("Frame")
+	face.Name = "Face"
+	face.AnchorPoint = Vector2.new(0.5, 0.5)
+	face.Position = UDim2.fromScale(0.5, 0.5)
+	face.Size = UDim2.new(1, -5, 1, -5)
+	-- White, so the gradient shows its true colours: UIGradient multiplies
+	-- against BackgroundColor3 rather than replacing it.
+	face.BackgroundColor3 = Color3.new(1, 1, 1)
+	face.BorderSizePixel = 0
+	face.ZIndex = target.ZIndex
+	face.Parent = ring
+	local faceCorner = Instance.new("UICorner")
+	faceCorner.CornerRadius = UDim.new(0, math.max(radius - 4, 2))
+	faceCorner.Parent = face
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new(Theme.RetroColors.Parchment, Theme.RetroColors.ParchmentShadow)
 	gradient.Rotation = 90
-	gradient.Parent = frame
+	gradient.Parent = face
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.RetroColors.WoodDark
-	stroke.Thickness = strokeThickness
-	-- Border, not Contextual. UIStroke's default ApplyStrokeMode is
-	-- Contextual, which on a Frame outlines the border but on a TEXT
-	-- object (TextButton/TextLabel/TextBox) strokes the GLYPHS instead.
-	-- This helper is called on the dialogue option buttons, so a 2px dark
-	-- stroke was being drawn around every letter of 11px pixel text --
-	-- which smeared them into unreadable blobs while every plain
-	-- TextLabel elsewhere stayed crisp. Forcing Border makes it outline
-	-- the button like it does the panels, and is a no-op on Frames.
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = frame
-
-	local bevel = Instance.new("Frame")
-	bevel.Name = "Bevel"
-	bevel.BackgroundTransparency = 1
-	bevel.Position = UDim2.fromOffset(2, 2)
-	bevel.Size = UDim2.new(1, -4, 1, -4)
-	bevel.ZIndex = frame.ZIndex
-	bevel.Parent = frame
-	local bevelCorner = Instance.new("UICorner")
-	bevelCorner.CornerRadius = UDim.new(0, math.max(cornerRadius - 2, 2))
-	bevelCorner.Parent = bevel
-	local bevelStroke = Instance.new("UIStroke")
-	bevelStroke.Color = Theme.RetroColors.WoodLight
-	bevelStroke.Thickness = 2
-	bevelStroke.Transparency = 0.35
-	bevelStroke.Parent = bevel
+	return face
 end
 
--- Total box height for `optionCount` buttons: padding, the portrait/text
--- row, then one row per option. Every term is a named constant so the box can never end up
--- a few pixels off from what it actually contains.
+-- Drop shadow behind `target`, sized and positioned to match it. Sibling
+-- rather than child so it can sit UNDER the panel it belongs to.
+local function addShadow(target: GuiObject, radius: number)
+	local shadow = Instance.new("Frame")
+	shadow.Name = "Shadow"
+	shadow.AnchorPoint = target.AnchorPoint
+	shadow.Position = target.Position + UDim2.fromOffset(0, 3)
+	shadow.Size = target.Size
+	shadow.BackgroundColor3 = Color3.fromRGB(38, 22, 12)
+	shadow.BackgroundTransparency = 0.55
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = target.ZIndex - 1
+	shadow.Parent = target.Parent
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = shadow
+
+	-- The box resizes per node (heightFor), so the shadow has to follow.
+	target:GetPropertyChangedSignal("Size"):Connect(function()
+		shadow.Size = target.Size
+	end)
+end
+
+-- Total box height for `optionCount` rows: padding, the portrait/text
+-- row, then one row per option. Every term is a named constant so the
+-- box can never end up a few pixels off from what it actually contains.
 local function heightFor(optionCount: number): number
 	local optionsHeight = 0
 	if optionCount > 0 then
@@ -162,22 +192,23 @@ local function ensureBuilt()
 	box.AnchorPoint = Vector2.new(0.5, 1)
 	box.Position = UDim2.new(0.5, 0, 1, -22)
 	box.Size = UDim2.new(1, -80, 0, 150)
+	box.ZIndex = 2
 	box.Parent = gui
-	-- Thinner rim than the 3-4px used before. At this panel size a heavy
-	-- border eats the parchment and makes the whole thing read as chunky.
-	applyParchment(box, 7, 2)
+	addShadow(box, 8)
+	local boxFace = applyFramed(box, 8)
 
 	local boxSize = Instance.new("UISizeConstraint")
 	boxSize.MaxSize = Vector2.new(540, 400)
 	boxSize.MinSize = Vector2.new(300, 100)
 	boxSize.Parent = box
 
+	-- Padding goes on the FACE, since that is what content is parented to.
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, PAD)
 	padding.PaddingRight = UDim.new(0, PAD)
 	padding.PaddingTop = UDim.new(0, PAD)
 	padding.PaddingBottom = UDim.new(0, PAD)
-	padding.Parent = box
+	padding.Parent = boxFace
 	boxFrame = box
 
 	-- Portrait column, fixed width, so the text column's wrapping never
@@ -188,9 +219,9 @@ local function ensureBuilt()
 	-- Centred in the row, which is taller than the portrait.
 	portraitFrame.AnchorPoint = Vector2.new(0, 0.5)
 	portraitFrame.Position = UDim2.fromOffset(0, TOP_ROW // 2)
-	portraitFrame.ZIndex = 2
-	portraitFrame.Parent = box
-	applyParchment(portraitFrame, 5, 2)
+	portraitFrame.ZIndex = 3
+	portraitFrame.Parent = boxFace
+	local portraitFace = applyFramed(portraitFrame, 5)
 
 	portraitImage = Instance.new("ImageLabel")
 	portraitImage.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -202,7 +233,7 @@ local function ensureBuilt()
 	portraitImage.ImageRectSize = Vector2.new(PortraitSheet.CELL_SIZE, PortraitSheet.CELL_SIZE)
 	portraitImage.Visible = false
 	portraitImage.ZIndex = 3
-	portraitImage.Parent = portraitFrame
+	portraitImage.Parent = portraitFace
 
 	portraitLetter = Instance.new("TextLabel")
 	portraitLetter.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -217,7 +248,7 @@ local function ensureBuilt()
 	portraitLetter.Text = "?"
 	portraitLetter.Visible = false
 	portraitLetter.ZIndex = 3
-	portraitLetter.Parent = portraitFrame
+	portraitLetter.Parent = portraitFace
 	local letterCorner = Instance.new("UICorner")
 	letterCorner.CornerRadius = UDim.new(0, 4)
 	letterCorner.Parent = portraitLetter
@@ -230,7 +261,7 @@ local function ensureBuilt()
 	textColumn.Size = UDim2.new(1, -columnX, 0, TOP_ROW)
 	textColumn.BackgroundTransparency = 1
 	textColumn.ZIndex = 2
-	textColumn.Parent = box
+	textColumn.Parent = boxFace
 
 	speakerLabel = Instance.new("TextLabel")
 	speakerLabel.Size = UDim2.new(1, 0, 0, 14)
@@ -278,7 +309,7 @@ local function ensureBuilt()
 	optionsFrame.Size = UDim2.new(1, 0, 0, 0) -- height set in show()
 	optionsFrame.BackgroundTransparency = 1
 	optionsFrame.ZIndex = 2
-	optionsFrame.Parent = box
+	optionsFrame.Parent = boxFace
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Vertical
@@ -301,7 +332,7 @@ local function ensureBuilt()
 	continueArrow.Text = "\u{25BC}"
 	continueArrow.Visible = false
 	continueArrow.ZIndex = 4
-	continueArrow.Parent = box
+	continueArrow.Parent = boxFace
 
 	-- Driven from Heartbeat rather than a tween loop: one shared clock,
 	-- nothing to cancel when a line changes, and it costs a sine per
@@ -367,8 +398,28 @@ local function finishReveal(): boolean
 	return true
 end
 
-local function styleOptionButton(button: TextButton)
+-- Builds one framed option row and returns the TextButton to connect.
+--
+-- A row is a framed Frame with a TRANSPARENT TextButton laid over its
+-- face, rather than a TextButton styled directly. The frame helper
+-- nests a face inside its target, and a face parented to a TextButton
+-- would cover that button's own text -- Roblox draws a widget's text at
+-- the widget's ZIndex, so a child frame at the same depth wins. Putting
+-- the button on top instead keeps the layers in the right order and
+-- leaves the button's whole area clickable.
+local function makeOptionRow(text: string, layoutOrder: number): TextButton
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(1, 0, 0, OPTION_HEIGHT)
+	row.LayoutOrder = layoutOrder
+	row.ZIndex = 4
+	row.Parent = optionsFrame
+	local face = applyFramed(row, 5)
+
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromScale(1, 1)
+	button.BackgroundTransparency = 1
 	button.AutoButtonColor = false
+	button.Text = text
 	button.FontFace = Theme.RetroFontFace
 	button.TextSize = OPTION_TEXT_SIZE
 	button.TextColor3 = Theme.RetroColors.Ink
@@ -376,25 +427,28 @@ local function styleOptionButton(button: TextButton)
 	-- fit, and a wrapped two-line option would break the row height the
 	-- layout is built on. Options are short by design.
 	button.TextTruncate = Enum.TextTruncate.AtEnd
-	button.ZIndex = 3
-	applyParchment(button, 5, 2)
+	button.ZIndex = 6
+	button.Parent = face
 
 	-- Explicit hover: AutoButtonColor's default darkening washes out
 	-- against parchment, and a button that doesn't visibly respond reads
-	-- as disabled.
-	local stroke = button:FindFirstChildOfClass("UIStroke")
+	-- as disabled. Lighting the ring is what makes the whole row feel
+	-- picked up rather than just the words changing colour.
+	local ring = row:FindFirstChild("Ring")
 	button.MouseEnter:Connect(function()
 		button.TextColor3 = Theme.RetroColors.Rust
-		if stroke then
-			stroke.Color = Theme.RetroColors.Rust
+		if ring and ring:IsA("Frame") then
+			ring.BackgroundColor3 = Theme.RetroColors.Bronze
 		end
 	end)
 	button.MouseLeave:Connect(function()
 		button.TextColor3 = Theme.RetroColors.Ink
-		if stroke then
-			stroke.Color = Theme.RetroColors.WoodDark
+		if ring and ring:IsA("Frame") then
+			ring.BackgroundColor3 = Theme.RetroColors.WoodLight
 		end
 	end)
+
+	return button
 end
 
 export type OptionDisplay = { text: string }
@@ -408,7 +462,7 @@ function DialogueUI.show(speaker: string, text: string, options: { OptionDisplay
 	typewriterReveal(text)
 
 	for _, child in optionsFrame:GetChildren() do
-		if child:IsA("TextButton") then
+		if child:IsA("Frame") then
 			child:Destroy()
 		end
 	end
@@ -420,11 +474,7 @@ function DialogueUI.show(speaker: string, text: string, options: { OptionDisplay
 	optionsFrame.Size = UDim2.new(1, 0, 0, rowCount * OPTION_HEIGHT + (rowCount - 1) * OPTION_GAP)
 
 	if #options == 0 then
-		local continueButton = Instance.new("TextButton")
-		continueButton.Size = UDim2.new(1, 0, 0, OPTION_HEIGHT)
-		continueButton.Text = "CONTINUE"
-		continueButton.Parent = optionsFrame
-		styleOptionButton(continueButton)
+		local continueButton = makeOptionRow("CONTINUE", 1)
 		continueButton.Activated:Connect(function()
 			-- First press finishes the line, second dismisses — a fast
 			-- reader never loses text by pressing ahead.
@@ -437,12 +487,7 @@ function DialogueUI.show(speaker: string, text: string, options: { OptionDisplay
 	end
 
 	for i, option in options do
-		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(1, 0, 0, OPTION_HEIGHT)
-		button.Text = option.text
-		button.LayoutOrder = i
-		button.Parent = optionsFrame
-		styleOptionButton(button)
+		local button = makeOptionRow(option.text, i)
 		button.Activated:Connect(function()
 			if finishReveal() then
 				return

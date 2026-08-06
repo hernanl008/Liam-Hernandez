@@ -2,30 +2,27 @@
 -- Persistent HUD: season/day, clock and purse. Always visible, no
 -- toggle.
 --
--- Styled after the farm-sim convention Liam referenced: LIGHT parchment
--- panels with a thick brown frame and dark ink text. The previous pass
--- had this inverted — dark wood plaques with light text — which is
--- heavier on the eye and fights a bright outdoor scene instead of
--- sitting on top of it. Light panels with a dark rim also hold their
--- shape against any background, which matters when the ground behind
--- them changes colour by season.
+-- LAYERED FRAMES, which is the whole point of this file's look. Earlier
+-- passes drew each panel as one rectangle with a UIStroke and a faint
+-- inner line, and it read as flat and generic no matter how the contents
+-- were arranged — rearranging them (side-by-side, then a tall stacked
+-- sign) changed nothing, because the layout was never the problem. What
+-- makes the farm-sim frames Liam referenced look carved is that they are
+-- several nested shapes: a dark outer rim, a bright metal ring inside
+-- it, then the parchment face, with a shadow underneath lifting the
+-- whole thing off the world. Four cheap Frames per panel, and it is the
+-- difference between "a box with a border" and "an object".
 --
--- Laid out as corner clusters, not the full-width bar this started as: a
--- strip across the top of the screen is the shape of a web toolbar and
--- eats play area at every resolution. Calendar, clock and purse all live
--- top right; the rest of the screen stays the world's.
+-- Corner clusters, not a full-width bar: a strip across the top of the
+-- screen is the shape of a web toolbar and eats play area at every
+-- resolution. Everything lives top right; the rest of the screen stays
+-- the world's.
 --
--- Skill levels used to sit as three chips in the top-left corner. They
--- are gone: a level that changes a few times an hour does not earn
--- permanent screen space, they collided with Roblox's own chat window,
--- and the numbers are already on the skill tree screen where someone
--- actually deciding something would look for them. Level-ups still
--- announce themselves when they happen (ProgressFeedback).
---
--- The one deliberate departure from the reference: its money row is a
--- set of decorative digit boxes. Ours is a real meter — a thin line
--- under the amount fills with progress toward the next 1,000g — so the
--- space carries information instead of just texture.
+-- Skill levels used to sit as chips in the top-left corner. They are
+-- gone: a level that changes a few times an hour does not earn permanent
+-- screen space, they collided with Roblox's chat window, and the numbers
+-- are already on the skill tree screen. Level-ups still announce
+-- themselves when they happen (ProgressFeedback).
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -36,104 +33,111 @@ local Theme = require(Modules:WaitForChild("UI"):WaitForChild("Theme"))
 
 local HudUI = {}
 
+local DATE_WIDTH = 200
+local CLOCK_WIDTH = 132
+local PANEL_HEIGHT = 40
+local PANEL_GAP = 8
+local MARGIN = 12
+
 local goldLabel: TextLabel
 local dayLabel: TextLabel
 local clockLabel: TextLabel
-local weatherLabel: TextLabel
 local goldFill: Frame
 local built = false
 
--- Parchment panel with a thick dark rim and a cream inner bevel. The
--- bevel is what makes it read as a carved plaque rather than a
--- rectangle with an outline — dark outside, light just inside, the same
--- trick Theme.applyRetroPanel uses on the big panels.
+-- Builds one framed panel and returns its FACE — the parchment surface
+-- callers parent content to. The rim and ring are decoration; nothing
+-- outside needs a handle on them.
 local function makePanel(parent: Instance, size: UDim2, position: UDim2, anchor: Vector2): Frame
-	local panel = Instance.new("Frame")
-	panel.Size = size
-	panel.Position = position
-	panel.AnchorPoint = anchor
-	-- White, so the gradient below shows its true colours: UIGradient
-	-- multiplies against BackgroundColor3 rather than replacing it.
-	panel.BackgroundColor3 = Color3.new(1, 1, 1)
-	panel.BorderSizePixel = 0
-	panel.Parent = parent
+	-- Shadow. Not a stroke or a gradient: a second rounded rectangle
+	-- offset downward, dark and mostly transparent. Cheap, and it is what
+	-- stops a light panel lying flat against a bright field.
+	local shadow = Instance.new("Frame")
+	shadow.Size = size
+	shadow.Position = position + UDim2.fromOffset(0, 3)
+	shadow.AnchorPoint = anchor
+	shadow.BackgroundColor3 = Color3.fromRGB(38, 22, 12)
+	shadow.BackgroundTransparency = 0.55
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = 1
+	shadow.Parent = parent
+	local shadowCorner = Instance.new("UICorner")
+	shadowCorner.CornerRadius = UDim.new(0, 9)
+	shadowCorner.Parent = shadow
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = panel
+	-- Outer rim: the dark carved edge.
+	local rim = Instance.new("Frame")
+	rim.Size = size
+	rim.Position = position
+	rim.AnchorPoint = anchor
+	rim.BackgroundColor3 = Theme.RetroColors.WoodDark
+	rim.BorderSizePixel = 0
+	rim.ZIndex = 2
+	rim.Parent = parent
+	local rimCorner = Instance.new("UICorner")
+	rimCorner.CornerRadius = UDim.new(0, 9)
+	rimCorner.Parent = rim
 
-	local gradient = Instance.new("UIGradient")
-	gradient.Color = ColorSequence.new(Theme.RetroColors.Parchment, Theme.RetroColors.ParchmentShadow)
-	gradient.Rotation = 90
-	gradient.Parent = panel
+	-- Metal ring: the bright band between rim and face. This is the layer
+	-- that reads as gilded, and it is the one a UIStroke can never give
+	-- you, because a stroke only ever sits outside the shape.
+	local ring = Instance.new("Frame")
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.fromScale(0.5, 0.5)
+	ring.Size = UDim2.new(1, -6, 1, -6)
+	ring.BackgroundColor3 = Theme.RetroColors.WoodLight
+	ring.BorderSizePixel = 0
+	ring.ZIndex = 3
+	ring.Parent = rim
+	local ringCorner = Instance.new("UICorner")
+	ringCorner.CornerRadius = UDim.new(0, 7)
+	ringCorner.Parent = ring
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.RetroColors.WoodDark
-	-- 2px, not 3. On panels this small a heavier rim eats the parchment
-	-- and the cluster reads as chunky rather than crisp.
-	stroke.Thickness = 2
-	stroke.Parent = panel
+	-- Parchment face, where content goes.
+	local face = Instance.new("Frame")
+	face.Name = "Face"
+	face.AnchorPoint = Vector2.new(0.5, 0.5)
+	face.Position = UDim2.fromScale(0.5, 0.5)
+	face.Size = UDim2.new(1, -6, 1, -6)
+	-- White, so the gradient shows its true colours: UIGradient multiplies
+	-- against BackgroundColor3 rather than replacing it.
+	face.BackgroundColor3 = Color3.new(1, 1, 1)
+	face.BorderSizePixel = 0
+	face.ZIndex = 4
+	face.Parent = ring
+	local faceCorner = Instance.new("UICorner")
+	faceCorner.CornerRadius = UDim.new(0, 5)
+	faceCorner.Parent = face
+	local faceGradient = Instance.new("UIGradient")
+	faceGradient.Color = ColorSequence.new(Theme.RetroColors.Parchment, Theme.RetroColors.ParchmentShadow)
+	faceGradient.Rotation = 90
+	faceGradient.Parent = face
 
-	local bevel = Instance.new("Frame")
-	bevel.Name = "Bevel"
-	bevel.BackgroundTransparency = 1
-	bevel.Position = UDim2.fromOffset(2, 2)
-	bevel.Size = UDim2.new(1, -4, 1, -4)
-	bevel.Parent = panel
-	local bevelCorner = Instance.new("UICorner")
-	bevelCorner.CornerRadius = UDim.new(0, 4)
-	bevelCorner.Parent = bevel
-	local bevelStroke = Instance.new("UIStroke")
-	bevelStroke.Color = Theme.RetroColors.WoodLight
-	bevelStroke.Thickness = 2
-	bevelStroke.Transparency = 0.35
-	bevelStroke.Parent = bevel
-
-	return panel
+	return face
 end
 
-local function makeLabel(
-	parent: Frame,
-	color: Color3,
-	alignment: Enum.TextXAlignment,
-	textSize: number,
-	inset: number?
-): TextLabel
+local function makeLabel(parent: Frame, color: Color3, textSize: number): TextLabel
 	local label = Instance.new("TextLabel")
 	label.AnchorPoint = Vector2.new(0.5, 0.5)
 	label.Position = UDim2.fromScale(0.5, 0.5)
-	label.Size = UDim2.new(1, -(inset or 16), 1, -10)
+	label.Size = UDim2.new(1, -14, 1, -8)
 	label.BackgroundTransparency = 1
-	label.TextXAlignment = alignment
-	-- FIXED integer size, never TextScaled. TextScaled picks whatever
+	-- FIXED integer size, never TextScaled: TextScaled picks whatever
 	-- fractional size fits, and PressStart2P at a fractional size renders
-	-- its glyph grid across half-pixels and mushes. A
-	-- UITextSizeConstraint only caps the maximum -- it does not stop the
-	-- chosen size being fractional -- so capping never fixed it. Long
-	-- strings get truncated instead of shrunk.
+	-- its glyph grid across half-pixels and mushes.
 	label.TextSize = textSize
 	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.FontFace = Theme.RetroFontFace
 	label.TextColor3 = color
 	label.Text = ""
-	label.ZIndex = 2
+	label.ZIndex = 5
 	label.Parent = parent
-
 	return label
 end
 
-local function buildGoldRow(gui: ScreenGui, topOffset: number)
-	-- Compact purse: coin, amount, and a thin fill line along the bottom
-	-- for progress toward the next 1,000g.
-	--
-	-- This started as eight discrete pip boxes echoing the reference's
-	-- money row. It read as broken: at 100g none of them are lit, so the
-	-- HUD showed a row of eight empty slots, which looks like content
-	-- that failed to load rather than a meter that is nearly empty. A
-	-- continuous line has no such state — an almost-empty bar still
-	-- clearly reads as a bar. It is also a third of the width, which is
-	-- what actually buys the top-right corner some room.
-	local row = makePanel(gui, UDim2.fromOffset(210, 36), UDim2.new(1, -10, 0, topOffset), Vector2.new(1, 0))
+local function buildPurse(gui: ScreenGui, top: number)
+	local width = DATE_WIDTH + PANEL_GAP + CLOCK_WIDTH
+	local face = makePanel(gui, UDim2.fromOffset(width, 38), UDim2.new(1, -MARGIN, 0, top), Vector2.new(1, 0))
 
 	local coin = Instance.new("Frame")
 	coin.AnchorPoint = Vector2.new(0, 0.5)
@@ -141,14 +145,15 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	coin.Size = UDim2.fromOffset(20, 20)
 	coin.BackgroundColor3 = Theme.RetroColors.Bronze
 	coin.BorderSizePixel = 0
-	coin.ZIndex = 2
-	coin.Parent = row
+	coin.ZIndex = 5
+	coin.Parent = face
 	local coinCorner = Instance.new("UICorner")
 	coinCorner.CornerRadius = UDim.new(1, 0)
 	coinCorner.Parent = coin
 	local coinStroke = Instance.new("UIStroke")
 	coinStroke.Color = Theme.RetroColors.WoodDark
 	coinStroke.Thickness = 2
+	coinStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	coinStroke.Parent = coin
 
 	local coinLabel = Instance.new("TextLabel")
@@ -158,34 +163,37 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	coinLabel.TextColor3 = Theme.RetroColors.WoodDark
 	coinLabel.TextSize = 10
 	coinLabel.Text = "G"
-	coinLabel.ZIndex = 3
+	coinLabel.ZIndex = 6
 	coinLabel.Parent = coin
 
 	goldLabel = Instance.new("TextLabel")
 	goldLabel.AnchorPoint = Vector2.new(1, 0.5)
 	goldLabel.Position = UDim2.new(1, -12, 0.5, -2)
-	goldLabel.Size = UDim2.fromOffset(110, 20)
+	goldLabel.Size = UDim2.fromOffset(140, 20)
 	goldLabel.BackgroundTransparency = 1
 	goldLabel.TextXAlignment = Enum.TextXAlignment.Right
-	goldLabel.TextSize = 16
+	goldLabel.TextSize = 17
 	goldLabel.FontFace = Theme.RetroFontFace
 	-- Rust rather than ink: the reference picks the money out in red, and
 	-- it is the one number on screen worth finding at a glance.
 	goldLabel.TextColor3 = Theme.RetroColors.Rust
 	goldLabel.Text = "0"
-	goldLabel.ZIndex = 2
-	goldLabel.Parent = row
+	goldLabel.ZIndex = 5
+	goldLabel.Parent = face
 
-	-- Progress track, inset from both ends so it reads as part of the
-	-- panel rather than an edge.
+	-- Progress toward the next 1,000g, as a thin line rather than the row
+	-- of discrete pips this started as. At 100g none of those pips lit, so
+	-- the HUD showed eight empty boxes — which reads as content that
+	-- failed to load, not as a meter that is nearly empty. A partly-filled
+	-- line still obviously reads as a line.
 	local track = Instance.new("Frame")
 	track.AnchorPoint = Vector2.new(0.5, 1)
-	track.Position = UDim2.new(0.5, 0, 1, -6)
-	track.Size = UDim2.new(1, -22, 0, 3)
+	track.Position = UDim2.new(0.5, 0, 1, -5)
+	track.Size = UDim2.new(1, -24, 0, 3)
 	track.BackgroundColor3 = Theme.RetroColors.ParchmentShadow
 	track.BorderSizePixel = 0
-	track.ZIndex = 2
-	track.Parent = row
+	track.ZIndex = 5
+	track.Parent = face
 	local trackCorner = Instance.new("UICorner")
 	trackCorner.CornerRadius = UDim.new(1, 0)
 	trackCorner.Parent = track
@@ -194,7 +202,7 @@ local function buildGoldRow(gui: ScreenGui, topOffset: number)
 	goldFill.Size = UDim2.fromScale(0, 1)
 	goldFill.BackgroundColor3 = Theme.RetroColors.Bronze
 	goldFill.BorderSizePixel = 0
-	goldFill.ZIndex = 3
+	goldFill.ZIndex = 6
 	goldFill.Parent = track
 	local fillCorner = Instance.new("UICorner")
 	fillCorner.CornerRadius = UDim.new(1, 0)
@@ -230,65 +238,30 @@ local function ensureBuilt()
 
 	local top = topbarOffset()
 
-	-- ONE stacked plaque, not two side-by-side panels: date on top,
-	-- weather on a tinted strip between, clock underneath. The reference
-	-- Liam supplied reads as a single hanging sign with its rows divided
-	-- internally, and that silhouette is most of why it looks designed
-	-- rather than assembled — two separate floating boxes have two
-	-- outlines, two shadows and a gap that belongs to neither.
-	local calendar = makePanel(gui, UDim2.fromOffset(210, 96), UDim2.new(1, -10, 0, top), Vector2.new(1, 0))
-
-	dayLabel = Instance.new("TextLabel")
-	dayLabel.Position = UDim2.fromOffset(0, 8)
-	dayLabel.Size = UDim2.new(1, 0, 0, 22)
-	dayLabel.BackgroundTransparency = 1
-	dayLabel.FontFace = Theme.RetroFontFace
-	dayLabel.TextSize = 14
-	dayLabel.TextColor3 = Theme.RetroColors.Ink
-	dayLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	-- Date and clock side by side, purse spanning both underneath. Two
+	-- readable panels beat the tall stacked sign this briefly became: that
+	-- put three centred rows of the same monospace face in a column, which
+	-- reads as a form, and its translucent middle band muddied against the
+	-- parchment instead of dividing it.
+	local dateFace = makePanel(
+		gui,
+		UDim2.fromOffset(DATE_WIDTH, PANEL_HEIGHT),
+		UDim2.new(1, -(MARGIN + CLOCK_WIDTH + PANEL_GAP), 0, top),
+		Vector2.new(1, 0)
+	)
+	dayLabel = makeLabel(dateFace, Theme.RetroColors.Ink, 14)
 	dayLabel.Text = "SPRING 1"
-	dayLabel.ZIndex = 2
-	dayLabel.Parent = calendar
 
-	-- Weather strip. This is where the reference puts its row of little
-	-- icons; ours carries the word, on its own tinted band so the panel
-	-- reads as three rows rather than three lines of text.
-	local strip = Instance.new("Frame")
-	strip.AnchorPoint = Vector2.new(0.5, 0)
-	strip.Position = UDim2.new(0.5, 0, 0, 34)
-	strip.Size = UDim2.new(1, -20, 0, 24)
-	strip.BackgroundColor3 = Theme.RetroColors.WoodLight
-	strip.BackgroundTransparency = 0.55
-	strip.BorderSizePixel = 0
-	strip.ZIndex = 2
-	strip.Parent = calendar
-	local stripCorner = Instance.new("UICorner")
-	stripCorner.CornerRadius = UDim.new(0, 3)
-	stripCorner.Parent = strip
-
-	weatherLabel = Instance.new("TextLabel")
-	weatherLabel.Size = UDim2.fromScale(1, 1)
-	weatherLabel.BackgroundTransparency = 1
-	weatherLabel.FontFace = Theme.RetroFontFace
-	weatherLabel.TextSize = 10
-	weatherLabel.TextColor3 = Theme.RetroColors.Ink
-	weatherLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	weatherLabel.Text = "CLEAR"
-	weatherLabel.ZIndex = 3
-	weatherLabel.Parent = strip
-
-	clockLabel = Instance.new("TextLabel")
-	clockLabel.Position = UDim2.fromOffset(0, 62)
-	clockLabel.Size = UDim2.new(1, 0, 0, 24)
-	clockLabel.BackgroundTransparency = 1
-	clockLabel.FontFace = Theme.RetroFontFace
-	clockLabel.TextSize = 15
-	clockLabel.TextColor3 = Theme.RetroColors.Ink
+	local clockFace = makePanel(
+		gui,
+		UDim2.fromOffset(CLOCK_WIDTH, PANEL_HEIGHT),
+		UDim2.new(1, -MARGIN, 0, top),
+		Vector2.new(1, 0)
+	)
+	clockLabel = makeLabel(clockFace, Theme.RetroColors.Ink, 14)
 	clockLabel.Text = "6:00 AM"
-	clockLabel.ZIndex = 2
-	clockLabel.Parent = calendar
 
-	buildGoldRow(gui, top + 104)
+	buildPurse(gui, top + PANEL_HEIGHT + PANEL_GAP)
 end
 
 local function clockTimeToText(dayProgress: number): string
@@ -309,8 +282,12 @@ function HudUI.setDay(day: number, dayProgress: number, season: string?, weather
 	ensureBuilt()
 	-- Upper case throughout: PressStart2P has no lower case worth reading
 	-- at this size, and mixed case in it looks like a rendering fault.
-	dayLabel.Text = string.upper(season and `{season} {day}` or `DAY {day}`)
-	weatherLabel.Text = string.upper(weather or "CLEAR")
+	local base = season and `{season} {day}` or `DAY {day}`
+	-- Weather rides on the date line rather than getting its own row.
+	-- Clear weather says nothing at all — a permanent "CLEAR" is a label
+	-- that is only ever news when it changes.
+	local suffix = (weather and weather ~= "Clear") and ` {weather}` or ""
+	dayLabel.Text = string.upper(base .. suffix)
 	clockLabel.Text = clockTimeToText(dayProgress)
 end
 
@@ -325,7 +302,6 @@ function HudUI.refreshInventory()
 	local intoThousand = snapshot.gold % 1000
 	local progress = if snapshot.gold > 0 and intoThousand == 0 then 1 else intoThousand / 1000
 	goldFill.Size = UDim2.fromScale(progress, 1)
-
 end
 
 return HudUI
