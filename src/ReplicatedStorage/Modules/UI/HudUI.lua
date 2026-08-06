@@ -37,7 +37,7 @@ local DATE_WIDTH = 200
 local CLOCK_WIDTH = 132
 local PANEL_HEIGHT = 40
 local PANEL_GAP = 8
-local MARGIN = 12
+local MARGIN = 6
 
 local goldLabel: TextLabel
 local dayLabel: TextLabel
@@ -220,9 +220,9 @@ local function topbarOffset(): number
 		return GuiService.TopbarInset
 	end)
 	if ok and inset then
-		return inset.Height + 8
+		return inset.Height + 4
 	end
-	return 44
+	return 40
 end
 
 local function ensureBuilt()
