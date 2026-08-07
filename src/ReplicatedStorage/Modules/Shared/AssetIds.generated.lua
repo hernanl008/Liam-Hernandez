@@ -4,7 +4,8 @@
 -- hand-transcribed here (Liam's machine hit a Tarmac/Roblox CSRF-handshake
 -- issue that manual upload sidesteps) — same `{ [path] = "rbxassetid://..." }`
 -- shape either way, so nothing else needs to change once uploads succeed
--- normally. Every image the game needs is now uploaded.
+-- normally. Still missing: sprites/perk_icons.png — optional, the skill
+-- tree draws a carved pip on each node until it is uploaded.
 return {
 	-- The character walk/idle sheets, driving the 2D sprite-character
 	-- conversion (CharacterSpriteController.lua). These two are *Image*

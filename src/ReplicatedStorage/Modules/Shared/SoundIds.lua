@@ -28,4 +28,9 @@ SoundIds.CatchSuccess = "" -- a fish is landed (plays with the catch banner/toas
 SoundIds.CatchEscape = "" -- "the line goes slack... it slipped away"
 SoundIds.PullSnag = "" -- a junk/treasure Pull snags on the line
 
+-- Skill tree (SkillTreeUI.lua)
+SoundIds.SkillOpen = "" -- the tree screen opens
+SoundIds.SkillHover = "" -- cursor enters a node
+SoundIds.SkillUnlock = "" -- a perk is bought
+
 return SoundIds
