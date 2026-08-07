@@ -9,6 +9,7 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local SettingsUI = require(Modules:WaitForChild("UI"):WaitForChild("SettingsUI"))
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local PlayerFreeze = require(Modules:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
+local UiLock = require(Modules:WaitForChild("Client"):WaitForChild("UiLock"))
 
 local SettingsController = {}
 
@@ -23,6 +24,12 @@ function SettingsController.init()
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then
+			-- Locked (opening cutscene, etc): refuse to OPEN, but always
+			-- allow closing, so a lock taken while a screen is up can
+			-- never trap the player behind it.
+			if UiLock.isLocked() and not SettingsUI.isVisible() then
+				return
+			end
 			SettingsUI.toggle()
 		end
 	end)

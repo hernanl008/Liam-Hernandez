@@ -13,6 +13,7 @@
 -- build"). LoadingScreen.client.lua explicitly notes it defers this exact
 -- work to later; this is that later session.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +22,7 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local InventoryCache = require(Modules:WaitForChild("Client"):WaitForChild("InventoryCache"))
 local Theme = require(Modules:WaitForChild("UI"):WaitForChild("Theme"))
+local UiLock = require(Modules:WaitForChild("Client"):WaitForChild("UiLock"))
 
 local OpeningCutsceneController = {}
 
@@ -134,17 +136,59 @@ local function playSequence(onComplete: () -> ())
 	onComplete()
 end
 
+-- ProximityPrompts are the one interaction UiLock cannot cover, since
+-- Roblox raises them itself rather than through a listener this code
+-- owns. Disabling them outright for the duration is the only reliable
+-- way to stop the player walking up to an NPC mid-scene and starting a
+-- conversation the story has not introduced yet.
+local function setPromptsEnabled(enabled: boolean)
+	for _, instance in CollectionService:GetTagged("NPC") do
+		local prompt = instance:FindFirstChildWhichIsA("ProximityPrompt", true)
+		if prompt then
+			prompt.Enabled = enabled
+		end
+	end
+end
+
 function OpeningCutsceneController.init()
 	task.spawn(function()
 		waitForFirstSync()
 		if InventoryCache.hasFlag("SeenOpeningCutscene") then
 			return
 		end
-		playSequence(function()
-			Remotes.get("DialogueAction"):FireServer("SeenOpeningCutscene")
-			local DialogueController = require(script.Parent:WaitForChild("DialogueController"))
-			DialogueController.startConversation("Kaya")
+
+		-- Held across the whole scene AND the conversation that follows it,
+		-- released only once Kaya's dialogue is done. Releasing when the
+		-- fade ends would let the player pop the skill tree open on top of
+		-- the intro conversation, which is still part of the opening.
+		UiLock.acquire("OpeningCutscene")
+		setPromptsEnabled(false)
+
+		local released = false
+		local function release()
+			if released then
+				return
+			end
+			released = true
+			UiLock.release("OpeningCutscene")
+			setPromptsEnabled(true)
+		end
+
+		local ok = pcall(function()
+			playSequence(function()
+				Remotes.get("DialogueAction"):FireServer("SeenOpeningCutscene")
+				local DialogueController = require(script.Parent:WaitForChild("DialogueController"))
+				DialogueController.startConversation("Kaya")
+			end)
 		end)
+
+		-- Released on failure too. A lock leaked by an error mid-scene
+		-- would leave every menu dead for the rest of the session, which
+		-- is a far worse outcome than a cutscene that ended early.
+		if not ok then
+			warn("[OpeningCutsceneController] sequence errored — releasing the UI lock so menus keep working.")
+		end
+		release()
 	end)
 end
 

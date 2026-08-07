@@ -11,6 +11,7 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local InventoryUI = require(Modules:WaitForChild("UI"):WaitForChild("InventoryUI"))
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local PlayerFreeze = require(Modules:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
+local UiLock = require(Modules:WaitForChild("Client"):WaitForChild("UiLock"))
 
 local InventoryController = {}
 
@@ -25,6 +26,12 @@ function InventoryController.init()
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then
+			-- Locked (opening cutscene, etc): refuse to OPEN, but always
+			-- allow closing, so a lock taken while a screen is up can
+			-- never trap the player behind it.
+			if UiLock.isLocked() and not InventoryUI.isVisible() then
+				return
+			end
 			InventoryUI.toggle()
 		end
 	end)

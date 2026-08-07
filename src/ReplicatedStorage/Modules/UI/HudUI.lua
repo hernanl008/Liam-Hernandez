@@ -145,7 +145,7 @@ local function buildPurse(gui: ScreenGui, top: number)
 	local coin = Instance.new("Frame")
 	coin.AnchorPoint = Vector2.new(0, 0.5)
 	coin.Position = UDim2.new(0, 12, 0.5, -3)
-	coin.Size = UDim2.fromOffset(16, 16)
+	coin.Size = UDim2.fromOffset(13, 13)
 	coin.BackgroundColor3 = Theme.RetroColors.Bronze
 	coin.BorderSizePixel = 0
 	coin.ZIndex = 5
@@ -155,7 +155,7 @@ local function buildPurse(gui: ScreenGui, top: number)
 	coinCorner.Parent = coin
 	local coinStroke = Instance.new("UIStroke")
 	coinStroke.Color = Theme.RetroColors.WoodDark
-	coinStroke.Thickness = 2
+	coinStroke.Thickness = 1
 	coinStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	coinStroke.Parent = coin
 
@@ -164,7 +164,7 @@ local function buildPurse(gui: ScreenGui, top: number)
 	coinLabel.BackgroundTransparency = 1
 	coinLabel.FontFace = Theme.RetroFontFace
 	coinLabel.TextColor3 = Theme.RetroColors.WoodDark
-	coinLabel.TextSize = 8
+	coinLabel.TextSize = 7
 	coinLabel.Text = "G"
 	coinLabel.ZIndex = 6
 	coinLabel.Parent = coin

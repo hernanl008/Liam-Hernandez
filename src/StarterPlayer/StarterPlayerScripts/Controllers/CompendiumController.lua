@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local CompendiumUI = require(Modules:WaitForChild("UI"):WaitForChild("CompendiumUI"))
 local PlayerFreeze = require(Modules:WaitForChild("Client"):WaitForChild("PlayerFreeze"))
+local UiLock = require(Modules:WaitForChild("Client"):WaitForChild("UiLock"))
 
 local CompendiumController = {}
 
@@ -22,6 +23,12 @@ function CompendiumController.init()
 			return
 		end
 		if input.KeyCode == TOGGLE_KEY then
+			-- Locked (opening cutscene, etc): refuse to OPEN, but always
+			-- allow closing, so a lock taken while a screen is up can
+			-- never trap the player behind it.
+			if UiLock.isLocked() and not CompendiumUI.isVisible() then
+				return
+			end
 			CompendiumUI.toggle()
 		end
 	end)

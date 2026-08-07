@@ -104,12 +104,21 @@ local viewport: Frame
 local canvas: Frame
 local canvasScale: UIScale
 local canvasExtent = Vector2.new(0, 0)
+-- The tree's own bounds inside the canvas, which is bigger than it. Kept
+-- so the view can be fitted and centred on the TREE rather than on the
+-- padding around it.
+local treeSpan = Vector2.new(0, 0)
+local treeCenter = Vector2.new(0, 0)
 local zoom = 1
 local pointsLabel: TextLabel
 local detailName: TextLabel
 local detailBody: TextLabel
 local detailMeta: TextLabel
 local detailAccent: Frame
+local minimap: Frame
+local minimapFace: Frame
+local minimapView: Frame
+local helpPanel: Frame
 local visible = false
 
 -- Bumped on every rebuild; staggered open animations check they still
@@ -163,9 +172,26 @@ local function clampCanvas(x: number, y: number): (number, number)
 	return x, y
 end
 
+-- Redrawn whenever the canvas moves or scales: the minimap's inner
+-- rectangle is the slice of canvas currently on screen.
+local function syncMinimap()
+	if not minimapView then
+		return
+	end
+	local extent = scaledExtent()
+	if extent.X <= 0 or extent.Y <= 0 then
+		return
+	end
+	local view = viewport.AbsoluteSize
+	local origin = Vector2.new(-canvas.Position.X.Offset, -canvas.Position.Y.Offset)
+	minimapView.Position = UDim2.fromScale(origin.X / extent.X, origin.Y / extent.Y)
+	minimapView.Size = UDim2.fromScale(math.min(view.X / extent.X, 1), math.min(view.Y / extent.Y, 1))
+end
+
 local function setCanvasPosition(x: number, y: number)
 	local cx, cy = clampCanvas(x, y)
 	canvas.Position = UDim2.fromOffset(cx, cy)
+	syncMinimap()
 end
 
 local function applyZoom(delta: number, focus: Vector2)
@@ -175,6 +201,7 @@ local function applyZoom(delta: number, focus: Vector2)
 		return
 	end
 	canvasScale.Scale = zoom
+	syncMinimap()
 
 	-- Keep the point under the cursor pinned while scaling, which is what
 	-- makes zoom feel like moving a camera rather than resizing a picture.
@@ -186,17 +213,30 @@ local function applyZoom(delta: number, focus: Vector2)
 	setCanvasPosition(origin.X - local_.X * (ratio - 1), origin.Y - local_.Y * (ratio - 1))
 end
 
+-- Begins a pan. Exposed rather than inlined because it has to be
+-- connected to the NODE BUTTONS as well as the viewport.
+--
+-- This was the "can't click a node" bug: a TextButton sinks the input
+-- that starts on it, so viewport.InputBegan never fired for a press on a
+-- node, dragMoved was never reset, and after any pan it stayed true
+-- forever -- so every subsequent node click hit the "this was a drag,
+-- not a click" guard and was silently ignored. Connecting both means the
+-- flag is always reset by the press that precedes the click, and you can
+-- drag the canvas starting from a node as well.
+local function beginDrag(input: InputObject)
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
+	end
+	dragging = true
+	dragMoved = false
+	panVelocity = Vector2.new(0, 0)
+	dragOrigin = Vector2.new(input.Position.X, input.Position.Y)
+	lastDragPosition = dragOrigin
+	canvasOrigin = Vector2.new(canvas.Position.X.Offset, canvas.Position.Y.Offset)
+end
+
 local function setupPanning()
-	viewport.InputBegan:Connect(function(input: InputObject)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dragMoved = false
-			panVelocity = Vector2.new(0, 0)
-			dragOrigin = Vector2.new(input.Position.X, input.Position.Y)
-			lastDragPosition = dragOrigin
-			canvasOrigin = Vector2.new(canvas.Position.X.Offset, canvas.Position.Y.Offset)
-		end
-	end)
+	viewport.InputBegan:Connect(beginDrag)
 
 	-- Ended is watched on UserInputService rather than the viewport: a
 	-- drag finishing with the cursor outside the panel would otherwise
@@ -438,6 +478,8 @@ local function makeNode(
 		meta = `LOCKED - NEEDS LEVEL {perk.requiredLevel}, YOU ARE {level}`
 	end
 
+	button.InputBegan:Connect(beginDrag)
+
 	button.MouseEnter:Connect(function()
 		setDetail(perk.displayName, perk.description, meta, tone)
 		SoundPlayer.play(SoundIds.SkillHover)
@@ -674,6 +716,161 @@ end
 
 -- ---------------------------------------------------------------------
 
+-- Small square button in the panel's top-right cluster. Returns the
+-- TextButton so the caller can wire it; the frame around it is the same
+-- layered treatment every other panel uses, so the controls do not read
+-- as a different toolkit bolted on.
+local function makeToolButton(parent: Frame, order: number, glyph: string, size: number): TextButton
+	local holder = Instance.new("Frame")
+	holder.AnchorPoint = Vector2.new(1, 0)
+	holder.Position = UDim2.new(1, -(order - 1) * 34, 0, 0)
+	holder.Size = UDim2.fromOffset(30, 30)
+	holder.ZIndex = 17
+	holder.Parent = parent
+	local face = Theme.framedPanel(holder, 5)
+
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromScale(1, 1)
+	button.BackgroundTransparency = 1
+	button.AutoButtonColor = false
+	button.Text = glyph
+	-- Gotham, not the pixel face: PressStart2P is ASCII-only and has no
+	-- glyph for the symbols these buttons want.
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = size
+	button.TextColor3 = Theme.RetroColors.Ink
+	button.ZIndex = 18
+	button.Parent = face
+
+	button.MouseEnter:Connect(function()
+		button.TextColor3 = Theme.RetroColors.Rust
+	end)
+	button.MouseLeave:Connect(function()
+		button.TextColor3 = Theme.RetroColors.Ink
+	end)
+	return button
+end
+
+-- Overlay explaining the controls. Discoverability is the whole reason
+-- it exists: pan and zoom are invisible affordances, and a player who
+-- does not know the canvas moves will conclude the top of the tree is
+-- simply cut off.
+local function buildHelp(parent: Frame)
+	helpPanel = Instance.new("Frame")
+	helpPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+	helpPanel.Position = UDim2.fromScale(0.5, 0.5)
+	helpPanel.Size = UDim2.fromOffset(400, 200)
+	helpPanel.Visible = false
+	helpPanel.ZIndex = 20
+	helpPanel.Parent = parent
+	local face = Theme.framedPanel(helpPanel, 8)
+
+	local title = Instance.new("TextLabel")
+	title.Position = UDim2.fromOffset(16, 14)
+	title.Size = UDim2.new(1, -32, 0, 16)
+	title.BackgroundTransparency = 1
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.FontFace = Theme.RetroFontFace
+	title.TextSize = 13
+	title.TextColor3 = Theme.RetroColors.Rust
+	title.Text = "HOW TO READ THIS"
+	title.ZIndex = 21
+	title.Parent = face
+
+	local body = Instance.new("TextLabel")
+	body.Position = UDim2.fromOffset(16, 42)
+	body.Size = UDim2.new(1, -32, 1, -70)
+	body.BackgroundTransparency = 1
+	body.TextXAlignment = Enum.TextXAlignment.Left
+	body.TextYAlignment = Enum.TextYAlignment.Top
+	body.TextWrapped = true
+	body.FontFace = Theme.RetroFontFace
+	body.TextSize = 10
+	body.LineHeight = 1.5
+	body.TextColor3 = Theme.RetroColors.Ink
+	body.Text = "DRAG ANYWHERE TO MOVE THE TREE.\n"
+		.. "SCROLL OR USE + AND - TO ZOOM.\n"
+		.. "HOVER A NODE TO READ IT.\n"
+		.. "A GLOWING NODE CAN BE BOUGHT - CLICK IT.\n"
+		.. "EACH BRANCH HAS ITS OWN COLOUR.\n"
+		.. "P CLOSES THIS SCREEN."
+	body.ZIndex = 21
+	body.Parent = face
+
+	local close = Instance.new("TextButton")
+	close.AnchorPoint = Vector2.new(0.5, 1)
+	close.Position = UDim2.new(0.5, 0, 1, -12)
+	close.Size = UDim2.fromOffset(120, 26)
+	close.BackgroundTransparency = 1
+	close.AutoButtonColor = false
+	close.Text = "GOT IT"
+	close.FontFace = Theme.RetroFontFace
+	close.TextSize = 10
+	close.TextColor3 = Theme.RetroColors.Rust
+	close.ZIndex = 21
+	close.Parent = face
+	close.Activated:Connect(function()
+		helpPanel.Visible = false
+	end)
+end
+
+-- Minimap: the whole canvas shrunk into a corner with a rectangle
+-- showing what is on screen. With a canvas deliberately larger than the
+-- window there is no other way to answer "where am I and how much is
+-- there", and the tree scrolling off the top edge otherwise reads as
+-- content that failed to render.
+local function buildMinimap(parent: Frame)
+	minimap = Instance.new("Frame")
+	minimap.AnchorPoint = Vector2.new(1, 1)
+	minimap.Position = UDim2.new(1, -10, 1, -10)
+	minimap.Size = UDim2.fromOffset(150, 100)
+	minimap.ZIndex = 17
+	minimap.Parent = parent
+	minimapFace = Theme.framedPanel(minimap, 5)
+	local face = minimapFace
+
+	minimapView = Instance.new("Frame")
+	minimapView.BackgroundColor3 = Theme.RetroColors.Rust
+	minimapView.BackgroundTransparency = 0.72
+	minimapView.BorderSizePixel = 0
+	minimapView.ZIndex = 19
+	minimapView.Parent = face
+	local viewStroke = Instance.new("UIStroke")
+	viewStroke.Color = Theme.RetroColors.Rust
+	viewStroke.Thickness = 1
+	viewStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	viewStroke.Parent = minimapView
+end
+
+-- Redraws the minimap's node dots. Called from rebuild, since which
+-- nodes exist and what colour they are is exactly what a rebuild
+-- changes.
+local function paintMinimapNodes(dots: { { position: Vector2, color: Color3 } })
+	-- Direct reference rather than walking the frame tree by name: the
+	-- layered-frame helper owns that structure and renaming a layer there
+	-- should not silently blank the minimap here.
+	if not minimapFace then
+		return
+	end
+	for _, child in minimapFace:GetChildren() do
+		if child.Name == "Dot" then
+			child:Destroy()
+		end
+	end
+	for _, dot in dots do
+		local mark = Instance.new("Frame")
+		mark.Name = "Dot"
+		mark.AnchorPoint = Vector2.new(0.5, 0.5)
+		mark.Position = UDim2.fromScale(dot.position.X, dot.position.Y)
+		mark.Size = UDim2.fromOffset(5, 5)
+		mark.Rotation = 45
+		mark.BackgroundColor3 = dot.color
+		mark.BorderSizePixel = 0
+		mark.ZIndex = 18
+		mark.Parent = minimapFace
+	end
+end
+
 local function ensureBuilt()
 	if screenGui then
 		return
@@ -757,6 +954,25 @@ local function ensureBuilt()
 
 	buildVignette()
 	setupPanning()
+	buildMinimap(viewport)
+
+	-- Zoom and help controls, top right of the panel. Scroll-to-zoom is an
+	-- invisible affordance and it does not exist at all on touch, so the
+	-- buttons are the real control and the wheel is the shortcut.
+	local zoomIn = makeToolButton(face, 3, "+", 20)
+	local zoomOut = makeToolButton(face, 2, "\u{2212}", 20)
+	local helpButton = makeToolButton(face, 1, "?", 18)
+	zoomIn.Activated:Connect(function()
+		local view = viewport.AbsoluteSize
+		applyZoom(ZOOM_STEP * 2, viewport.AbsolutePosition + view / 2)
+	end)
+	zoomOut.Activated:Connect(function()
+		local view = viewport.AbsoluteSize
+		applyZoom(-ZOOM_STEP * 2, viewport.AbsolutePosition + view / 2)
+	end)
+	helpButton.Activated:Connect(function()
+		helpPanel.Visible = not helpPanel.Visible
+	end)
 
 	-- Detail plaque, pinned to the bottom. One description at a time,
 	-- filled in on hover — three on screen at once is what made the old
@@ -819,9 +1035,16 @@ local function ensureBuilt()
 	detailMeta.FontFace = Theme.RetroFontFace
 	detailMeta.TextSize = 9
 	detailMeta.TextColor3 = Theme.RetroColors.InkMuted
-	detailMeta.Text = "DRAG TO PAN - SCROLL TO ZOOM - P TO CLOSE"
+	detailMeta.Text = "DRAG TO PAN - SCROLL TO ZOOM - ? FOR HELP - P TO CLOSE"
 	detailMeta.ZIndex = 16
 	detailMeta.Parent = detailFace
+
+	buildHelp(face)
+end
+
+
+local function spineWidthTargetFor(): number
+	return (#SKILL_ORDER - 1) * BRANCH_SPACING
 end
 
 local function rebuild()
@@ -859,9 +1082,19 @@ local function rebuild()
 	-- stay a group instead of hugging the left edge.
 	local branchOffset = (canvasExtent.X - treeWidth) / 2
 
+	-- The tree's real bounds inside the (larger) canvas, so the view can
+	-- be fitted to the BRANCHES rather than to the padding around them.
+	local topOfTree = canvasExtent.Y - (spineBottom + TRUNK_BASE + (longest - 1) * NODE_SPACING + NODE_SIZE / 2)
+	local bottomOfTree = canvasExtent.Y - spineBottom + 40 -- plaques hang below the spine
+	treeSpan = Vector2.new(spineWidthTargetFor(), bottomOfTree - topOfTree)
+	treeCenter = Vector2.new(
+		branchOffset + CANVAS_PAD_X + spineWidthTargetFor() / 2,
+		(topOfTree + bottomOfTree) / 2
+	)
+
 	paintLattice()
 
-	local spineWidthTarget = (#SKILL_ORDER - 1) * BRANCH_SPACING
+	local spineWidthTarget = spineWidthTargetFor()
 
 	-- Root spine, drawn from the middle outward so the tree assembles from
 	-- its centre rather than sweeping in from one side.
@@ -878,11 +1111,24 @@ local function rebuild()
 	}):Play()
 
 	local animated: { Instance } = {}
+	local dots: { { position: Vector2, color: Color3 } } = {}
 	for i, skillId in SKILL_ORDER do
 		for _, instance in buildBranch(skillId, i, spineBottom, branchOffset) do
 			table.insert(animated, instance)
 		end
+		-- One dot per node, in canvas-relative coordinates so the minimap
+		-- needs no knowledge of the layout maths.
+		local accent = BRANCH_ACCENT[skillId] or Theme.RetroColors.Bronze
+		local x = branchOffset + CANVAS_PAD_X + (i - 1) * BRANCH_SPACING
+		for perkIndex = 1, #SkillTreeConfig.Trees[skillId].perks do
+			local nodeBottom = spineBottom + TRUNK_BASE + (perkIndex - 1) * NODE_SPACING
+			table.insert(dots, {
+				position = Vector2.new(x / canvasExtent.X, (canvasExtent.Y - nodeBottom) / canvasExtent.Y),
+				color = accent,
+			})
+		end
 	end
+	paintMinimapNodes(dots)
 
 	-- Staggered draw: each connector grows, then its node pops. Watching
 	-- the tree build itself is the payoff for opening the screen.
@@ -914,12 +1160,17 @@ end
 
 local function open()
 	rebuild()
-	-- Start centred horizontally and showing the base of the tree, which
-	-- is where attention belongs: the lit part nearest the root is what
-	-- was just earned.
+
+	-- Fit the WHOLE tree in view, then centre on it. Opening scrolled to
+	-- the base showed two rows of nodes with the third cut off at the top
+	-- edge and the right-hand branch clipped, which reads as a broken
+	-- screen rather than as a space you are meant to explore. Zooming out
+	-- past 1 is capped so a small tree never blows up to fill the window.
 	local view = viewport.AbsoluteSize
-	local extent = scaledExtent()
-	setCanvasPosition((view.X - extent.X) / 2, view.Y - extent.Y)
+	local fit = math.min(view.X / (treeSpan.X + NODE_SIZE * 2 + 80), view.Y / (treeSpan.Y + 80))
+	zoom = math.clamp(fit, ZOOM_MIN, 1)
+	canvasScale.Scale = zoom
+	setCanvasPosition(view.X / 2 - treeCenter.X * zoom, view.Y / 2 - treeCenter.Y * zoom)
 
 	backdrop.BackgroundTransparency = 1
 	panelScale.Scale = 0.94

@@ -106,11 +106,40 @@ def declared_names(code: str) -> set[str]:
     return names
 
 
+LOCAL_FUNC = re.compile(r"local function (\w+)")
+
+
+def check_order(path: str, code: str) -> list[str]:
+    """Flags a local function called before the line that defines it.
+
+    Luau resolves `local function f` at the point of declaration, so a
+    call above it sees nil and raises "attempt to call a nil value" the
+    moment that line runs -- not at load. Moving a block of helpers is
+    all it takes, and it has already shipped once: three widget builders
+    ended up below the function that calls them, which would have taken
+    the whole screen out on open.
+    """
+    problems = []
+    definitions = {m.group(1): m.start() for m in LOCAL_FUNC.finditer(code)}
+    for name, position in definitions.items():
+        pattern = re.compile(r"(?<![\w.:])" + re.escape(name) + r"\s*\(")
+        for match in pattern.finditer(code):
+            if match.start() < position:
+                line = code[: match.start()].count("\n") + 1
+                defined_line = code[:position].count("\n") + 1
+                problems.append(
+                    f"{path}:{line}: calls '{name}' before it is defined (line {defined_line}) - "
+                    f"it will be nil when this runs"
+                )
+                break
+    return problems
+
+
 def check(path: str) -> list[str]:
     with open(path, "r", encoding="utf-8") as handle:
         code = strip_noise(handle.read())
     declared = declared_names(code) | KNOWN
-    problems = []
+    problems = check_order(path, code)
     seen: set[str] = set()
     for match in CALL_SITE.finditer(code):
         name = match.group(1)
@@ -141,9 +170,9 @@ def main() -> int:
     if problems:
         for problem in problems:
             print(problem)
-        print(f"\n{len(problems)} undefined local call(s) across {len(targets)} file(s)")
+        print(f"\n{len(problems)} local-function problem(s) across {len(targets)} file(s)")
         return 1
-    print(f"no undefined local calls across {len(targets)} file(s)")
+    print(f"no undefined or out-of-order local calls across {len(targets)} file(s)")
     return 0
 
 
