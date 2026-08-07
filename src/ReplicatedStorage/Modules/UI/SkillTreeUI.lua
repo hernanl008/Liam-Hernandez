@@ -115,9 +115,6 @@ local detailName: TextLabel
 local detailBody: TextLabel
 local detailMeta: TextLabel
 local detailAccent: Frame
-local minimap: Frame
-local minimapFace: Frame
-local minimapView: Frame
 local helpPanel: Frame
 local visible = false
 
@@ -172,26 +169,9 @@ local function clampCanvas(x: number, y: number): (number, number)
 	return x, y
 end
 
--- Redrawn whenever the canvas moves or scales: the minimap's inner
--- rectangle is the slice of canvas currently on screen.
-local function syncMinimap()
-	if not minimapView then
-		return
-	end
-	local extent = scaledExtent()
-	if extent.X <= 0 or extent.Y <= 0 then
-		return
-	end
-	local view = viewport.AbsoluteSize
-	local origin = Vector2.new(-canvas.Position.X.Offset, -canvas.Position.Y.Offset)
-	minimapView.Position = UDim2.fromScale(origin.X / extent.X, origin.Y / extent.Y)
-	minimapView.Size = UDim2.fromScale(math.min(view.X / extent.X, 1), math.min(view.Y / extent.Y, 1))
-end
-
 local function setCanvasPosition(x: number, y: number)
 	local cx, cy = clampCanvas(x, y)
 	canvas.Position = UDim2.fromOffset(cx, cy)
-	syncMinimap()
 end
 
 local function applyZoom(delta: number, focus: Vector2)
@@ -201,7 +181,6 @@ local function applyZoom(delta: number, focus: Vector2)
 		return
 	end
 	canvasScale.Scale = zoom
-	syncMinimap()
 
 	-- Keep the point under the cursor pinned while scaling, which is what
 	-- makes zoom feel like moving a camera rather than resizing a picture.
@@ -814,63 +793,6 @@ local function buildHelp(parent: Frame)
 	end)
 end
 
--- Minimap: the whole canvas shrunk into a corner with a rectangle
--- showing what is on screen. With a canvas deliberately larger than the
--- window there is no other way to answer "where am I and how much is
--- there", and the tree scrolling off the top edge otherwise reads as
--- content that failed to render.
-local function buildMinimap(parent: Frame)
-	minimap = Instance.new("Frame")
-	minimap.AnchorPoint = Vector2.new(1, 1)
-	minimap.Position = UDim2.new(1, -10, 1, -10)
-	minimap.Size = UDim2.fromOffset(150, 100)
-	minimap.ZIndex = 17
-	minimap.Parent = parent
-	minimapFace = Theme.framedPanel(minimap, 5)
-	local face = minimapFace
-
-	minimapView = Instance.new("Frame")
-	minimapView.BackgroundColor3 = Theme.RetroColors.Rust
-	minimapView.BackgroundTransparency = 0.72
-	minimapView.BorderSizePixel = 0
-	minimapView.ZIndex = 19
-	minimapView.Parent = face
-	local viewStroke = Instance.new("UIStroke")
-	viewStroke.Color = Theme.RetroColors.Rust
-	viewStroke.Thickness = 1
-	viewStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	viewStroke.Parent = minimapView
-end
-
--- Redraws the minimap's node dots. Called from rebuild, since which
--- nodes exist and what colour they are is exactly what a rebuild
--- changes.
-local function paintMinimapNodes(dots: { { position: Vector2, color: Color3 } })
-	-- Direct reference rather than walking the frame tree by name: the
-	-- layered-frame helper owns that structure and renaming a layer there
-	-- should not silently blank the minimap here.
-	if not minimapFace then
-		return
-	end
-	for _, child in minimapFace:GetChildren() do
-		if child.Name == "Dot" then
-			child:Destroy()
-		end
-	end
-	for _, dot in dots do
-		local mark = Instance.new("Frame")
-		mark.Name = "Dot"
-		mark.AnchorPoint = Vector2.new(0.5, 0.5)
-		mark.Position = UDim2.fromScale(dot.position.X, dot.position.Y)
-		mark.Size = UDim2.fromOffset(5, 5)
-		mark.Rotation = 45
-		mark.BackgroundColor3 = dot.color
-		mark.BorderSizePixel = 0
-		mark.ZIndex = 18
-		mark.Parent = minimapFace
-	end
-end
-
 local function ensureBuilt()
 	if screenGui then
 		return
@@ -881,6 +803,8 @@ local function ensureBuilt()
 	gui.ResetOnSpawn = false
 	gui.Enabled = false
 	gui.DisplayOrder = 6
+	-- Under Roblox's topbar too, so the screen is genuinely full-bleed.
+	gui.IgnoreGuiInset = true
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	screenGui = gui
 
@@ -897,14 +821,17 @@ local function ensureBuilt()
 	panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.new(1, -24, 1, -24)
+	-- Edge to edge. The 12px margin this used to leave let the dim
+	-- backdrop show as a dark band around the whole panel, which read as
+	-- a rendering fault rather than as a border.
+	panel.Size = UDim2.fromScale(1, 1)
 	panel.ZIndex = 3
 	panel.Parent = gui
 
 	panelScale = Instance.new("UIScale")
 	panelScale.Parent = panel
 
-	local face = Theme.framedPanel(panel, 10)
+	local face = Theme.framedPanel(panel, 0)
 
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, 18)
@@ -925,7 +852,9 @@ local function ensureBuilt()
 	title.Parent = face
 
 	pointsLabel = Instance.new("TextLabel")
-	pointsLabel.Size = UDim2.new(1, 0, 0, 20)
+	-- Stops short of the three tool buttons in the same corner. Full width
+	-- ran the text underneath them.
+	pointsLabel.Size = UDim2.new(1, -110, 0, 20)
 	pointsLabel.BackgroundTransparency = 1
 	pointsLabel.TextXAlignment = Enum.TextXAlignment.Right
 	pointsLabel.FontFace = Theme.RetroFontFace
@@ -954,7 +883,6 @@ local function ensureBuilt()
 
 	buildVignette()
 	setupPanning()
-	buildMinimap(viewport)
 
 	-- Zoom and help controls, top right of the panel. Scroll-to-zoom is an
 	-- invisible affordance and it does not exist at all on touch, so the
@@ -987,21 +915,22 @@ local function ensureBuilt()
 
 	-- Colour bar keyed to the hovered branch, so the plaque says which
 	-- tree it is talking about before you read a word of it.
+	--
+	-- No UIPadding on this face, and the labels carry their own inset
+	-- instead. UIPadding shifts EVERY child, so the stripe was pushed to
+	-- the same x as the text and sat on top of it — the first character
+	-- of every line was disappearing behind the bar.
 	detailAccent = Instance.new("Frame")
-	detailAccent.Size = UDim2.new(0, 5, 1, 0)
+	detailAccent.Size = UDim2.new(0, 5, 1, -12)
+	detailAccent.Position = UDim2.fromOffset(10, 6)
 	detailAccent.BackgroundColor3 = Theme.RetroColors.Bronze
 	detailAccent.BorderSizePixel = 0
 	detailAccent.ZIndex = 15
 	detailAccent.Parent = detailFace
 
-	local detailPad = Instance.new("UIPadding")
-	detailPad.PaddingLeft = UDim.new(0, 18)
-	detailPad.PaddingRight = UDim.new(0, 12)
-	detailPad.PaddingTop = UDim.new(0, 8)
-	detailPad.Parent = detailFace
-
 	detailName = Instance.new("TextLabel")
-	detailName.Size = UDim2.new(1, 0, 0, 14)
+	detailName.Position = UDim2.fromOffset(26, 10)
+	detailName.Size = UDim2.new(1, -38, 0, 14)
 	detailName.BackgroundTransparency = 1
 	detailName.TextXAlignment = Enum.TextXAlignment.Left
 	detailName.FontFace = Theme.RetroFontFace
@@ -1012,8 +941,8 @@ local function ensureBuilt()
 	detailName.Parent = detailFace
 
 	detailBody = Instance.new("TextLabel")
-	detailBody.Position = UDim2.fromOffset(0, 22)
-	detailBody.Size = UDim2.new(1, 0, 0, 28)
+	detailBody.Position = UDim2.fromOffset(26, 30)
+	detailBody.Size = UDim2.new(1, -38, 0, 26)
 	detailBody.BackgroundTransparency = 1
 	detailBody.TextXAlignment = Enum.TextXAlignment.Left
 	detailBody.TextYAlignment = Enum.TextYAlignment.Top
@@ -1028,8 +957,8 @@ local function ensureBuilt()
 
 	detailMeta = Instance.new("TextLabel")
 	detailMeta.AnchorPoint = Vector2.new(0, 1)
-	detailMeta.Position = UDim2.new(0, 0, 1, -8)
-	detailMeta.Size = UDim2.new(1, 0, 0, 12)
+	detailMeta.Position = UDim2.new(0, 26, 1, -8)
+	detailMeta.Size = UDim2.new(1, -38, 0, 12)
 	detailMeta.BackgroundTransparency = 1
 	detailMeta.TextXAlignment = Enum.TextXAlignment.Left
 	detailMeta.FontFace = Theme.RetroFontFace
@@ -1111,24 +1040,11 @@ local function rebuild()
 	}):Play()
 
 	local animated: { Instance } = {}
-	local dots: { { position: Vector2, color: Color3 } } = {}
 	for i, skillId in SKILL_ORDER do
 		for _, instance in buildBranch(skillId, i, spineBottom, branchOffset) do
 			table.insert(animated, instance)
 		end
-		-- One dot per node, in canvas-relative coordinates so the minimap
-		-- needs no knowledge of the layout maths.
-		local accent = BRANCH_ACCENT[skillId] or Theme.RetroColors.Bronze
-		local x = branchOffset + CANVAS_PAD_X + (i - 1) * BRANCH_SPACING
-		for perkIndex = 1, #SkillTreeConfig.Trees[skillId].perks do
-			local nodeBottom = spineBottom + TRUNK_BASE + (perkIndex - 1) * NODE_SPACING
-			table.insert(dots, {
-				position = Vector2.new(x / canvasExtent.X, (canvasExtent.Y - nodeBottom) / canvasExtent.Y),
-				color = accent,
-			})
-		end
 	end
-	paintMinimapNodes(dots)
 
 	-- Staggered draw: each connector grows, then its node pops. Watching
 	-- the tree build itself is the payoff for opening the screen.
