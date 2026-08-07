@@ -82,12 +82,23 @@ local CANVAS_PAD_BOTTOM = 96
 -- inside a desktop window and the drag would be dead on exactly the
 -- screens most people play on.
 local OVERSCAN = 1.35
-local NODE_SPACING = 150
-local TRUNK_BASE = 110
+-- Spaced so the tree is genuinely TALLER than a typical viewport at
+-- zoom 1. That is what makes panning mean something: zoomed out you see
+-- the whole tree, zoomed in you travel along a branch. At the previous
+-- 150/110 the whole thing fitted on screen at every zoom level, so the
+-- drag had nothing to reach and reasonably read as broken.
+local NODE_SPACING = 200
+local TRUNK_BASE = 140
 
-local ZOOM_MIN = 0.6
-local ZOOM_MAX = 1.5
-local ZOOM_STEP = 0.12
+-- Nodes are 68px at zoom 1, which is already generous on screen, so the
+-- useful range sits mostly BELOW 1 rather than above it. The old ceiling
+-- of 1.5 made a single node fill a sixth of the window.
+local ZOOM_MIN = 0.45
+local ZOOM_MAX = 1.05
+local ZOOM_STEP = 0.08
+-- Opening zoom is capped below 1 so the whole tree lands with air around
+-- it instead of pressed against the edges.
+local ZOOM_FIT_MAX = 0.85
 -- Pan momentum after a flick. Per-frame decay; 0.9 keeps a throw
 -- readable for about half a second without feeling slippery.
 local PAN_FRICTION = 0.9
@@ -156,16 +167,44 @@ local function scaledExtent(): Vector2
 	return canvasExtent * zoom
 end
 
+-- How much empty space is allowed past the outermost node before the
+-- pan stops. Enough to breathe, not enough to lose the tree.
+local PAN_MARGIN = 80
+
 local function clampCanvas(x: number, y: number): (number, number)
 	local view = viewport.AbsoluteSize
-	local extent = scaledExtent()
-	local slackX = extent.X - view.X
-	local slackY = extent.Y - view.Y
-	-- Centre on any axis where the tree is smaller than the window.
-	-- Letting it drift there would mean dragging the tree off into empty
-	-- parchment, which reads as the screen being broken.
-	x = if slackX <= 0 then (view.X - extent.X) / 2 else math.clamp(x, -slackX, 0)
-	y = if slackY <= 0 then (view.Y - extent.Y) / 2 else math.clamp(y, -slackY, 0)
+	if treeSpan.X <= 0 or treeSpan.Y <= 0 then
+		-- Nothing laid out yet (first frame): fall back to the canvas.
+		local extent = scaledExtent()
+		return (view.X - extent.X) / 2, (view.Y - extent.Y) / 2
+	end
+
+	-- Bounds are the TREE's, not the canvas's. The canvas is deliberately
+	-- larger than the window so there is always somewhere to drag, but
+	-- clamping to it let the player pan off into blank lattice and lose
+	-- the tree entirely — and, worse, made the bottom of a branch feel
+	-- unreachable because most of the travel was spent on padding. Bound
+	-- to the branches and every limit of the drag is a real edge of the
+	-- content.
+	local halfWide = treeSpan.X / 2 + NODE_SIZE / 2 + PAN_MARGIN
+	local halfTall = treeSpan.Y / 2 + PAN_MARGIN
+	local left = (treeCenter.X - halfWide) * zoom
+	local right = (treeCenter.X + halfWide) * zoom
+	local top = (treeCenter.Y - halfTall) * zoom
+	local bottom = (treeCenter.Y + halfTall) * zoom
+
+	-- Centre on whichever axis the tree already fits; clamp on the other,
+	-- so the far edge can always be brought fully into view.
+	if right - left <= view.X then
+		x = view.X / 2 - (left + right) / 2
+	else
+		x = math.clamp(x, view.X - right, -left)
+	end
+	if bottom - top <= view.Y then
+		y = view.Y / 2 - (top + bottom) / 2
+	else
+		y = math.clamp(y, view.Y - bottom, -top)
+	end
 	return x, y
 end
 
@@ -215,7 +254,21 @@ local function beginDrag(input: InputObject)
 end
 
 local function setupPanning()
-	viewport.InputBegan:Connect(beginDrag)
+	-- Bound on UserInputService, not on the viewport Frame.
+	--
+	-- viewport.InputBegan was unreliable: the frame is fully transparent
+	-- and the canvas sits over it, and a transparent Frame is not a
+	-- dependable hit-test target for mouse input. The panel now fills the
+	-- whole screen, so while this menu is open ANY press is a press on
+	-- it — there is nothing to hit-test against and no coordinate space to
+	-- reconcile. gameProcessedEvent is deliberately ignored so a drag can
+	-- still start on top of a node or a button; dragMoved is what
+	-- separates a click from a drag afterwards.
+	UserInputService.InputBegan:Connect(function(input: InputObject)
+		if visible then
+			beginDrag(input)
+		end
+	end)
 
 	-- Ended is watched on UserInputService rather than the viewport: a
 	-- drag finishing with the cursor outside the panel would otherwise
@@ -456,8 +509,6 @@ local function makeNode(
 	else
 		meta = `LOCKED - NEEDS LEVEL {perk.requiredLevel}, YOU ARE {level}`
 	end
-
-	button.InputBegan:Connect(beginDrag)
 
 	button.MouseEnter:Connect(function()
 		setDetail(perk.displayName, perk.description, meta, tone)
@@ -833,10 +884,25 @@ local function ensureBuilt()
 
 	local face = Theme.framedPanel(panel, 0)
 
+	-- The panel is full-bleed (IgnoreGuiInset), which is what removes the
+	-- dark border — but it also puts the top of the panel UNDER Roblox's
+	-- own topbar buttons, and those were sitting on top of the title and
+	-- the tool buttons. So the background runs edge to edge while the
+	-- CONTENT is inset below the topbar. Measured from GuiService rather
+	-- than hard-coded, since that strip is a different height on mobile
+	-- and console than on desktop.
+	local topbar = 36
+	local ok, inset = pcall(function()
+		return GuiService:GetGuiInset()
+	end)
+	if ok and inset then
+		topbar = math.max(inset.Y, 8)
+	end
+
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, 18)
 	padding.PaddingRight = UDim.new(0, 18)
-	padding.PaddingTop = UDim.new(0, 14)
+	padding.PaddingTop = UDim.new(0, topbar + 10)
 	padding.PaddingBottom = UDim.new(0, 14)
 	padding.Parent = face
 
@@ -867,6 +933,8 @@ local function ensureBuilt()
 	viewport = Instance.new("Frame")
 	viewport.Position = UDim2.fromOffset(0, 30)
 	viewport.Size = UDim2.new(1, 0, 1, -114)
+	-- (30 title + 76 detail plaque + 8 gap = 114, all inside the padded
+	-- area, so the topbar inset above is already accounted for.)
 	viewport.BackgroundTransparency = 1
 	viewport.ClipsDescendants = true
 	viewport.ZIndex = 4
@@ -1083,8 +1151,8 @@ local function open()
 	-- screen rather than as a space you are meant to explore. Zooming out
 	-- past 1 is capped so a small tree never blows up to fill the window.
 	local view = viewport.AbsoluteSize
-	local fit = math.min(view.X / (treeSpan.X + NODE_SIZE * 2 + 80), view.Y / (treeSpan.Y + 80))
-	zoom = math.clamp(fit, ZOOM_MIN, 1)
+	local fit = math.min(view.X / (treeSpan.X + NODE_SIZE * 2 + 160), view.Y / (treeSpan.Y + 160))
+	zoom = math.clamp(fit, ZOOM_MIN, ZOOM_FIT_MAX)
 	canvasScale.Scale = zoom
 	setCanvasPosition(view.X / 2 - treeCenter.X * zoom, view.Y / 2 - treeCenter.Y * zoom)
 
