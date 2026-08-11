@@ -33,6 +33,7 @@ local CURSOR_GUI_NAMES: { [string]: boolean } = {
 	CompendiumUI = true,
 	SkillTreeUI = true,
 	SettingsUI = true,
+	QuestLogUI = true,
 }
 
 -- Every watched ScreenGui that currently wants the cursor. A set rather
