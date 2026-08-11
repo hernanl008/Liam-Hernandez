@@ -16,6 +16,7 @@ local FishingConfig = require(Modules:WaitForChild("Fishing"):WaitForChild("Fish
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+local QuestService = require(script.Parent:WaitForChild("QuestService"))
 local DayCycleService = require(script.Parent:WaitForChild("DayCycleService"))
 
 local FishingService = {}
@@ -286,6 +287,7 @@ function FishingService.init()
 		end
 
 		local isNewDiscovery = PlayerDataService.addItem(player, "fish", reel.fish.id, 1)
+		QuestService.report(player, "catch", reel.fish.id, 1)
 
 		-- Quality-scaled XP: a barely-scraped reel earns ~0.65x the base
 		-- rarity XP, a flawless one ~1.5x, and a

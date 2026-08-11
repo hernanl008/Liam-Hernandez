@@ -25,6 +25,7 @@ local CharacterSpriteController = require(Controllers:WaitForChild("CharacterSpr
 local MouseCursorController = require(Controllers:WaitForChild("MouseCursorController"))
 local WaterController = require(Controllers:WaitForChild("WaterController"))
 local ChatController = require(Controllers:WaitForChild("ChatController"))
+local QuestController = require(Controllers:WaitForChild("QuestController"))
 
 CameraController.init()
 CharacterSpriteController.init()
@@ -45,6 +46,9 @@ SettingsController.init()
 SleepController.init()
 DayTransitionController.init()
 HudController.init()
+-- After HudController: the tracker positions itself under the HUD panels
+-- and both read the same topbar inset.
+QuestController.init()
 AmbienceController.init()
 -- Must init after DialogueController: it adds its own ProximityPrompt to
 -- Kaleb's part and depends on DialogueController having already claimed/

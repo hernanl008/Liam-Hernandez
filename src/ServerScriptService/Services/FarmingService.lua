@@ -18,6 +18,7 @@ local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 local FarmingConfig = require(Modules:WaitForChild("Farming"):WaitForChild("FarmingConfig"))
 
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+local QuestService = require(script.Parent:WaitForChild("QuestService"))
 local DayCycleService = require(script.Parent:WaitForChild("DayCycleService"))
 
 local FarmingService = {}
@@ -192,6 +193,9 @@ function FarmingService.init()
 		local gotBonus = hasGreenThumb and math.random() < GREEN_THUMB_BONUS_CHANCE
 
 		local isNewDiscovery = PlayerDataService.addItem(player, "crops", cropId, gotBonus and 2 or 1)
+		-- Counted from the existing award, so a harvest advances a quest
+		-- whether or not one is watching.
+		QuestService.report(player, "harvest", cropId, gotBonus and 2 or 1)
 		local xpResult = PlayerDataService.addSkillXp(player, "Farming", (crop and crop.sellPrice or 5))
 
 		if crop and crop.regrowable then

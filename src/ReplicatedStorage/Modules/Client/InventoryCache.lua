@@ -30,6 +30,8 @@ export type Snapshot = {
 	flags: { [string]: boolean },
 	relationships: { [string]: number },
 	assistMode: boolean,
+	questProgress: { [string]: { number } },
+	questsCompleted: { [string]: boolean },
 }
 
 local InventoryCache = {}
@@ -48,6 +50,8 @@ local snapshot: Snapshot = {
 	flags = {},
 	relationships = {},
 	assistMode = true,
+	questProgress = {},
+	questsCompleted = {},
 }
 
 local initialized = false

@@ -39,6 +39,7 @@ local EVENT_NAMES = {
 	"RequestSleep",
 	"SleepRejected",
 	"DayChanged",
+	"QuestCompleted",
 }
 
 local Remotes = {}

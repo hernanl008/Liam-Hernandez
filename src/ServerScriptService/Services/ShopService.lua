@@ -14,6 +14,7 @@ local FarmingConfig = require(Modules:WaitForChild("Farming"):WaitForChild("Farm
 local RhythmGameConfig = require(Modules:WaitForChild("Cooking"):WaitForChild("RhythmGameConfig"))
 
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+local QuestService = require(script.Parent:WaitForChild("QuestService"))
 
 local ShopService = {}
 
@@ -116,6 +117,10 @@ function ShopService.init()
 
 		PlayerDataService.removeItem(player, category :: SellableCategory, id, amount)
 		PlayerDataService.addGold(player, unitPrice * amount)
+		QuestService.report(player, "sell", id, amount)
+		-- "Hold N gold" is a state rather than an event, so it is
+		-- re-read from the balance instead of incremented.
+		QuestService.refreshGold(player)
 	end)
 end
 

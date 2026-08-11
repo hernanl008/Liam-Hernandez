@@ -19,6 +19,7 @@ local DayCycleService = require(Services:WaitForChild("DayCycleService"))
 local SkillService = require(Services:WaitForChild("SkillService"))
 local ShopService = require(Services:WaitForChild("ShopService"))
 local SettingsService = require(Services:WaitForChild("SettingsService"))
+local QuestService = require(Services:WaitForChild("QuestService"))
 
 -- Build the world before wiring the systems that depend on tagged parts
 -- existing (FarmingService etc. also handle parts appearing later via
@@ -34,6 +35,9 @@ DayCycleService.init()
 SkillService.init()
 ShopService.init()
 SettingsService.init()
+-- After the services it counts events from, so their handlers are
+-- connected before the first report can fire.
+QuestService.init()
 
 -- Keep FarmingService decoupled from DayCycleService (see DayCycleService
 -- comments) — wire the one thing they actually share here instead.

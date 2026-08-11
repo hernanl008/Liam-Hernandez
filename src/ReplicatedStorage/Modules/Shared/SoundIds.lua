@@ -33,4 +33,7 @@ SoundIds.SkillOpen = "" -- the tree screen opens
 SoundIds.SkillHover = "" -- cursor enters a node
 SoundIds.SkillUnlock = "" -- a perk is bought
 
+-- Quests (QuestController.lua)
+SoundIds.QuestComplete = "" -- a quest's last objective is met
+
 return SoundIds

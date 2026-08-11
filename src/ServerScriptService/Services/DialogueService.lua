@@ -11,6 +11,7 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Remotes = require(Modules:WaitForChild("Shared"):WaitForChild("Remotes"))
 
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+local QuestService = require(script.Parent:WaitForChild("QuestService"))
 
 local DialogueService = {}
 
@@ -59,7 +60,18 @@ function DialogueService.init()
 		end
 
 		if FLAG_ONLY_ACTIONS[action] then
+			local firstMeeting = not PlayerDataService.hasFlag(player, action)
 			PlayerDataService.setFlag(player, action, true)
+			-- Met_<NpcId> is fired on every conversation, so "talk to X"
+			-- objectives count only the FIRST one — otherwise re-opening a
+			-- dialogue would tick the objective again and a three-person
+			-- quest could be finished by talking to one person three times.
+			if firstMeeting then
+				local npcId = string.match(action, "^Met_(.+)$")
+				if npcId then
+					QuestService.report(player, "talk", npcId, 1)
+				end
+			end
 			return
 		end
 

@@ -16,6 +16,7 @@ local FishingConfig = require(Modules:WaitForChild("Fishing"):WaitForChild("Fish
 local FarmingConfig = require(Modules:WaitForChild("Farming"):WaitForChild("FarmingConfig"))
 
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+local QuestService = require(script.Parent:WaitForChild("QuestService"))
 
 local CookingService = {}
 
@@ -113,6 +114,7 @@ function CookingService.init()
 
 		local dishId = `{pending.recipe.id}_{tier}`
 		PlayerDataService.addItem(player, "dishes", dishId, 1)
+		QuestService.report(player, "cook", recipeId, 1)
 		local isNewDiscovery = PlayerDataService.discover(player, "dishes", pending.recipe.id)
 		local xpResult = PlayerDataService.addSkillXp(player, "Cooking", XP_BY_TIER[tier] or 5)
 

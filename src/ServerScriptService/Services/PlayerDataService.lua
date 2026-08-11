@@ -56,6 +56,11 @@ export type PlayerData = {
 	skillXp: { [SkillTreeConfig.SkillId]: number },
 	skillPoints: { [SkillTreeConfig.SkillId]: number },
 	unlockedPerks: { [SkillTreeConfig.SkillId]: { [string]: boolean } },
+	-- Per-quest objective counters, keyed by quest id. A quest with no
+	-- entry has not been started; QuestService creates one the first time
+	-- it becomes available.
+	questProgress: { [string]: { number } },
+	questsCompleted: { [string]: boolean },
 }
 
 -- fish/crops/junk use the same id in inventory and in the Compendium
@@ -95,6 +100,8 @@ local function newPlayerData(): PlayerData
 		skillXp = { Farming = 0, Fishing = 0, Cooking = 0 },
 		skillPoints = { Farming = 0, Fishing = 0, Cooking = 0 },
 		unlockedPerks = { Farming = {}, Fishing = {}, Cooking = {} },
+		questProgress = {},
+		questsCompleted = {},
 	}
 end
 
@@ -194,7 +201,22 @@ local function syncToClient(player: Player, data: PlayerData)
 		flags = data.flags,
 		relationships = data.relationships,
 		assistMode = data.assistMode,
+		questProgress = data.questProgress,
+		questsCompleted = data.questsCompleted,
 	})
+end
+
+-- Pushes the current snapshot to `player`.
+--
+-- Public because QuestService mutates questProgress in place — counters
+-- are plain numbers inside this data table, not items that go through
+-- addItem — and still needs the client to be told. Everything else here
+-- syncs as a side effect of its own mutator.
+function PlayerDataService.sync(player: Player)
+	local data = dataByPlayer[player]
+	if data then
+		syncToClient(player, data)
+	end
 end
 
 -- Marks `id` (a recipe/species/crop id — NOT an inventory key, see the
