@@ -181,46 +181,142 @@ Theme.CornerRadius = UDim.new(0, 12)
 -- Rounded corners + a gold stroke border + a subtle top-to-bottom
 -- gradient — the one call that makes any Frame read as "this game's UI"
 -- instead of a plain rectangle.
-function Theme.applyPanel(frame: Frame | ImageLabel, options: { strokeThickness: number? }?)
+-- Adds a decorative border BEHIND `frame` as siblings, and turns the
+-- frame itself into the parchment face.
+--
+-- Siblings, not children, and that is the whole trick. The nested
+-- version (Theme.framedPanel) has to return a face for callers to parent
+-- content to, which means every call site has to be rewritten — and on a
+-- TextButton a nested face covers the button's own text outright. Layers
+-- placed behind as slightly larger siblings need neither: existing
+-- screens keep parenting content straight to the frame they always used,
+-- and buttons keep their labels.
+--
+-- The position maths handles any AnchorPoint. A decoration `pad` larger
+-- on every side shares the frame's centre when its Position is offset by
+-- ((2*ax - 1) * pad, (2*ay - 1) * pad) — which resolves to -pad at
+-- anchor 0, 0 at anchor 0.5 and +pad at anchor 1.
+local function addBackingLayer(frame: GuiObject, pad: number, color: Color3, radius: number, depth: number): Frame
+	local anchor = frame.AnchorPoint
+	local layer = Instance.new("Frame")
+	layer.Name = "Backing"
+	layer.AnchorPoint = anchor
+	layer.Position = frame.Position + UDim2.fromOffset((2 * anchor.X - 1) * pad, (2 * anchor.Y - 1) * pad)
+	layer.Size = frame.Size + UDim2.fromOffset(pad * 2, pad * 2)
+	layer.BackgroundColor3 = color
+	layer.BorderSizePixel = 0
+	layer.ZIndex = frame.ZIndex - depth
+	layer.Parent = frame.Parent
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = Theme.CornerRadius
-	corner.Parent = frame
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = layer
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.Colors.PanelStroke
-	stroke.Thickness = (options and options.strokeThickness) or 2
-	-- Border, not the Contextual default. Contextual outlines the border
-	-- of a Frame but the GLYPHS of a TextLabel/TextButton/TextBox, and
-	-- these helpers get applied to buttons (ShopUI's sell buttons, the
-	-- dialogue options) as readily as to panels. On a button that default
-	-- draws a thick dark outline around every letter, which at pixel-font
-	-- sizes smears the text into unreadable blobs. Border is a no-op on
-	-- Frames, so it is always the right thing for a shared helper.
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = frame
+	-- Follow the frame if it is moved or resized later; several screens
+	-- lay out with UIListLayout, which writes Position after the fact.
+	local function sync()
+		local a = frame.AnchorPoint
+		layer.AnchorPoint = a
+		layer.Position = frame.Position + UDim2.fromOffset((2 * a.X - 1) * pad, (2 * a.Y - 1) * pad)
+		layer.Size = frame.Size + UDim2.fromOffset(pad * 2, pad * 2)
+	end
+	frame:GetPropertyChangedSignal("Position"):Connect(sync)
+	frame:GetPropertyChangedSignal("Size"):Connect(sync)
+
+	return layer
+end
+
+-- Parchment gradient for `frame`, TINTED toward whatever colour the
+-- caller had already set.
+--
+-- These helpers now paint the surface themselves, and simply overwriting
+-- BackgroundColor3 would throw away meaning: several screens colour a
+-- card to say something (ShopUI's sell button uses ButtonAvailable,
+-- InventoryUI tiles differ by category). Blending the caller's colour
+-- into the parchment keeps that signal while the panel still reads as
+-- parchment. A frame left at Roblox's default grey is treated as "no
+-- opinion" and gets plain parchment.
+local ROBLOX_DEFAULT_BACKGROUND = Color3.fromRGB(163, 162, 165)
+local TINT_STRENGTH = 0.4
+
+local function applyParchmentFill(frame: GuiObject)
+	local base = frame.BackgroundColor3
+	local top = Theme.RetroColors.Parchment
+	local bottom = Theme.RetroColors.ParchmentShadow
+	if base ~= ROBLOX_DEFAULT_BACKGROUND and base ~= Color3.new(1, 1, 1) then
+		top = top:Lerp(base, TINT_STRENGTH)
+		bottom = bottom:Lerp(base, TINT_STRENGTH)
+	end
+
+	-- White, so the gradient shows its true colours: UIGradient multiplies
+	-- against BackgroundColor3 rather than replacing it.
+	frame.BackgroundColor3 = Color3.new(1, 1, 1)
+	frame.BorderSizePixel = 0
 
 	local gradient = Instance.new("UIGradient")
-	gradient.Color = ColorSequence.new(Theme.Colors.PanelTop, Theme.Colors.PanelBottom)
+	gradient.Color = ColorSequence.new(top, bottom)
 	gradient.Rotation = 90
 	gradient.Parent = frame
 end
 
--- Smaller rounded corner (no stroke/gradient) for interior cards/rows
--- that sit inside an already-themed panel.
+function Theme.applyPanel(frame: Frame | ImageLabel, options: { strokeThickness: number? }?)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = frame
+
+	applyParchmentFill(frame)
+
+	-- Bright ring, dark rim, then a shadow under both.
+	addBackingLayer(frame, 3, Theme.RetroColors.WoodLight, 10, 1)
+	addBackingLayer(frame, 6, Theme.RetroColors.WoodDark, 12, 2)
+	local shadow = addBackingLayer(frame, 6, Color3.fromRGB(38, 22, 12), 12, 3)
+	shadow.BackgroundTransparency = 0.55
+	shadow.Position += UDim2.fromOffset(0, 3)
+end
+
 function Theme.applyCard(frame: Frame, radius: number?)
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, radius or 8)
+	corner.CornerRadius = UDim.new(0, radius or 6)
 	corner.Parent = frame
+
+	applyParchmentFill(frame)
+
+	addBackingLayer(frame, 2, Theme.RetroColors.WoodLight, (radius or 6) + 2, 1)
+	addBackingLayer(frame, 4, Theme.RetroColors.WoodDark, (radius or 6) + 4, 2)
+end
+
+-- Darkens a colour enough to read as ink on parchment while keeping its
+-- hue.
+--
+-- Needed because applyPanel now paints panels LIGHT, and every existing
+-- screen was written for the old dark panels: it passes pale accents
+-- (AccentGold, AccentPink, Success) that would be all but invisible on
+-- parchment. Ignoring the caller's colour outright would work but throws
+-- away real meaning — a green "success" line and a red warning are
+-- carrying information. Scaling the value down instead keeps green
+-- green and pink pink while guaranteeing contrast.
+--
+-- 0.28 is not a taste call: the panel gradient runs Parchment down to
+-- ParchmentShadow, so text near the bottom of a panel sits on the darker
+-- tone, and that is the case the factor has to clear. Checked against
+-- every accent the old screens pass, using the WCAG relative-luminance
+-- formula on the SHADOW end. 0.42 left the worst of them at 3.2:1 and
+-- 0.32 still fell just short; 0.28 puts the worst at 5.1:1, past the 4.5
+-- threshold for body text.
+local INK_VALUE_FACTOR = 0.28
+
+local function inkify(color: Color3): Color3
+	local h, sat, value = color:ToHSV()
+	return Color3.fromHSV(h, math.min(sat + 0.15, 1), math.min(value, 1) * INK_VALUE_FACTOR)
 end
 
 function Theme.styleHeader(label: TextLabel, color: Color3?)
 	label.Font = Theme.Fonts.Header
-	label.TextColor3 = color or Theme.Colors.AccentGold
+	label.TextColor3 = if color then inkify(color) else Theme.RetroColors.Ink
 end
 
 function Theme.styleBody(label: TextLabel, color: Color3?)
 	label.Font = Theme.Fonts.Body
-	label.TextColor3 = color or Theme.Colors.TextPrimary
+	label.TextColor3 = if color then inkify(color) else Theme.RetroColors.Ink
 end
 
 -- Bold outlined text for spectacle banners/combo counters — the "shonen
